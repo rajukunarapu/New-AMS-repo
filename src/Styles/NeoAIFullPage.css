@@ -352,13 +352,120 @@
   border-top: 1px solid #f1f5f9;
   padding-top: 10px;
 }
+/* ── Attachment button (input row) ── */
+.neoai-fullpage-attachment-btn {
+  background: transparent;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #64748b;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
 
-@media (max-width: 1024px) {
-  .neoai-fullpage-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
-  }
-  .neoai-chat-box {
-    min-height: auto;
-  }
+.neoai-fullpage-attachment-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* ── Attachment chip (above input row) ── */
+.neoai-fullpage-attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 6px 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #1e40af;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.neoai-fullpage-attachment-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 320px;
+}
+
+.neoai-fullpage-attachment-chip-remove {
+  background: transparent;
+  border: none;
+  color: #1e40af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 3px;
+  transition: background 0.15s ease;
+  flex-shrink: 0;
+}
+
+.neoai-fullpage-attachment-chip-remove:hover {
+  background: rgba(30, 64, 175, 0.12);
+}
+
+/* ── Dark Theme Overrides for Full Page Chat ── */
+body.dark-theme .neoai-fullpage-title,
+[data-theme="dark"] .neoai-fullpage-title {
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-fullpage-subtitle,
+[data-theme="dark"] .neoai-fullpage-subtitle {
+  color: #94a3b8 !important;
+}
+
+body.dark-theme .neoai-chat-box,
+[data-theme="dark"] .neoai-chat-box,
+body.dark-theme .neoai-side-panel,
+[data-theme="dark"] .neoai-side-panel {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-bot-card,
+[data-theme="dark"] .neoai-bot-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-user-bubble,
+[data-theme="dark"] .neoai-user-bubble {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-step-desc,
+[data-theme="dark"] .neoai-step-desc,
+body.dark-theme .neoai-trace-val,
+[data-theme="dark"] .neoai-trace-val {
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-fullpage-input,
+[data-theme="dark"] .neoai-fullpage-input {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-suggestion-pill-btn,
+[data-theme="dark"] .neoai-suggestion-pill-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
 }

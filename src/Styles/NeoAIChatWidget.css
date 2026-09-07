@@ -209,19 +209,51 @@
 
 .neoai-message-bubble.bot {
   align-self: flex-start;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  color: #0f172a;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #000000;
   border-bottom-left-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+body.dark-theme .neoai-message-bubble.bot,
+[data-theme="dark"] .neoai-message-bubble.bot {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-floating-popover,
+[data-theme="dark"] .neoai-floating-popover,
+body.dark-theme .neoai-card-header,
+[data-theme="dark"] .neoai-card-header,
+body.dark-theme .neoai-card-body,
+[data-theme="dark"] .neoai-card-body,
+body.dark-theme .neoai-card-footer,
+[data-theme="dark"] .neoai-card-footer {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-header-title,
+[data-theme="dark"] .neoai-header-title {
+  color: #ffffff !important;
 }
 
 .neoai-message-bubble.thinking {
   background: #f8fafc;
-  color: #64748b;
+  color: #000000;
   font-size: 11.5px;
   flex-direction: row;
   align-items: center;
   gap: 8px;
+}
+
+body.dark-theme .neoai-message-bubble.thinking,
+[data-theme="dark"] .neoai-message-bubble.thinking {
+  background: #1e293b !important;
+  color: #ffffff !important;
 }
 
 .neoai-message-citation {
@@ -443,17 +475,40 @@
   line-height: 1.35;
 }
 
-@media (max-width: 600px) {
-  .neoai-floating-popover {
-    width: calc(100vw - 20px);
-    right: 10px;
-    bottom: 60px;
-    max-height: 82vh;
-  }
-  .neoai-bottom-trigger-btn {
-    bottom: 16px;
-    right: 16px;
-    font-size: 12px;
-    padding: 7px 12px;
-  }
+/* ── Attachment Chip ── */
+.neoai-attachment-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 14px 8px;
+  padding: 5px 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #1e40af;
+}
+
+.neoai-attachment-chip-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.neoai-attachment-chip-remove {
+  background: transparent;
+  border: none;
+  color: #1e40af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 3px;
+  transition: background 0.15s ease;
+}
+
+.neoai-attachment-chip-remove:hover {
+  background: rgba(30, 64, 175, 0.12);
 }

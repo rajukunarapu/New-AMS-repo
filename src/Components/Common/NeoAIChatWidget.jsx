@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import "../../Styles/NeoAIChatWidget.css";
 import { CircularProgress } from "@mui/material";
 import { useNeoAI } from "../../Context/NeoAIContext";
+import FormattedMarkdown, { SingleTicketCard, MultiTicketTable } from "./FormattedMessage";
 
 const NeoAIChatWidget = ({
   contextName = "Support Dashboard · Module Lead",
@@ -10,6 +11,10 @@ const NeoAIChatWidget = ({
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState("chat"); // "chat" | "email"
   const [query, setQuery] = useState("");
+
+  // ── Attachment state ──
+  const [attachedFile, setAttachedFile] = useState(null);
+  const fileInputRef = useRef(null);
 
   const { messages, isThinking, askNeoAI, resetChat, defaultSuggestions } = useNeoAI();
 
@@ -31,16 +36,46 @@ const NeoAIChatWidget = ({
     }
   }, [messages, isThinking, isOpen]);
 
+  // ── Attachment handlers ──
+  const handleAttachClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleFileSelected = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      setAttachedFile(file);
+    }
+    // reset so selecting the same file again still fires onChange
+    e.target.value = "";
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachedFile(null);
+  };
+
   const handleAsk = (questionText) => {
     const q = (questionText || query).trim();
-    if (!q) return;
-    askNeoAI(q);
+    if (!q && !attachedFile) return;
+
+    // If askNeoAI supports a second (file) argument this passes it through;
+    // otherwise it's simply ignored by the existing signature — safe either way.
+    if (attachedFile) {
+      askNeoAI(q || `Attached file: ${attachedFile.name}`, attachedFile);
+    } else {
+      askNeoAI(q);
+    }
+
     setQuery("");
+    setAttachedFile(null);
   };
 
   const handleResetChat = () => {
     resetChat();
     setQuery("");
+    setAttachedFile(null);
   };
 
   const handleSendEmail = (e) => {
@@ -64,7 +99,7 @@ const NeoAIChatWidget = ({
         });
         setViewMode("chat");
       }, 1500);
-    }, 800);
+    }, 1500);
   };
 
   return (
@@ -83,18 +118,6 @@ const NeoAIChatWidget = ({
                   <span className="neoai-header-context">Context: {contextName}</span>
                 </div>
                 <div className="neoai-header-actions">
-                    {/* <button
-                      type="button"
-                      className="neoai-header-btn"
-                      title="Compose New Ticket Email"
-                      onClick={() => setViewMode("email")}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                        <polyline points="22,6 12,13 2,6" />
-                      </svg>
-                    </button> */}
-
                   <button
                     type="button"
                     className="neoai-header-btn"
@@ -151,8 +174,22 @@ const NeoAIChatWidget = ({
                         className={`neoai-message-bubble ${m.sender === "user" ? "user" : "bot"}`}
                       >
                         <div className="neoai-message-text">
-                          {m.text || m.query || m.header}
+                          {m.sender === "user" ? (
+                            m.text || m.query
+                          ) : (
+                            <FormattedMarkdown text={m.text || m.header} />
+                          )}
                         </div>
+
+                        {/* Single Ticket Detail Card displaying ALL Labels */}
+                        {m.sender === "bot" && m.data && Array.isArray(m.data) && m.data.length === 1 && (
+                          <SingleTicketCard ticket={m.data[0]} />
+                        )}
+
+                        {/* Multi Ticket Table with View All Labels toggle */}
+                        {m.sender === "bot" && m.data && Array.isArray(m.data) && m.data.length > 1 && (
+                          <MultiTicketTable tickets={m.data} />
+                        )}
                         {m.bullets && m.bullets.length > 0 && (
                           <ul style={{ margin: "6px 0 4px 16px", padding: 0, fontSize: "12px", lineHeight: "1.4" }}>
                             {m.bullets.map((b, i) => (
@@ -185,9 +222,45 @@ const NeoAIChatWidget = ({
                 )}
               </div>
 
+              {/* Attached file chip (shown above footer when a file is selected) */}
+              {attachedFile && (
+                <div className="neoai-attachment-chip">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                  </svg>
+                  <span className="neoai-attachment-chip-name" title={attachedFile.name}>
+                    {attachedFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    className="neoai-attachment-chip-remove"
+                    onClick={handleRemoveAttachment}
+                    title="Remove attachment"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
               {/* Footer Input */}
               <div className="neoai-card-footer">
-                <button type="button" className="neoai-attachment-btn" title="Attach file">
+                {/* Hidden native file input */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  style={{ display: "none" }}
+                  onChange={handleFileSelected}
+                />
+
+                <button
+                  type="button"
+                  className="neoai-attachment-btn"
+                  title="Attach file"
+                  onClick={handleAttachClick}
+                >
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
                   </svg>
@@ -208,14 +281,14 @@ const NeoAIChatWidget = ({
                   type="button"
                   className="neoai-ask-btn"
                   onClick={() => handleAsk()}
-                  disabled={!query.trim() || isThinking}
+                  disabled={(!query.trim() && !attachedFile) || isThinking}
                 >
                   Ask
                 </button>
               </div>
             </div>
           ) : (
-            /* ── New Message / Email Composer View (Screenshot 2) ── */
+            /* ── New Message / Email Composer View (Screenshot 2) — unchanged ── */
             <div className="neoai-card-wrapper email-view">
               {/* Header */}
               <div className="neoai-email-header">

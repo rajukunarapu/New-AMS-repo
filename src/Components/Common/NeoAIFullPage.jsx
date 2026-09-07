@@ -2,26 +2,57 @@ import React, { useState, useRef, useEffect } from "react";
 import "../../Styles/NeoAIFullPage.css";
 import { CircularProgress } from "@mui/material";
 import { useNeoAI } from "../../Context/NeoAIContext";
-
+import FormattedMarkdown, { SingleTicketCard, MultiTicketTable } from "./FormattedMessage";
+ 
 const NeoAIFullPage = () => {
   const [query, setQuery] = useState("");
   const { messages, isThinking, activeTrace, askNeoAI, defaultSuggestions } = useNeoAI();
 
+  // ── Attachment state ──
+  const [attachedFile, setAttachedFile] = useState(null);
+  const fileInputRef = useRef(null);
+ 
   const chatEndRef = useRef(null);
-
+ 
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isThinking]);
 
-  const handleAsk = (questionText) => {
-    const q = (questionText || query).trim();
-    if (!q) return;
-    askNeoAI(q);
-    setQuery("");
+  // ── Attachment handlers ──
+  const handleAttachClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
   };
 
+  const handleFileSelected = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      setAttachedFile(file);
+    }
+    e.target.value = "";
+  };
+
+  const handleRemoveAttachment = () => {
+    setAttachedFile(null);
+  };
+ 
+  const handleAsk = (questionText) => {
+    const q = (questionText || query).trim();
+    if (!q && !attachedFile) return;
+
+    if (attachedFile) {
+      askNeoAI(q || `Attached file: ${attachedFile.name}`, attachedFile);
+    } else {
+      askNeoAI(q);
+    }
+
+    setQuery("");
+    setAttachedFile(null);
+  };
+ 
   return (
     <div className="neoai-fullpage-container">
       {/* Header Section */}
@@ -31,7 +62,7 @@ const NeoAIFullPage = () => {
           Ask about tickets, customers and past fixes in plain language. Answers cite where they came from, and an unsupported question gets "no answer" rather than a guess.
         </p>
       </div>
-
+ 
       {/* Main 2-Column Layout */}
       <div className="neoai-fullpage-grid">
         {/* Left Column: Interactive Chat Area */}
@@ -50,12 +81,22 @@ const NeoAIFullPage = () => {
                     </div>
                   );
                 }
-
+ 
                 return (
                   <div key={m.id} className="neoai-bot-response-wrap">
                     <span className="neoai-bubble-sender-lbl bot">NEOAI</span>
                     <div className="neoai-bot-card">
-                      <p className="neoai-bot-card-heading">{m.header || m.text}</p>
+                      <FormattedMarkdown text={m.text || m.header} />
+                      
+                      {/* Single Ticket Detail Card displaying ALL Labels */}
+                      {m.data && Array.isArray(m.data) && m.data.length === 1 && (
+                        <SingleTicketCard ticket={m.data[0]} />
+                      )}
+
+                      {/* Multi Ticket Table with View All Labels toggle */}
+                      {m.data && Array.isArray(m.data) && m.data.length > 1 && (
+                        <MultiTicketTable tickets={m.data} />
+                      )}
                       {m.bullets && m.bullets.length > 0 && (
                         <ul className="neoai-bot-bullets">
                           {m.bullets.map((b, i) => (
@@ -67,7 +108,7 @@ const NeoAIFullPage = () => {
                         <p className="neoai-bot-action-text">{m.action}</p>
                       )}
                     </div>
-
+ 
                     {/* Tag Pills */}
                     {m.tags && (
                       <div className="neoai-citation-tags-row">
@@ -78,7 +119,7 @@ const NeoAIFullPage = () => {
                         ))}
                       </div>
                     )}
-
+ 
                     {/* Telemetry Subtext */}
                     {m.telemetry && (
                       <div className="neoai-telemetry-subtext">
@@ -88,7 +129,7 @@ const NeoAIFullPage = () => {
                   </div>
                 );
               })}
-
+ 
               {isThinking && (
                 <div className="neoai-bot-response-wrap thinking">
                   <span className="neoai-bubble-sender-lbl bot">NEOAI</span>
@@ -98,12 +139,54 @@ const NeoAIFullPage = () => {
                   </div>
                 </div>
               )}
-
+ 
               <div ref={chatEndRef} />
             </div>
 
+            {/* Attached file chip (shown above the input row when a file is selected) */}
+            {attachedFile && (
+              <div className="neoai-fullpage-attachment-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+                <span className="neoai-fullpage-attachment-chip-name" title={attachedFile.name}>
+                  {attachedFile.name}
+                </span>
+                <button
+                  type="button"
+                  className="neoai-fullpage-attachment-chip-remove"
+                  onClick={handleRemoveAttachment}
+                  title="Remove attachment"
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
+            )}
+ 
             {/* Input Row */}
             <div className="neoai-input-wrapper">
+              {/* Hidden native file input */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                style={{ display: "none" }}
+                onChange={handleFileSelected}
+              />
+
+              <button
+                type="button"
+                className="neoai-fullpage-attachment-btn"
+                title="Attach file"
+                onClick={handleAttachClick}
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+              </button>
+
               <input
                 type="text"
                 className="neoai-fullpage-input"
@@ -118,12 +201,12 @@ const NeoAIFullPage = () => {
                 type="button"
                 className="neoai-fullpage-ask-btn"
                 onClick={() => handleAsk()}
-                disabled={!query.trim() || isThinking}
+                disabled={(!query.trim() && !attachedFile) || isThinking}
               >
                 Ask
               </button>
             </div>
-
+ 
             {/* Suggested Prompt Pills */}
             <div className="neoai-suggestions-row">
               {(defaultSuggestions || []).map((suggestion) => (
@@ -139,7 +222,7 @@ const NeoAIFullPage = () => {
             </div>
           </div>
         </div>
-
+ 
         {/* Right Column: Pipeline & Trace Sidebars */}
         <div className="neoai-sidebar-column">
           {/* Panel 1: RETRIEVAL PIPELINE */}
@@ -172,7 +255,7 @@ const NeoAIFullPage = () => {
               </div>
             </div>
           </div>
-
+ 
           {/* Panel 2: RETRIEVAL TRACE */}
           <div className="neoai-side-panel">
             <h3 className="neoai-side-panel-title">RETRIEVAL TRACE</h3>
@@ -219,5 +302,5 @@ const NeoAIFullPage = () => {
     </div>
   );
 };
-
+ 
 export default NeoAIFullPage;

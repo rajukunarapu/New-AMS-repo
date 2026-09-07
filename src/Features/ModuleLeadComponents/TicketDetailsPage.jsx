@@ -1,0 +1,875 @@
+import React from "react";
+import { Alert, Skeleton, LinearProgress } from "@mui/material";
+
+const TicketDetailsPage = ({
+  filteredTickets,
+  visibleTickets,
+  visibleCount,
+  setVisibleCount,
+  selectedTicketIdx,
+  selectedTicket,
+  handleSelectTicket,
+  loadingTickets,
+  formatPriorityCode,
+  getPriorityClass,
+  aiPanelOn,
+  setAiPanelOn,
+  employees,
+  uniqueStatuses,
+  uniquePriorities,
+  assignTo,
+  setAssignTo,
+  assignStatus,
+  setAssignStatus,
+  assignPriority,
+  setAssignPriority,
+  workNote,
+  setWorkNote,
+  showReviewBox,
+  setShowReviewBox,
+  handleReviewChangeClick,
+  handleConfirmAndWrite,
+  isSubmitting,
+  alertOpen,
+  alertType,
+  alertMessage,
+  handleAlertClose,
+  pendingCount,
+  selectedPriorityCode,
+  toPriorityPayloadString,
+  searchText,
+  showAssignUpdateCard = true,
+}) => {
+  return (
+    <>
+      {/* ── Ticket Details Page ── */}
+      <h1 className="mlp-page-title">Ticket Details</h1>
+      <p className="mlp-page-subtitle">
+        Four advisory actions. Every output is validated, carries a confidence score and its evidence — accept, edit or reject.
+      </p>
+
+      {/* ALL TICKETS Section */}
+      <div className="mlp-tickets-header">
+        <span className="mlp-tickets-section-label">All tickets</span>
+        <span className="mlp-tickets-count">
+          {loadingTickets
+            ? "Loading tickets..."
+            : `${Math.min(visibleCount, filteredTickets.length)} of ${filteredTickets.length || 0} tickets`}
+        </span>
+      </div>
+
+      {/* Horizontal Ticket Cards Scroll / Skeleton Loader */}
+      {loadingTickets ? (
+        <div className="mlp-ticket-cards-scroll">
+          {[1, 2, 3, 4, 5, 6, 7].map((sk) => (
+            <div
+              key={sk}
+              className="mlp-ticket-card"
+              style={{
+                minWidth: 200,
+                height: 92,
+                cursor: "default",
+                opacity: 0.85,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                padding: "10px 14px",
+              }}
+            >
+              <div className="mlp-tc-row1" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <Skeleton variant="text" width={75} height={18} />
+                <Skeleton variant="rounded" width={26} height={16} sx={{ borderRadius: "4px" }} />
+              </div>
+              <Skeleton variant="text" width="90%" height={22} sx={{ my: 0.5 }} />
+              <Skeleton variant="text" width="55%" height={16} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="mlp-ticket-cards-scroll">
+          {visibleTickets.map((ticket, idx) => {
+            const pCode = formatPriorityCode(ticket.priority);
+            const isCardSelected = selectedTicket && String(selectedTicket.ticketNo).toLowerCase() === String(ticket.ticketNo).toLowerCase();
+            return (
+              <div
+                key={ticket.ticketNo || idx}
+                className={`mlp-ticket-card ${isCardSelected ? "selected" : ""}`}
+                onClick={() => handleSelectTicket(idx, ticket)}
+              >
+                <div className="mlp-tc-row1">
+                  <span className="mlp-tc-no">{ticket.ticketNo || `T-${idx + 1}`}</span>
+                  <span className={`mlp-tc-priority ${getPriorityClass(ticket.priority)}`}>
+                    {pCode}
+                  </span>
+                </div>
+                <div className="mlp-tc-name">{ticket.remarks || ticket.createdname || "No title"}</div>
+                <div className="mlp-tc-status">{ticket.ticketStatus || "Created"}</div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Show More Button */}
+      {!loadingTickets && visibleCount < filteredTickets.length && (
+        <div className="mlp-show-more-row">
+          <button
+            type="button"
+            className="mlp-show-more-btn"
+            onClick={() => setVisibleCount((prev) => prev + 20)}
+          >
+            <span>Show more</span>
+            <span>({filteredTickets.length - visibleCount} remaining)</span>
+          </button>
+        </div>
+      )}
+
+      {/* Sub-bar Pills Row */}
+      {selectedTicket && (
+        <div className="mlp-ticket-subbar">
+          <div className="mlp-ticket-subbar-left">
+            <span className="mlp-subbar-pill">{selectedPriorityCode}</span>
+            <span className="mlp-subbar-pill">{selectedTicket.ticketStatus || "-"}</span>
+            <span className="mlp-subbar-pill">{selectedTicket.module || "-"}</span>
+            <span className="mlp-subbar-text">
+              {selectedTicket.clientName || "-"}
+            </span>
+            <span className="mlp-subbar-delivery">
+              {/* Delivery 1 of 10 · TICKET ACK */}
+            </span>
+          </div>
+
+          <div className="mlp-ticket-subbar-right">
+            <span>AI help panel</span>
+            <div
+              className={`mlp-toggle-switch ${aiPanelOn ? "on" : "off"}`}
+              onClick={() => setAiPanelOn(!aiPanelOn)}
+            />
+            <span style={{ fontWeight: 600 }}>{aiPanelOn ? "On" : "Off"}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Main Grid: 2-column if aiPanelOn is ON, or full-width with bottom AI cards if OFF */}
+      {selectedTicket ? (
+        <div className={`mlp-td-main-grid ${aiPanelOn ? "" : "full-width"}`}>
+          {/* ── LEFT COLUMN (6 Cards) ── */}
+          <div className="mlp-td-left-col">
+            {/* Card 1: Ticket Overview */}
+            <div className="mlp-td-card">
+              <h2 className="mlp-td-overview-name">
+                { selectedTicket.description ||  selectedTicket.remarks || selectedTicket.createdname }
+              </h2>
+              <div className="mlp-td-divider" />
+
+              <div className="mlp-td-overview-grid">
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">TICKET</span>
+                  <span className="mlp-td-value">{selectedTicket.ticketNo}</span>
+                </div>
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">CUSTOMER</span>
+                  <span className="mlp-td-value">{selectedTicket.clientName }</span>
+                </div>
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">MODULE</span>
+                  <span className="mlp-td-value">{selectedTicket.module }</span>
+                </div>
+
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">RAISED ON</span>
+                  <span className="mlp-td-value">
+                    {selectedTicket.createddate
+                      ? new Date(selectedTicket.createddate).toLocaleString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : "26 Aug 2024, 18:38"}
+                  </span>
+                </div>
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">TICKET RAISED BY</span>
+                  <span className="mlp-td-value">
+                    {selectedTicket.createdname || "-"}
+                  </span>
+                </div>
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">ASSIGNED CONSULTANT</span>
+                  <span className="mlp-td-value">
+                    {selectedTicket.name || "-"}
+                  </span>
+                </div>
+
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">PRIORITY</span>
+                  <span className="mlp-td-value">{selectedTicket.priority || "-"}</span>
+                </div>
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">SOURCE CHANNEL</span>
+                  <span className="mlp-td-value">{selectedTicket.createdEmails || "—"}</span>
+                </div>
+                <div className="mlp-td-field">
+                  <span className="mlp-td-label">TICKET STATUS</span>
+                  <span className="mlp-td-value">{selectedTicket.ticketStatus || "-"}</span>
+                </div>
+              </div>
+
+              {/* SLA & Policy Section */}
+              <div className="mlp-td-sla-box">
+                <div className="mlp-td-sla-row">
+                  <span className="mlp-td-sla-title">SLA</span>
+                  <div className="mlp-td-sla-track">
+                    <div className="mlp-td-sla-fill" style={{ width: "35%" }} />
+                  </div>
+                  <span className="mlp-td-sla-text">Delivery 1 of 10 completed</span>
+                </div>
+
+                <p className="mlp-td-policy-text">
+                  {/* Scope bound to Aabalat Fine Oil at sign-in. Audit correlation ID: aab-20240826-2608266. Runtime policy: ENFORCE_ALL. */}
+                </p>
+              </div>
+            </div>
+
+            {/* Card 2: Documents on this ticket */}
+            <div className="mlp-td-card">
+              <div className="mlp-td-card-header">
+                <h3 className="mlp-td-card-title">Documents on this ticket</h3>
+                <span className="mlp-td-card-meta" style={{ fontSize: 11, color: "#64748b" }}>
+                  FS · Technical Design · Test Scripts — attached on acceptance
+                </span>
+              </div>
+
+              <div
+                style={{
+                  border: "1px dashed #cbd5e1",
+                  borderRadius: "4px",
+                  padding: "12px 16px",
+                  margin: "6px 0 12px",
+                  fontSize: "12px",
+                  color: "#64748b",
+                  lineHeight: "1.5",
+                  backgroundColor: "#fafbfc",
+                }}
+              >
+                No delivery documents yet — only the acknowledgement email sent to the customer, below. Accepting an AI-drafted FS, Technical Design or Test Script in the delivery workflow attaches it here as a version on the ticket.
+              </div>
+
+              <div
+                style={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "4px",
+                  padding: "12px 16px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  backgroundColor: "#ffffff",
+                  flexWrap: "wrap",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+                  <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#1e293b" }}>
+                    Acknowledgement_{selectedTicket.ticketNo || "AAB2608266"}.eml
+                  </span>
+                  <span style={{ fontSize: "11px", color: "#64748b" }}>
+                    Acknowledgement email to the customer · v1.0 · 39 KB · sent 26 Aug · 07:37 IST to servicedesk@aab.example · reference {selectedTicket.ticketNo || "AAB2608266"}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    border: "1px solid #86efac",
+                    backgroundColor: "#f0fdf4",
+                    color: "#166534",
+                    borderRadius: "4px",
+                    padding: "4px 10px",
+                    fontSize: "11px",
+                    fontWeight: 500,
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  Sent to customer · 26 Aug · 07:37 IST
+                </span>
+              </div>
+
+              <div style={{ marginTop: "14px" }}>
+                <button
+                  type="button"
+                  style={{
+                    backgroundColor: "#334155",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "4px",
+                    padding: "7px 14px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  All documents shared
+                </button>
+                <p style={{ fontSize: "11px", color: "#94a3b8", margin: "6px 0 0" }}>
+                  Documents go out together with the customer reply and stay on the ticket as reference and history.
+                </p>
+              </div>
+            </div>
+
+            {/* Card 3: Reported error and evidence */}
+            <div className="mlp-td-card">
+              <div className="mlp-td-card-header">
+                <h3 className="mlp-td-card-title">Reported error and evidence</h3>
+                <span className="mlp-td-card-meta" style={{ fontSize: 11, color: "#64748b" }}>
+                  {/* received 50h ago at support@noevatic.com */}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(5, 1fr)",
+                  gap: "12px",
+                  marginBottom: "12px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>ERROR CODE</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500, color: "#1e293b" }}>-</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>TRANSACTION</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500, color: "#1e293b" }}>-</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>SYSTEM · CLIENT</span>
+                  <span style={{ fontSize: "12px", fontWeight: 600, color: "#0f172a" }}>-</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>USERS AFFECTED</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500, color: "#1e293b" }}>-</span>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase" }}>FIRST SEEN</span>
+                  <span style={{ fontSize: "12px", fontWeight: 500, color: "#1e293b" }}>-</span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: "14px" }}>
+                <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: "2px" }}>OCCURRENCES</span>
+                <span style={{ fontSize: "12px", fontWeight: 500, color: "#1e293b" }}>-</span>
+              </div>
+
+              {/* Inbound Email Box */}
+              <div
+                style={{
+                  border: "1px solid #e2e8f0",
+                  borderRadius: "4px",
+                  overflow: "hidden",
+                  marginBottom: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    backgroundColor: "#f1f5f9",
+                    padding: "7px 12px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    fontSize: "11px",
+                    color: "#475569",
+                    fontWeight: 500,
+                  }}
+                >
+                  <span>Inbound email · THR-81779</span>
+                  {/* <span style={{ fontFamily: "monospace", color: "#64748b" }}>raw-message.eml</span> */}
+                </div>
+                <div style={{ padding: "12px 14px", backgroundColor: "#ffffff" }}>
+                  <div
+                    style={{
+                      border: "1px solid #fecaca",
+                      backgroundColor: "#fff1f2",
+                      color: "#991b1b",
+                      padding: "8px 12px",
+                      borderRadius: "4px",
+                      fontWeight: 600,
+                      fontSize: "12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: "16px",
+                        height: "16px",
+                        borderRadius: "50%",
+                        backgroundColor: "#ef4444",
+                        color: "#ffffff",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "11px",
+                        fontWeight: "bold",
+                        flexShrink: 0,
+                      }}
+                    >
+                      !
+                    </span>
+                    <span>{selectedTicket.createdname || selectedTicket.remarks || "Yugandhar Kukka"}</span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: "6px 14px", fontSize: "11.5px", fontFamily: "monospace, sans-serif" }}>
+                    <span style={{ color: "#64748b" }}>From</span>
+                    <span style={{ color: "#1e293b", fontWeight: 500 }}>customer contact</span>
+
+                    <span style={{ color: "#64748b" }}>Module</span>
+                    <span style={{ color: "#1e293b", fontWeight: 500 }}>{selectedTicket.module || "SAP SAC"}</span>
+
+                    <span style={{ color: "#64748b" }}>Priority</span>
+                    <span style={{ color: "#1e293b", fontWeight: 500 }}>{selectedPriorityCode} · triage</span>
+
+                    <span style={{ color: "#64748b" }}>Confidence</span>
+                    <span style={{ color: "#1e293b", fontWeight: 500 }}>0.84</span>
+                  </div>
+                </div>
+              </div>
+
+              <p style={{ fontSize: "11px", color: "#64748b", margin: "8px 0 14px" }}>
+                No screenshot was attached to this request. The raw message is stored immutably and is the evidence of record until the consultant captures more.
+              </p>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1.2fr 1fr",
+                  gap: "16px",
+                  paddingTop: "14px",
+                  borderTop: "1px solid #f1f5f9",
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                    STEPS TO REPRODUCE
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "11.5px", color: "#334155" }}>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <span style={{ color: "#0284c7", fontWeight: 600 }}>01</span>
+                      <span>Reproduce the reported behaviour in the customer environment.</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <span style={{ color: "#0284c7", fontWeight: 600 }}>02</span>
+                      <span>Capture the message text and the system log entry as evidence.</span>
+                    </div>
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <span style={{ color: "#0284c7", fontWeight: 600 }}>03</span>
+                      <span>Confirm scope: users, transactions and business process affected.</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: "#94a3b8", textTransform: "uppercase", display: "block", marginBottom: "8px" }}>
+                    ATTACHMENTS AND IMPACT
+                  </span>
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px", fontWeight: 500, color: "#1e293b", marginBottom: "6px" }}>
+                    {/* <span style={{ fontFamily: "monospace" }}>raw-message.eml</span> */}
+                    <span style={{ color: "#94a3b8" }}>—</span>
+                  </div>
+                  <p style={{ fontSize: "11px", color: "#64748b", margin: 0, lineHeight: 1.45 }}>
+                    Impact not yet quantified — confirm it with the customer during first response, before the priority is fixed.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 4: Conversation */}
+            <div className="mlp-td-card">
+              <h3 className="mlp-td-card-title">Conversation (1 message)</h3>
+              <div className="mlp-td-convo-list">
+                <div className="mlp-td-convo-item customer">
+                  <div className="mlp-td-convo-meta">
+                    {selectedTicket.createdname || "-"} · {selectedTicket.createddate} · CustomerInboundEmail
+                  </div>
+                  <div className="mlp-td-convo-body">
+                    {selectedTicket.createdname || "-"}, Reported by the customer through the support mailbox: 0 messages on this thread.
+                  </div>
+                </div>
+
+                <div className="mlp-td-convo-item agent">
+                  <div className="mlp-td-convo-meta">Triage & Assignment agent TicketEmailReceived</div>
+                  <div className="mlp-td-convo-body">
+                    Structured fields extracted and acknowledgement sent with reference {selectedTicket.ticketNo || "-"}.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Card 5: Ticket actions — deterministic */}
+            <div className="mlp-td-card">
+              <h3 className="mlp-td-card-title" style={{ marginBottom: 10 }}>
+                Ticket actions — deterministic, written through the Ticket API
+              </h3>
+              <div className="mlp-td-actions-row">
+                <button type="button" className="mlp-td-action-btn active">Assign</button>
+                <button type="button" className="mlp-td-action-btn">Change status</button>
+                <button type="button" className="mlp-td-action-btn">Add work note</button>
+                <button type="button" className="mlp-td-action-btn">Pause clock (customer)</button>
+                <button type="button" className="mlp-td-action-btn">Downgrade priority</button>
+              </div>
+              <p style={{ fontSize: 10, color: "#94a3b8", margin: 0 }}>
+                {/* Tier 0 auto · Tier 1 one-click approval · Tier 2 human only — you hold Tier 2 authority. */}
+              </p>
+            </div>
+
+            {/* Card 6: Assign and update */}
+            {showAssignUpdateCard && (
+              <div className="mlp-td-card">
+                <div className="mlp-td-card-header">
+                  <h3 className="mlp-td-card-title">
+                    Assign and update {selectedTicket.ticketNo || "-"}
+                  </h3>
+                  {/* <span className="mlp-td-pill-badge">human in the loop</span> */}
+                </div>
+                <p style={{ fontSize: 11, color: "#64748b", margin: "0 0 10px" }}>
+                  Nothing is written until you confirm. NeoAI can propose an owner and the next status; the decision and the record stay with you.
+                </p>
+
+                <div className="mlp-td-form-grid">
+                  {/* ASSIGN TO */}
+                  <div className="mlp-td-form-field">
+                    <label className="mlp-td-form-label">
+                      ASSIGN TO <span>*</span>
+                    </label>
+                    <select
+                      className="mlp-td-select"
+                      value={assignTo}
+                      onChange={(e) => setAssignTo(e.target.value)}
+                    >
+                      <option value="">Select consultant</option>
+                      {employees.map((emp) => {
+                        const empName = emp.name || emp.employeeName || "";
+                        return (
+                          <option key={emp.id || emp.employeeId || empName} value={empName}>
+                            {empName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+
+                  {/* STATUS */}
+                  <div className="mlp-td-form-field">
+                    <label className="mlp-td-form-label">
+                      STATUS <span>*</span>
+                    </label>
+                    <select
+                      className="mlp-td-select"
+                      value={assignStatus}
+                      onChange={(e) => setAssignStatus(e.target.value)}
+                    >
+                      <option value="">Select status</option>
+                      {uniqueStatuses.map((s) => (
+                        <option key={s.id || s.name} value={s.name}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* PRIORITY */}
+                  <div className="mlp-td-form-field">
+                    <label className="mlp-td-form-label">
+                      PRIORITY <span>*</span>
+                    </label>
+                    <select
+                      className="mlp-td-select"
+                      value={assignPriority}
+                      onChange={(e) => setAssignPriority(e.target.value)}
+                    >
+                      <option value="">Select priority</option>
+                      {uniquePriorities.map((p) => {
+                        const pCode = p.code || formatPriorityCode(p.name);
+                        const pLabel = `${pCode} · ${p.name}`;
+                        return (
+                          <option key={p.id || p.code || p.name} value={p.name}>
+                            {pLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mlp-td-form-field">
+                  <label className="mlp-td-form-label">Work note (optional)</label>
+                  <textarea
+                    className="mlp-td-textarea"
+                    placeholder="Add work note..."
+                    value={workNote}
+                    onChange={(e) => setWorkNote(e.target.value)}
+                  />
+                </div>
+
+                <div className="mlp-td-form-btns">
+                  <button
+                    type="button"
+                    className="mlp-td-btn-submit"
+                    onClick={handleReviewChangeClick}
+                  >
+                    Review change
+                  </button>
+                  <button type="button" className="mlp-td-btn-recommend">
+                    Ask NeoAI to recommend
+                  </button>
+                  {/* <button type="button" className="mlp-td-link-btn">
+                    See ranked candidates
+                  </button> */}
+                  {/* <span className="mlp-td-sub-muted">
+                    {pendingCount > 0 ? `${pendingCount} pending changes` : "2 pending changes"}
+                  </span> */}
+                </div>
+
+                {/* Alert Message right below Review change button */}
+                {alertOpen && (
+                  <div style={{ marginTop: 12, marginBottom: 12, animation: "fadeInUp 0.25s ease-out" }}>
+                    <Alert
+                      severity={alertType}
+                      onClose={handleAlertClose}
+                      sx={{
+                        borderRadius: "8px",
+                        fontSize: "12.5px",
+                        fontWeight: 500,
+                        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.06)",
+                      }}
+                    >
+                      {alertMessage}
+                    </Alert>
+                  </div>
+                )}
+
+                {/* Review change confirmation box */}
+                {showReviewBox && (
+                  <div className="mlp-td-review-box">
+                    <h4 className="mlp-td-review-title">
+                      Confirm these changes to {selectedTicket.ticketNo || "AAB2608266"}
+                    </h4>
+                    <div className="mlp-td-review-table">
+                      <div className="mlp-td-review-row">
+                        <span className="mlp-td-review-label">Owner</span>
+                        <span className="mlp-td-review-val">
+                          {assignTo || selectedTicket.name || "Abhineet Anand"}
+                        </span>
+                      </div>
+                      <div className="mlp-td-review-row">
+                        <span className="mlp-td-review-label">Status</span>
+                        <span className="mlp-td-review-val">
+                          {assignStatus || selectedTicket.ticketStatus || "Inprocess"}
+                        </span>
+                      </div>
+                      {assignPriority && (
+                        <div className="mlp-td-review-row">
+                          <span className="mlp-td-review-label">Priority</span>
+                          <span className="mlp-td-review-val">
+                            {toPriorityPayloadString(assignPriority)}
+                          </span>
+                        </div>
+                      )}
+                      {workNote && (
+                        <div className="mlp-td-review-row">
+                          <span className="mlp-td-review-label">Description</span>
+                          <span className="mlp-td-review-val">
+                            {workNote}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mlp-td-review-actions">
+                      <button
+                        type="button"
+                        className="mlp-td-btn-submit"
+                        disabled={isSubmitting}
+                        onClick={handleConfirmAndWrite}
+                      >
+                        {isSubmitting ? "Writing changes..." : "Confirm and write"}
+                      </button>
+                      <button
+                        type="button"
+                        className="mlp-td-review-cancel"
+                        disabled={isSubmitting}
+                        onClick={() => setShowReviewBox(false)}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+
+                    {isSubmitting && (
+                      <div style={{ width: "100%", marginTop: "10px", borderRadius: "4px", overflow: "hidden" }}>
+                        <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── RIGHT COLUMN: AI ASSIST CARDS STACK (Shown when AI Help Panel is ON) ── */}
+          {aiPanelOn && (
+            <div className="mlp-td-right-col">
+              {/* Card 1: AI Assist */}
+              <div className="mlp-ai-card">
+                <div className="mlp-ai-header">
+                  <h4 className="mlp-ai-title">AI Assist</h4>
+                  <span className="mlp-ai-badge">advisory only</span>
+                </div>
+                <p className="mlp-ai-desc">
+                  Recommendations are advisory. Every output carries a confidence score and the evidence behind it — data policy is enforced by the platform, not by you.
+                </p>
+              </div>
+
+              {/* Card 2: AI Summary */}
+              <div className="mlp-ai-card">
+                <div className="mlp-ai-header">
+                  <h4 className="mlp-ai-title">AI Summary</h4>
+                  <span className="mlp-ai-badge">AI RECOMMENDATION</span>
+                </div>
+                <p className="mlp-ai-desc">
+                  Condense the description, email thread and approved attachments into a reviewable summary.
+                </p>
+                <button type="button" className="mlp-ai-btn">
+                  Generate AI Summary
+                </button>
+              </div>
+
+              {/* Card 3: Category & Assignment */}
+              <div className="mlp-ai-card">
+                <div className="mlp-ai-header">
+                  <h4 className="mlp-ai-title">Category & Assignment</h4>
+                  <span className="mlp-ai-badge">TRIAGE</span>
+                </div>
+                <p className="mlp-ai-desc">
+                  Recommend category, priority, sentiment and resolver team with a confidence score.
+                </p>
+                <button type="button" className="mlp-ai-btn">
+                  Suggest Category & Assignment
+                </button>
+              </div>
+
+              {/* Card 4: Similar Tickets */}
+              <div className="mlp-ai-card">
+                <div className="mlp-ai-header">
+                  <h4 className="mlp-ai-title">Similar Tickets</h4>
+                  <span className="mlp-ai-badge">FAISS + BM25</span>
+                </div>
+                <p className="mlp-ai-desc">
+                  Retrieve authorised historical tickets and approved knowledge articles.
+                </p>
+                <button type="button" className="mlp-ai-btn">
+                  Find Similar Tickets
+                </button>
+              </div>
+
+              {/* Card 5: Draft Customer Response */}
+              <div className="mlp-ai-card">
+                <div className="mlp-ai-header">
+                  <h4 className="mlp-ai-title">Draft Customer Response</h4>
+                  <span className="mlp-ai-badge">HUMAN SEND ONLY</span>
+                </div>
+                <p className="mlp-ai-desc">
+                  Prepare a response for the consultant to review. Never sent automatically.
+                </p>
+                <button type="button" className="mlp-ai-btn">
+                  Draft Customer Response
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── BOTTOM AI ASSIST SECTION (Shown below all ticket cards when AI Help Panel is toggled OFF) ── */}
+          {!aiPanelOn && (
+            <div className="mlp-td-ai-bottom-section">
+              <div className="mlp-td-ai-bottom-header">
+                <div className="mlp-td-ai-bottom-header-left">
+                  <h4 className="mlp-td-ai-bottom-title">AI Assist</h4>
+                  <p className="mlp-td-ai-bottom-subtitle">
+                    Recommendations are advisory. Every output carries a confidence score and the evidence behind it — data policy is enforced by the platform, not by you.
+                  </p>
+                </div>
+                <span className="mlp-td-ai-bottom-badge">advisory only</span>
+              </div>
+
+              <div className="mlp-td-ai-bottom-grid">
+                {/* Card 1: AI Summary */}
+                <div className="mlp-ai-card">
+                  <div className="mlp-ai-header">
+                    <h4 className="mlp-ai-title">AI Summary</h4>
+                    <span className="mlp-ai-badge">AI RECOMMENDATION</span>
+                  </div>
+                  <p className="mlp-ai-desc">
+                    Condense the description, email thread and approved attachments into a reviewable summary.
+                  </p>
+                  <button type="button" className="mlp-ai-btn">
+                    Generate AI Summary
+                  </button>
+                </div>
+
+                {/* Card 2: Category & Assignment */}
+                <div className="mlp-ai-card">
+                  <div className="mlp-ai-header">
+                    <h4 className="mlp-ai-title">Category & Assignment</h4>
+                    <span className="mlp-ai-badge">TRIAGE</span>
+                  </div>
+                  <p className="mlp-ai-desc">
+                    Recommend category, priority, sentiment and resolver team with a confidence score.
+                  </p>
+                  <button type="button" className="mlp-ai-btn">
+                    Suggest Category & Assignment
+                  </button>
+                </div>
+
+                {/* Card 3: Similar Tickets */}
+                <div className="mlp-ai-card">
+                  <div className="mlp-ai-header">
+                    <h4 className="mlp-ai-title">Similar Tickets</h4>
+                    <span className="mlp-ai-badge">FAISS + BM25</span>
+                  </div>
+                  <p className="mlp-ai-desc">
+                    Retrieve authorised historical tickets and approved knowledge articles.
+                  </p>
+                  <button type="button" className="mlp-ai-btn">
+                    Find Similar Tickets
+                  </button>
+                </div>
+
+                {/* Card 4: Draft Customer Response */}
+                <div className="mlp-ai-card">
+                  <div className="mlp-ai-header">
+                    <h4 className="mlp-ai-title">Draft Customer Response</h4>
+                    <span className="mlp-ai-badge">OUTBOUND DRAFT</span>
+                  </div>
+                  <p className="mlp-ai-desc">
+                    Prepare a response for the consultant to review. Never sent automatically.
+                  </p>
+                  <button type="button" className="mlp-ai-btn">
+                    Draft Customer Response
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Empty state */
+        <div className="mlp-placeholder-card" style={{ marginTop: 20 }}>
+          <p style={{ color: "#64748b", margin: 0 }}>
+            {searchText ? `No tickets match "${searchText}".` : "No tickets available."}
+          </p>
+        </div>
+      )}
+    </>
+  );
+};
+
+export default TicketDetailsPage;

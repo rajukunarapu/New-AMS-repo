@@ -1,0 +1,793 @@
+/* ==========================================================================
+   AdministratorPage.css
+   Neo AI Service Desk - Administrator Console
+   ========================================================================== */
+
+.adp-container {
+  height: 100vh;
+  max-height: 100vh;
+  background-color: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  font-family: "Segoe UI", "Inter", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+  color: #1e293b;
+  overflow: hidden;
+}
+
+/* ── Top Header Bar ── */
+.adp-topbar {
+  height: 52px;
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  flex-shrink: 0;
+}
+
+.adp-topbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.adp-brand-logo {
+  height: 26px;
+  width: 26px;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.adp-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.adp-brand-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.15;
+}
+
+.adp-brand-tagline {
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  text-transform: uppercase;
+}
+
+/* Header Controls */
+.adp-topbar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adp-icon-btn {
+  width: 28px;
+  height: 28px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.adp-icon-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.adp-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 4px 10px;
+  width: 320px;
+  height: 28px;
+}
+
+.adp-search-icon {
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+}
+
+.adp-search-input {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 12px;
+  color: #1e293b;
+  width: 100%;
+}
+
+.adp-search-input::placeholder {
+  color: #94a3b8;
+}
+
+.adp-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.adp-avatar-badge {
+  width: 28px;
+  height: 28px;
+  background: #2d4f7c;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* ── Main Layout Body ── */
+.adp-body-layout {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 52px);
+  max-height: calc(100vh - 52px);
+  overflow: hidden;
+}
+
+/* ── Sidebar (Fixed with independent scroll) ── */
+.adp-sidebar {
+  width: 250px;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.adp-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.adp-sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.adp-identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding-bottom: 4px;
+}
+
+.adp-identity-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.adp-sidebar-avatar {
+  width: 28px;
+  height: 28px;
+  background: #15803d;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11.5px;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.adp-sidebar-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Interactive Exit Button */
+.adp-exit-btn {
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  color: #334155;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 10px;
+  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.adp-exit-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.adp-exit-btn:active {
+  background: #cbd5e1;
+  background: #e2e8f0;
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.adp-nav-group {
+  margin-bottom: 14px;
+}
+
+.adp-nav-group-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  padding-left: 4px;
+}
+
+.adp-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: #475569;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  margin-bottom: 2px;
+}
+
+.adp-nav-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.adp-nav-item.active {
+  background: #33557a;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.adp-nav-item.active svg,
+.adp-nav-item.active .adp-nav-icon {
+  color: #ffffff;
+}
+
+.adp-nav-icon {
+  display: flex;
+  align-items: center;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+/* ── Content Area ── */
+.adp-content {
+  flex: 1;
+  padding: 24px 32px 40px;
+  overflow-y: auto;
+  height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.adp-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.adp-content::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.adp-page-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.adp-page-subtitle {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 20px;
+  line-height: 1.45;
+}
+
+/* ── Row 1 Agent Cards Grid (4 Columns) ── */
+.adp-agent-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.adp-agent-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.adp-agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.adp-agent-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.adp-agent-dot {
+  font-size: 10px;
+  color: #64748b;
+}
+
+.adp-agent-status {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.adp-agent-status.running {
+  color: #16a34a;
+}
+
+.adp-agent-trigger {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.adp-agent-stats {
+  font-size: 11px;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.adp-agent-node {
+  font-size: 10.5px;
+  color: #94a3b8;
+  margin-bottom: 12px;
+}
+
+.adp-inspect-btn {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: all 0.15s ease;
+}
+
+.adp-inspect-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* ── Row 2 Split Grid (In-flight runs + Event bus health) ── */
+.adp-split-grid {
+  display: grid;
+  grid-template-columns: 2.2fr 1fr;
+  gap: 16px;
+}
+
+.adp-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.adp-panel-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 12px;
+}
+
+/* In-flight runs table */
+.adp-runs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.adp-runs-table th {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  padding: 6px 8px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.adp-runs-table td {
+  padding: 8px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #1e293b;
+  vertical-align: middle;
+}
+
+.adp-run-id {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.adp-state-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.adp-state-badge.interrupt {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.adp-state-badge.completed {
+  background: #ecfdf5;
+  color: #065f46;
+}
+
+.adp-state-badge.dead-letter {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.adp-resolve-btn {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #334155;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.adp-resolve-btn:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* Event bus health table / list */
+.adp-bus-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+.adp-bus-table td {
+  padding: 8px 6px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.adp-bus-label {
+  color: #64748b;
+}
+
+.adp-bus-val {
+  text-align: right;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* ── Generic Content Placeholder Box for other clicked options ── */
+.adp-placeholder-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 32px;
+  margin-top: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* Floating NeoAI Widget */
+.adp-floating-neoai {
+  position: fixed;
+  bottom: 20px;
+  right: 24px;
+  background: #3f5e82;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  z-index: 99;
+}
+
+.adp-floating-neoai:hover {
+  background: #2f4968;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Responsive Styles for Administrator Console (Tablet & Mobile)
+   Preserves 100% of desktop layout (>= 1025px) intact
+   Maintains LEFT SIDE PANEL for options and RIGHT SIDE for content
+   ========================================================================== */
+
+@media (max-width: 1024px) {
+  .adp-body-layout {
+    display: flex;
+    flex-direction: row;
+    height: calc(100vh - 52px);
+    overflow: hidden;
+  }
+  .adp-sidebar {
+    width: 175px;
+    flex-shrink: 0;
+    padding: 12px 8px;
+  }
+  .adp-content {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    padding: 16px 14px 32px;
+  }
+  .adp-agent-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .adp-split-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 768px) {
+  .adp-container {
+    height: 100vh;
+    max-height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .adp-body-layout {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    height: calc(100vh - 50px);
+    max-height: calc(100vh - 50px);
+    overflow: hidden;
+  }
+  .adp-sidebar {
+    width: 135px;
+    min-width: 120px;
+    max-width: 145px;
+    flex-shrink: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 4px 28px 5px;
+    border-right: 1px solid #e2e8f0;
+    background: #ffffff;
+    scrollbar-width: thin;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+  .adp-sidebar::-webkit-scrollbar {
+    width: 3px;
+  }
+  .adp-sidebar::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 3px;
+  }
+  .adp-identity-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2px 8px;
+    margin-bottom: 6px;
+    border-bottom: 1px solid #f1f5f9;
+    gap: 4px;
+  }
+  .adp-identity-user {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex: 1;
+  }
+  .adp-sidebar-avatar {
+    width: 22px;
+    height: 22px;
+    font-size: 10px;
+    flex-shrink: 0;
+  }
+  .adp-sidebar-name {
+    font-size: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+    max-width: 60px;
+  }
+  .adp-exit-btn {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .adp-exit-btn svg {
+    width: 12px;
+    height: 12px;
+  }
+  .adp-nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 6px;
+  }
+  .adp-nav-group-title {
+    font-size: 8px;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.05em;
+    padding: 4px 3px 2px;
+    text-transform: uppercase;
+    display: block;
+  }
+  .adp-nav-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 4px;
+    font-size: 10px;
+    line-height: 1.25;
+    border-radius: 4px;
+    width: 100%;
+    text-align: left;
+    word-break: break-word;
+    white-space: normal;
+    background: transparent;
+    border: 1px solid transparent;
+    color: #475569;
+    box-sizing: border-box;
+  }
+  .adp-nav-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .adp-nav-icon svg {
+    width: 12px;
+    height: 12px;
+  }
+  .adp-nav-item:hover {
+    background: #f1f5f9;
+  }
+  .adp-nav-item.active {
+    background: #e2e8f0;
+    color: #0f172a;
+    font-weight: 600;
+    border-color: #cbd5e1;
+  }
+  .adp-content {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 8px 36px 8px;
+    box-sizing: border-box;
+  }
+  .adp-page-title {
+    font-size: 15px;
+    margin: 0 0 2px;
+  }
+  .adp-page-subtitle {
+    font-size: 10.5px;
+  }
+  .adp-agent-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .adp-split-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .adp-floating-neoai {
+    bottom: 16px;
+    right: 16px;
+    padding: 6px 10px;
+    font-size: 11.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .adp-sidebar {
+    width: 120px;
+    min-width: 110px;
+    max-width: 130px;
+    padding: 6px 3px 20px 4px;
+  }
+  .adp-content {
+    padding: 8px 5px 30px;
+  }
+}
+

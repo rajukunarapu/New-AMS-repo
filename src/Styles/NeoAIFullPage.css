@@ -1,0 +1,364 @@
+/* ==========================================================================
+   NeoAIFullPage.css
+   Full-page NeoAI interface with Retrieval Pipeline and Retrieval Trace
+   ========================================================================== */
+
+.neoai-fullpage-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding-bottom: 24px;
+}
+
+.neoai-fullpage-header {
+  margin-bottom: 20px;
+}
+
+.neoai-fullpage-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 4px;
+}
+
+.neoai-fullpage-subtitle {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+  max-width: 900px;
+}
+
+/* ── 2-Column Grid Layout ── */
+.neoai-fullpage-grid {
+  display: grid;
+  grid-template-columns: 1.65fr 1fr;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* ── Left Column: Chat Container ── */
+.neoai-chat-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.neoai-chat-box {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  min-height: 540px;
+}
+
+.neoai-chat-stream {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 20px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.neoai-chat-stream::-webkit-scrollbar {
+  width: 4px;
+}
+
+.neoai-chat-stream::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+/* User Message Bubble */
+.neoai-user-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.neoai-bubble-sender-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.neoai-user-bubble {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1e293b;
+  max-width: 80%;
+}
+
+/* Bot Response Card */
+.neoai-bot-response-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.neoai-bot-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px 18px;
+  width: 100%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.neoai-bot-card.thinking-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #64748b;
+  font-size: 12px;
+  padding: 14px 18px;
+  background: #f8fafc;
+}
+
+.neoai-bot-card-heading {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+  margin: 0 0 10px;
+  line-height: 1.45;
+}
+
+.neoai-bot-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.neoai-bot-bullets li {
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.5;
+  position: relative;
+  padding-left: 2px;
+}
+
+.neoai-bot-action-text {
+  font-size: 12px;
+  color: #0f172a;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Citations Tags */
+.neoai-citation-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.neoai-citation-tag-pill {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 3px 8px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.neoai-telemetry-subtext {
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* Input Row */
+.neoai-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.neoai-fullpage-input {
+  flex: 1;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.neoai-fullpage-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.neoai-fullpage-input::placeholder {
+  color: #94a3b8;
+}
+
+.neoai-fullpage-ask-btn {
+  background: #2d4f7c;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 22px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.neoai-fullpage-ask-btn:hover:not(:disabled) {
+  background: #1e3a5f;
+}
+
+.neoai-fullpage-ask-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Suggestions Row Underneath Input */
+.neoai-suggestions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.neoai-suggestion-pill-btn {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.neoai-suggestion-pill-btn:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+/* ── Right Column: Pipeline & Trace ── */
+.neoai-sidebar-column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.neoai-side-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 18px 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.neoai-side-panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+
+/* Retrieval Pipeline List */
+.neoai-pipeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.neoai-pipeline-step {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.neoai-step-num {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #64748b;
+  width: 14px;
+  flex-shrink: 0;
+}
+
+.neoai-step-desc {
+  font-size: 12px;
+  color: #1e293b;
+  line-height: 1.45;
+}
+
+/* Retrieval Trace Table */
+.neoai-trace-table {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.neoai-trace-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 11.5px;
+  padding: 3px 0;
+}
+
+.neoai-trace-key {
+  color: #64748b;
+  font-weight: 500;
+}
+
+.neoai-trace-val {
+  color: #0f172a;
+  font-weight: 600;
+  text-align: right;
+}
+
+.neoai-trace-note {
+  font-size: 10.5px;
+  color: #94a3b8;
+  line-height: 1.45;
+  margin: 0;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 10px;
+}
+
+@media (max-width: 1024px) {
+  .neoai-fullpage-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .neoai-chat-box {
+    min-height: auto;
+  }
+}

@@ -127,6 +127,15 @@ export const NeoAIProvider = ({ children }) => {
     } catch { }
   }, []);
 
+  const loadConversation = useCallback((newMessages) => {
+    const list = Array.isArray(newMessages) ? newMessages : [];
+    setMessages(list);
+    setIsThinking(false);
+    try {
+      localStorage.setItem("neoai_shared_messages", JSON.stringify(list));
+    } catch { }
+  }, []);
+
   return (
     <NeoAIContext.Provider
       value={{
@@ -135,6 +144,7 @@ export const NeoAIProvider = ({ children }) => {
         activeTrace,
         askNeoAI,
         resetChat,
+        loadConversation,
         defaultSuggestions: DEFAULT_SUGGESTIONS,
       }}
     >
@@ -152,6 +162,7 @@ export const useNeoAI = () => {
       activeTrace: {},
       askNeoAI: () => { },
       resetChat: () => { },
+      loadConversation: () => { },
       defaultSuggestions: DEFAULT_SUGGESTIONS,
     };
   }

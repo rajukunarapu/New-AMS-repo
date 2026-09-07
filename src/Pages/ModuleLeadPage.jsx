@@ -336,6 +336,53 @@ const ModuleLeadPage = () => {
     }
   };
 
+  // Pre-fill Assign and Update card fields from selectedTicket (Status and Priority from backend)
+  useEffect(() => {
+    if (!selectedTicket) return;
+
+    // Status: Match against uniqueStatuses or use ticket's own ticketStatus
+    const tStatus = (selectedTicket.ticketStatus || "").trim();
+    if (tStatus) {
+      const matched = uniqueStatuses.find(
+        (s) => s.name && s.name.trim().toLowerCase() === tStatus.toLowerCase()
+      );
+      setAssignStatus(matched ? matched.name : tStatus);
+    } else {
+      setAssignStatus("");
+    }
+
+    // Priority: Match against uniquePriorities or use ticket's own priority
+    const tPriority = (selectedTicket.priority || "").trim();
+    if (tPriority) {
+      let matched = uniquePriorities.find(
+        (p) =>
+          (p.name && p.name.trim().toLowerCase() === tPriority.toLowerCase()) ||
+          (p.code && p.code.trim().toLowerCase() === tPriority.toLowerCase())
+      );
+      if (!matched) {
+        const code = formatPriorityCode(tPriority);
+        matched = uniquePriorities.find((p) => {
+          const pCode = p.code || formatPriorityCode(p.name);
+          return pCode === code;
+        });
+      }
+      setAssignPriority(matched ? matched.name : tPriority);
+    } else {
+      setAssignPriority("");
+    }
+
+    // Consultant (Assign To): If already assigned on ticket, pre-fill; else leave empty for lead to assign
+    const currentAssignee = (selectedTicket.name || "").trim();
+    if (currentAssignee && currentAssignee !== "-") {
+      setAssignTo(currentAssignee);
+    } else {
+      setAssignTo("");
+    }
+
+    setWorkNote("");
+    setShowReviewBox(false);
+  }, [selectedTicket?.ticketNo, uniqueStatuses, uniquePriorities]);
+
   // SLA calculation helper (realistic, clean, prevents NaN:NaN left)
   const getTicketSla = (ticket) => {
     let seed = 42;
@@ -572,10 +619,10 @@ const ModuleLeadPage = () => {
           )
         );
 
-        // Reset form inputs
-        setAssignTo("");
-        setAssignStatus("");
-        setAssignPriority("");
+        // Retain updated status and priority in form
+        setAssignTo(assignTo.trim());
+        setAssignStatus(assignStatus.trim());
+        setAssignPriority(assignPriority.trim());
         setWorkNote("");
       } else {
         setAlertType("error");

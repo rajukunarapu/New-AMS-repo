@@ -6,7 +6,18 @@ import FormattedMarkdown, { SingleTicketCard, MultiTicketTable } from "./Formatt
  
 const NeoAIFullPage = () => {
   const [query, setQuery] = useState("");
-  const { messages, isThinking, activeTrace, askNeoAI, defaultSuggestions } = useNeoAI();
+  const { messages, isThinking, askNeoAI, resetChat, loadConversation, defaultSuggestions } = useNeoAI();
+
+  // ── History management state ──
+  const [historySessions, setHistorySessions] = useState(() => {
+    try {
+      const stored = localStorage.getItem("neoai_chat_history_sessions");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [showHistory, setShowHistory] = useState(false);
 
   // ── Attachment state ──
   const [attachedFile, setAttachedFile] = useState(null);
@@ -19,6 +30,71 @@ const NeoAIFullPage = () => {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages, isThinking]);
+
+  // ── Helper: Save current session to history ──
+  const saveSessionToStorage = (msgsToSave) => {
+    if (!msgsToSave || msgsToSave.length === 0) return;
+    try {
+      const existing = JSON.parse(localStorage.getItem("neoai_chat_history_sessions") || "[]");
+      const firstUserMsg = msgsToSave.find((m) => m.sender === "user");
+      const title = firstUserMsg ? (firstUserMsg.query || firstUserMsg.text) : "Conversation session";
+      const newSession = {
+        id: "session_" + Date.now(),
+        timestamp: new Date().toISOString(),
+        dateStr: new Date().toLocaleString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        preview: title.length > 60 ? title.substring(0, 60) + "..." : title,
+        messageCount: msgsToSave.length,
+        messages: msgsToSave,
+      };
+
+      if (existing.length > 0 && JSON.stringify(existing[0].messages) === JSON.stringify(msgsToSave)) {
+        return;
+      }
+
+      const updated = [newSession, ...existing.slice(0, 29)];
+      localStorage.setItem("neoai_chat_history_sessions", JSON.stringify(updated));
+      setHistorySessions(updated);
+    } catch (e) {
+      console.error("Error saving session to history", e);
+    }
+  };
+
+  // ── Clear chat handler ──
+  const handleClear = () => {
+    if (messages && messages.length > 0) {
+      saveSessionToStorage(messages);
+    }
+    resetChat();
+    setAttachedFile(null);
+    setQuery("");
+  };
+
+  // ── History restoration handlers ──
+  const handleSelectSession = (session) => {
+    if (messages && messages.length > 0) {
+      saveSessionToStorage(messages);
+    }
+    loadConversation(session.messages);
+    setShowHistory(false);
+  };
+
+  const handleDeleteSession = (sessionId, e) => {
+    e.stopPropagation();
+    const updated = historySessions.filter((s) => s.id !== sessionId);
+    localStorage.setItem("neoai_chat_history_sessions", JSON.stringify(updated));
+    setHistorySessions(updated);
+  };
+
+  const handleClearAllHistory = () => {
+    localStorage.removeItem("neoai_chat_history_sessions");
+    setHistorySessions([]);
+  };
 
   // ── Attachment handlers ──
   const handleAttachClick = () => {
@@ -68,8 +144,64 @@ const NeoAIFullPage = () => {
         {/* Left Column: Interactive Chat Area */}
         <div className="neoai-chat-column">
           <div className="neoai-chat-box">
+            {/* Chat Header Toolbar with Clear and History Controls */}
+            <div className="neoai-chat-toolbar">
+              <div className="neoai-toolbar-status">
+                <span className="neoai-status-dot" />
+                <span className="neoai-toolbar-status-text">
+                  {messages.length > 0
+                    ? `${messages.length} message${messages.length > 1 ? "s" : ""} in session`
+                    : "NeoAI Intelligence Active · Ready for questions"}
+                </span>
+              </div>
+              <div className="neoai-toolbar-actions">
+                <button
+                  type="button"
+                  className="neoai-toolbar-btn history"
+                  onClick={() => setShowHistory(true)}
+                  title="View conversation history"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span>History</span>
+                  {historySessions.length > 0 && (
+                    <span className="neoai-history-pill">{historySessions.length}</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="neoai-toolbar-btn clear"
+                  onClick={handleClear}
+                  disabled={messages.length === 0}
+                  title="Clear current conversation"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                  <span>Clear</span>
+                </button>
+              </div>
+            </div>
+
             {/* Scrollable Messages Container */}
             <div className="neoai-chat-stream">
+              {messages.length === 0 && (
+                <div className="neoai-chat-empty-state">
+                  <div className="neoai-empty-state-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2d4f7c" strokeWidth="2">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="neoai-empty-state-title">How can NeoAI help you today?</h3>
+                  <p className="neoai-empty-state-desc">
+                    Ask questions about incident tickets, SLA risks, consultant workloads, or module resolutions. Or click any suggested query below to get started.
+                  </p>
+                </div>
+              )}
+
               {messages.map((m) => {
                 if (m.sender === "user") {
                   return (
@@ -222,83 +354,85 @@ const NeoAIFullPage = () => {
             </div>
           </div>
         </div>
- 
-        {/* Right Column: Pipeline & Trace Sidebars */}
-        <div className="neoai-sidebar-column">
-          {/* Panel 1: RETRIEVAL PIPELINE */}
-          <div className="neoai-side-panel">
-            <h3 className="neoai-side-panel-title">RETRIEVAL PIPELINE</h3>
-            <div className="neoai-pipeline-list">
-              <div className="neoai-pipeline-step">
-                <span className="neoai-step-num">1</span>
-                <span className="neoai-step-desc">Detect intent: lookup, knowledge, report or action</span>
+      </div>
+
+      {/* ── Conversation History Drawer Modal ── */}
+      {showHistory && (
+        <div className="neoai-history-backdrop" onClick={() => setShowHistory(false)}>
+          <div className="neoai-history-drawer" onClick={(e) => e.stopPropagation()}>
+            <div className="neoai-history-drawer-header">
+              <div className="neoai-history-title-wrap">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <h3>Conversation History</h3>
               </div>
-              <div className="neoai-pipeline-step">
-                <span className="neoai-step-num">2</span>
-                <span className="neoai-step-desc">Apply identity, role, customer and assignment filters</span>
-              </div>
-              <div className="neoai-pipeline-step">
-                <span className="neoai-step-num">3</span>
-                <span className="neoai-step-desc">Hybrid search: vector + keyword, direct SQL for exact ids</span>
-              </div>
-              <div className="neoai-pipeline-step">
-                <span className="neoai-step-num">4</span>
-                <span className="neoai-step-desc">Rerank and require a minimum evidence score</span>
-              </div>
-              <div className="neoai-pipeline-step">
-                <span className="neoai-step-num">5</span>
-                <span className="neoai-step-desc">Answer with citations, or return insufficient evidence</span>
-              </div>
-              <div className="neoai-pipeline-step">
-                <span className="neoai-step-num">6</span>
-                <span className="neoai-step-desc">Route any write action to the confirmation workflow</span>
-              </div>
+              <button
+                type="button"
+                className="neoai-history-close-btn"
+                onClick={() => setShowHistory(false)}
+                title="Close"
+              >
+                ✕
+              </button>
             </div>
-          </div>
- 
-          {/* Panel 2: RETRIEVAL TRACE */}
-          <div className="neoai-side-panel">
-            <h3 className="neoai-side-panel-title">RETRIEVAL TRACE</h3>
-            <div className="neoai-trace-table">
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Intent</span>
-                <span className="neoai-trace-val">{activeTrace.intent}</span>
-              </div>
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Scope filter</span>
-                <span className="neoai-trace-val">{activeTrace.scope}</span>
-              </div>
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Retrieval</span>
-                <span className="neoai-trace-val">{activeTrace.retrieval}</span>
-              </div>
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Reranker</span>
-                <span className="neoai-trace-val">{activeTrace.reranker}</span>
-              </div>
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Min evidence score</span>
-                <span className="neoai-trace-val">{activeTrace.minEvidence}</span>
-              </div>
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Route</span>
-                <span className="neoai-trace-val">{activeTrace.route}</span>
-              </div>
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Write actions</span>
-                <span className="neoai-trace-val">{activeTrace.writeActions}</span>
-              </div>
-              <div className="neoai-trace-row">
-                <span className="neoai-trace-key">Last call</span>
-                <span className="neoai-trace-val">{activeTrace.lastCall}</span>
-              </div>
+
+            <div className="neoai-history-drawer-body">
+              {historySessions.length === 0 ? (
+                <div className="neoai-history-empty">
+                  <div className="neoai-history-empty-icon">💬</div>
+                  <p className="neoai-history-empty-title">No conversation history yet</p>
+                  <p className="neoai-history-empty-desc">
+                    When you clear or finish a conversation, it will be automatically saved here so you can review or restore it anytime.
+                  </p>
+                </div>
+              ) : (
+                <div className="neoai-history-list">
+                  {historySessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="neoai-history-item"
+                      onClick={() => handleSelectSession(session)}
+                    >
+                      <div className="neoai-history-item-top">
+                        <span className="neoai-history-item-date">{session.dateStr}</span>
+                        <button
+                          type="button"
+                          className="neoai-history-item-delete"
+                          onClick={(e) => handleDeleteSession(session.id, e)}
+                          title="Delete this session"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                      <div className="neoai-history-item-preview">{session.preview}</div>
+                      <div className="neoai-history-item-meta">
+                        <span className="neoai-history-item-count">
+                          {session.messageCount} message{session.messageCount > 1 ? "s" : ""}
+                        </span>
+                        <span className="neoai-history-item-restore-lbl">Restore conversation →</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <p className="neoai-trace-note">
-              Identity, role, customer and assignment filters are applied before retrieval prompt.
-            </p>
+
+            {historySessions.length > 0 && (
+              <div className="neoai-history-drawer-footer">
+                <button
+                  type="button"
+                  className="neoai-history-clear-all-btn"
+                  onClick={handleClearAllHistory}
+                >
+                  Clear All History
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

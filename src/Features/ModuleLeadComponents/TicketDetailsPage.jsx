@@ -548,6 +548,12 @@ const TicketDetailsPage = ({
                       onChange={(e) => setAssignTo(e.target.value)}
                     >
                       <option value="">Select consultant</option>
+                      {assignTo &&
+                        !employees.some(
+                          (emp) =>
+                            (emp.name || emp.employeeName || "").trim().toLowerCase() ===
+                            assignTo.trim().toLowerCase()
+                        ) && <option value={assignTo}>{assignTo}</option>}
                       {employees.map((emp) => {
                         const empName = emp.name || emp.employeeName || "";
                         return (
@@ -570,6 +576,12 @@ const TicketDetailsPage = ({
                       onChange={(e) => setAssignStatus(e.target.value)}
                     >
                       <option value="">Select status</option>
+                      {assignStatus &&
+                        !uniqueStatuses.some(
+                          (s) =>
+                            (s.name || "").trim().toLowerCase() ===
+                            assignStatus.trim().toLowerCase()
+                        ) && <option value={assignStatus}>{assignStatus}</option>}
                       {uniqueStatuses.map((s) => (
                         <option key={s.id || s.name} value={s.name}>
                           {s.name}
@@ -589,6 +601,12 @@ const TicketDetailsPage = ({
                       onChange={(e) => setAssignPriority(e.target.value)}
                     >
                       <option value="">Select priority</option>
+                      {assignPriority &&
+                        !uniquePriorities.some(
+                          (p) =>
+                            (p.name || "").trim().toLowerCase() ===
+                            assignPriority.trim().toLowerCase()
+                        ) && <option value={assignPriority}>{assignPriority}</option>}
                       {uniquePriorities.map((p) => {
                         const pCode = p.code || formatPriorityCode(p.name);
                         const pLabel = `${pCode} · ${p.name}`;

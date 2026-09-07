@@ -29,29 +29,32 @@
   max-width: 900px;
 }
 
-/* ── 2-Column Grid Layout ── */
+/* ── Full-Width Grid Layout ── */
 .neoai-fullpage-grid {
-  display: grid;
-  grid-template-columns: 1.65fr 1fr;
-  gap: 20px;
-  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  align-items: stretch;
 }
 
-/* ── Left Column: Chat Container ── */
+/* ── Full-Width Interactive Chat Card ── */
 .neoai-chat-column {
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .neoai-chat-box {
   background: #ffffff;
   border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 20px;
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-  min-height: 540px;
+  min-height: 560px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .neoai-chat-stream {
@@ -60,7 +63,8 @@
   flex-direction: column;
   gap: 18px;
   margin-bottom: 20px;
-  max-height: 480px;
+  min-height: 380px;
+  max-height: 540px;
   overflow-y: auto;
   padding-right: 6px;
   scrollbar-width: thin;
@@ -266,91 +270,337 @@
   color: #0f172a;
 }
 
-/* ── Right Column: Pipeline & Trace ── */
-.neoai-sidebar-column {
+/* ── Chat Toolbar (Clear & History) ── */
+.neoai-chat-toolbar {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.neoai-side-panel {
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 18px 20px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-}
-
-.neoai-side-panel-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: #64748b;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin: 0 0 14px;
-}
-
-/* Retrieval Pipeline List */
-.neoai-pipeline-list {
+.neoai-toolbar-status {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.neoai-pipeline-step {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.neoai-step-num {
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #64748b;
-  width: 14px;
-  flex-shrink: 0;
-}
-
-.neoai-step-desc {
-  font-size: 12px;
-  color: #1e293b;
-  line-height: 1.45;
-}
-
-/* Retrieval Trace Table */
-.neoai-trace-table {
-  display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.neoai-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+.neoai-toolbar-status-text {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.neoai-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neoai-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.neoai-toolbar-btn:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.neoai-toolbar-btn.clear:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.neoai-toolbar-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.neoai-history-pill {
+  background: #e2e8f0;
+  color: #334155;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  line-height: 1.4;
+}
+
+/* ── Chat Empty State ── */
+.neoai-chat-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 44px 20px;
+  margin: auto 0;
+}
+
+.neoai-empty-state-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   margin-bottom: 14px;
 }
 
-.neoai-trace-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  font-size: 11.5px;
-  padding: 3px 0;
-}
-
-.neoai-trace-key {
-  color: #64748b;
-  font-weight: 500;
-}
-
-.neoai-trace-val {
+.neoai-empty-state-title {
+  font-size: 16px;
+  font-weight: 700;
   color: #0f172a;
-  font-weight: 600;
-  text-align: right;
+  margin: 0 0 6px;
 }
 
-.neoai-trace-note {
-  font-size: 10.5px;
-  color: #94a3b8;
-  line-height: 1.45;
+.neoai-empty-state-desc {
+  font-size: 12.5px;
+  color: #64748b;
+  max-width: 540px;
+  line-height: 1.5;
   margin: 0;
-  border-top: 1px solid #f1f5f9;
-  padding-top: 10px;
+}
+
+/* ── History Drawer & Backdrop ── */
+.neoai-history-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 9999;
+  display: flex;
+  justify-content: flex-end;
+  animation: neoaiFadeIn 0.2s ease-out;
+}
+
+@keyframes neoaiFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.neoai-history-drawer {
+  background: #ffffff;
+  width: 380px;
+  max-width: 90vw;
+  height: 100%;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  animation: neoaiSlideIn 0.25s ease-out;
+  box-sizing: border-box;
+}
+
+@keyframes neoaiSlideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.neoai-history-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.neoai-history-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #0f172a;
+}
+
+.neoai-history-title-wrap h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+}
+
+.neoai-history-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.neoai-history-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.neoai-history-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.neoai-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 10px;
+}
+
+.neoai-history-empty-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.neoai-history-empty-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px;
+}
+
+.neoai-history-empty-desc {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.neoai-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.neoai-history-item {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.neoai-history-item:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.neoai-history-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.neoai-history-item-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.neoai-history-item-delete {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.neoai-history-item-delete:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.neoai-history-item-preview {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.neoai-history-item-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.neoai-history-item-restore-lbl {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.neoai-history-drawer-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.neoai-history-clear-all-btn {
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.neoai-history-clear-all-btn:hover {
+  background: #fef2f2;
+  border-color: #f87171;
 }
 /* ── Attachment button (input row) ── */
 .neoai-fullpage-attachment-btn {
@@ -468,4 +718,68 @@ body.dark-theme .neoai-suggestion-pill-btn,
   background: #1e293b !important;
   border-color: #334155 !important;
   color: #ffffff !important;
+}
+
+body.dark-theme .neoai-chat-toolbar,
+[data-theme="dark"] .neoai-chat-toolbar {
+  border-bottom-color: #1e293b !important;
+}
+
+body.dark-theme .neoai-toolbar-btn,
+[data-theme="dark"] .neoai-toolbar-btn {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #f1f5f9 !important;
+}
+
+body.dark-theme .neoai-toolbar-btn:hover:not(:disabled),
+[data-theme="dark"] .neoai-toolbar-btn:hover:not(:disabled) {
+  background: #334155 !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-history-pill,
+[data-theme="dark"] .neoai-history-pill {
+  background: #334155 !important;
+  color: #f8fafc !important;
+}
+
+body.dark-theme .neoai-history-drawer,
+[data-theme="dark"] .neoai-history-drawer {
+  background: #0f172a !important;
+  border-left: 1px solid #1e293b !important;
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-history-drawer-header,
+[data-theme="dark"] .neoai-history-drawer-header,
+body.dark-theme .neoai-history-drawer-footer,
+[data-theme="dark"] .neoai-history-drawer-footer {
+  background: #0f172a !important;
+  border-color: #1e293b !important;
+}
+
+body.dark-theme .neoai-history-title-wrap h3,
+[data-theme="dark"] .neoai-history-title-wrap h3,
+body.dark-theme .neoai-empty-state-title,
+[data-theme="dark"] .neoai-empty-state-title {
+  color: #ffffff !important;
+}
+
+body.dark-theme .neoai-history-item,
+[data-theme="dark"] .neoai-history-item {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+body.dark-theme .neoai-history-item-preview,
+[data-theme="dark"] .neoai-history-item-preview {
+  color: #f8fafc !important;
+}
+
+body.dark-theme .neoai-history-clear-all-btn,
+[data-theme="dark"] .neoai-history-clear-all-btn {
+  background: #1e293b !important;
+  border-color: #7f1d1d !important;
+  color: #f87171 !important;
 }

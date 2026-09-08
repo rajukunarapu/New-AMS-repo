@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import {
   Alert,
   Skeleton,
@@ -142,6 +142,7 @@ const DeliveryWorkflow = ({
   const [workflowDocTab, setWorkflowDocTab] = useState("FS Document");
   const [ackCustomerDate, setAckCustomerDate] = useState("");
   const [ackWorkingDays, setAckWorkingDays] = useState(1);
+  const [ackWorkingHours, setAckWorkingHours] = useState("");
   const [ackResponsibleBy, setAckResponsibleBy] = useState(defaultConsultant);
   const [ackStatus, setAckStatus] = useState(defaultTicketStatus);
   const [ackAttachment, setAckAttachment] = useState(null);
@@ -194,15 +195,15 @@ const DeliveryWorkflow = ({
 
   // Steps 02–10 state with initial dates, valid status names, and attachments
   const [stepsState, setStepsState] = useState({
-    step2: { days: 2, startDate: "09/14/2026", responsible: defaultConsultant, status: "Closed", attachment: null, attachmentName: "" },
-    step3: { days: 2, startDate: "09/16/2026", responsible: defaultConsultant, status: "Inprocess", attachment: null, attachmentName: "" },
-    step4: { days: 3, startDate: "09/18/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step5: { days: 3, startDate: "09/23/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step6: { days: 4, startDate: "09/28/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step7: { days: 5, startDate: "10/02/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step8: { days: 2, startDate: "10/07/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step9: { days: 1, startDate: "10/09/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step10: { days: 3, startDate: "10/12/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step2: { days: 2, hours: "", startDate: "09/14/2026", responsible: defaultConsultant, status: "Closed", attachment: null, attachmentName: "" },
+    step3: { days: 2, hours: "", startDate: "09/16/2026", responsible: defaultConsultant, status: "Inprocess", attachment: null, attachmentName: "" },
+    step4: { days: 3, hours: "", startDate: "09/18/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step5: { days: 3, hours: "", startDate: "09/23/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step6: { days: 4, hours: "", startDate: "09/28/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step7: { days: 5, hours: "", startDate: "10/02/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step8: { days: 2, hours: "", startDate: "10/07/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step9: { days: 1, hours: "", startDate: "10/09/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step10: { days: 3, hours: "", startDate: "10/12/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
   });
 
   const fileInputRefs = useRef({});
@@ -241,6 +242,7 @@ const DeliveryWorkflow = ({
     if (selectedWorkflowTicket) {
       const currentTicketId = selectedWorkflowTicket.ticketNo || selectedWorkflowTicket.txnId || selectedWorkflowTicket.id;
       const isNewTicket = prevTicketIdRef.current !== currentTicketId;
+      if (!isNewTicket && prevTicketIdRef.current !== null) return;
       prevTicketIdRef.current = currentTicketId;
 
       const defaultName =
@@ -250,26 +252,22 @@ const DeliveryWorkflow = ({
         selectedWorkflowTicket.ticketStatus ||
         (statuses && statuses.length > 0 ? statuses[0].name : "Assigned");
 
-      if (isNewTicket || !ackResponsibleBy) {
-        setAckResponsibleBy(defaultName);
-      }
-      if (isNewTicket || !ackStatus) {
-        setAckStatus(defaultStatus);
-      }
+      setAckResponsibleBy(defaultName);
+      setAckStatus(defaultStatus);
 
       setStepsState((prev) => ({
-        step2: { ...prev.step2, responsible: isNewTicket ? defaultName : (prev.step2.responsible || defaultName) },
-        step3: { ...prev.step3, responsible: isNewTicket ? defaultName : (prev.step3.responsible || defaultName) },
-        step4: { ...prev.step4, responsible: isNewTicket ? defaultName : (prev.step4.responsible || defaultName) },
-        step5: { ...prev.step5, responsible: isNewTicket ? defaultName : (prev.step5.responsible || defaultName) },
-        step6: { ...prev.step6, responsible: isNewTicket ? defaultName : (prev.step6.responsible || defaultName) },
-        step7: { ...prev.step7, responsible: isNewTicket ? defaultName : (prev.step7.responsible || defaultName) },
-        step8: { ...prev.step8, responsible: isNewTicket ? defaultName : (prev.step8.responsible || defaultName) },
-        step9: { ...prev.step9, responsible: isNewTicket ? defaultName : (prev.step9.responsible || defaultName) },
-        step10: { ...prev.step10, responsible: isNewTicket ? defaultName : (prev.step10.responsible || defaultName) },
+        step2: { ...prev.step2, responsible: defaultName },
+        step3: { ...prev.step3, responsible: defaultName },
+        step4: { ...prev.step4, responsible: defaultName },
+        step5: { ...prev.step5, responsible: defaultName },
+        step6: { ...prev.step6, responsible: defaultName },
+        step7: { ...prev.step7, responsible: defaultName },
+        step8: { ...prev.step8, responsible: defaultName },
+        step9: { ...prev.step9, responsible: defaultName },
+        step10: { ...prev.step10, responsible: defaultName },
       }));
     }
-  }, [selectedWorkflowTicket, employees, statuses]);
+  }, [selectedWorkflowTicket?.ticketNo, selectedWorkflowTicket?.txnId, selectedWorkflowTicket?.name, selectedWorkflowTicket?.ticketStatus]);
 
   const handleAckFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -324,6 +322,7 @@ const DeliveryWorkflow = ({
     let customerAckFormatted = "";
     let endSlaFormatted = "";
     let workingDaysVal = 1;
+    let hoursVal = "";
     let responsibleVal = "";
     let statusVal = "Assigned";
     let attachmentVal = null;
@@ -332,9 +331,6 @@ const DeliveryWorkflow = ({
       const missing = [];
       if (!ackCustomerDate || !String(ackCustomerDate).trim()) {
         missing.push("Customer Acknowledged On");
-      }
-      if (!ackWorkingDays || String(ackWorkingDays).trim() === "" || Number(ackWorkingDays) <= 0) {
-        missing.push("Working Days");
       }
       if (!ackResponsibleBy || !String(ackResponsibleBy).trim()) {
         missing.push("Responsible By");
@@ -345,6 +341,13 @@ const DeliveryWorkflow = ({
       if (missing.length > 0) {
         setMissingFields(missing);
         showStepAlert(stepKey, "error", `Please provide all required fields: ${missing.join(", ")}.`);
+        return;
+      }
+
+      const hasAckDays = ackWorkingDays && String(ackWorkingDays).trim() !== "" && Number(ackWorkingDays) > 0;
+      const hasAckHours = ackWorkingHours && String(ackWorkingHours).trim() !== "" && Number(ackWorkingHours) > 0;
+      if (!hasAckDays && !hasAckHours) {
+        showStepAlert(stepKey, "error", "Provide Either Hours or Days.");
         return;
       }
 
@@ -367,18 +370,27 @@ const DeliveryWorkflow = ({
       setMissingFields([]);
 
       customerAckFormatted = formatToMMDDYYYY(ackCustomerDate);
-      endSlaFormatted = getComputedEndDate(selectedWorkflowTicket?.createddate || new Date(), ackWorkingDays);
-      workingDaysVal = Number(ackWorkingDays) || 1;
+      endSlaFormatted = getComputedEndDate(selectedWorkflowTicket?.createddate || new Date(), Number(ackWorkingDays) || 1);
+      workingDaysVal = hasAckDays ? Number(ackWorkingDays) : 0;
+      hoursVal = hasAckHours ? String(ackWorkingHours) : "";
       responsibleVal = ackResponsibleBy;
       statusVal = ackStatus;
       attachmentVal = ackAttachment || null;
     } else {
       const s = stepsState[stepKey] || {};
-      workingDaysVal = Number(s.days) || 1;
+      const hasDays = s.days && String(s.days).trim() !== "" && Number(s.days) > 0;
+      const hasHours = s.hours && String(s.hours).trim() !== "" && Number(s.hours) > 0;
+      if (!hasDays && !hasHours) {
+        showStepAlert(stepKey, "error", "Provide either Hours or Days.");
+        return;
+      }
+
+      workingDaysVal = hasDays ? Number(s.days) : 0;
+      hoursVal = hasHours ? String(s.hours) : "";
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = s.status || "Assigned";
       customerAckFormatted = formatToMMDDYYYY(s.startDate || "09/14/2026");
-      endSlaFormatted = getComputedEndDate(s.startDate || "09/14/2026", workingDaysVal);
+      endSlaFormatted = getComputedEndDate(s.startDate || "09/14/2026", Number(s.days) || 1);
       attachmentVal = s.attachment || null;
     }
 
@@ -392,7 +404,8 @@ const DeliveryWorkflow = ({
         workingDaysVal,
         responsibleVal,
         statusVal,
-        attachmentVal
+        attachmentVal,
+        hoursVal
       );
 
       if (resp && resp.success) {
@@ -418,24 +431,40 @@ const DeliveryWorkflow = ({
   const handleSendAcknowledgement = () => handleSaveStep("step1", "Ticket ACK");
 
   // Helper renderer for employee dropdown options with out-of-range protection
-  const renderEmployeeOptions = (currentValue) => {
-    let list = [];
+  const employeeList = useMemo(() => {
     if (employees && employees.length > 0) {
-      list = employees.map((emp, idx) => ({
+      return employees.map((emp, idx) => ({
         id: emp.employeeId || emp.id || idx,
         name: emp.name || emp.employeeName || "",
-      })).filter(e => e.name);
-    } else {
-      list = [
-        { id: "km", name: "K. Menon" },
-        { id: "jb", name: "Jaswanth B" },
-        { id: "avb", name: "Aakash Vikas Bansode" },
-        { id: "ri", name: "Rohit Iyer" },
-      ];
+      })).filter((e) => e.name);
     }
+    return [
+      { id: "km", name: "K. Menon" },
+      { id: "jb", name: "Jaswanth B" },
+      { id: "avb", name: "Aakash Vikas Bansode" },
+      { id: "ri", name: "Rohit Iyer" },
+    ];
+  }, [employees]);
 
+  const statusList = useMemo(() => {
+    if (statuses && statuses.length > 0) {
+      return statuses.map((st, idx) => ({
+        id: st.id || idx,
+        name: st.name || "",
+      })).filter((s) => s.name);
+    }
+    return [
+      { id: "cr", name: "Created" },
+      { id: "as", name: "Assigned" },
+      { id: "ip", name: "Inprocess" },
+      { id: "cl", name: "Closed" },
+    ];
+  }, [statuses]);
+
+  const renderEmployeeOptions = (currentValue) => {
+    let list = employeeList;
     if (currentValue && !list.some((item) => item.name === currentValue)) {
-      list.unshift({ id: `custom-${currentValue}`, name: currentValue });
+      list = [{ id: `custom-${currentValue}`, name: currentValue }, ...list];
     }
 
     return list.map((item) => (
@@ -447,23 +476,9 @@ const DeliveryWorkflow = ({
 
   // Helper renderer for status dropdown options with out-of-range protection
   const renderStatusOptions = (currentValue) => {
-    let list = [];
-    if (statuses && statuses.length > 0) {
-      list = statuses.map((st, idx) => ({
-        id: st.id || idx,
-        name: st.name || "",
-      })).filter(s => s.name);
-    } else {
-      list = [
-        { id: "cr", name: "Created" },
-        { id: "as", name: "Assigned" },
-        { id: "ip", name: "Inprocess" },
-        { id: "cl", name: "Closed" },
-      ];
-    }
-
+    let list = statusList;
     if (currentValue && !list.some((item) => item.name === currentValue)) {
-      list.unshift({ id: `custom-${currentValue}`, name: currentValue });
+      list = [{ id: `custom-${currentValue}`, name: currentValue }, ...list];
     }
 
     return list.map((item) => (
@@ -496,7 +511,7 @@ const DeliveryWorkflow = ({
                 const isActive = workflowTicketIdx === idx;
                 return (
                   <button
-                    key={tNo || idx}
+                    key={t.ticketNo || t.txnId || t.id || `ticket-${idx}`}
                     type="button"
                     className={`mlp-dw-ticket-pill ${isActive ? "active" : ""}`}
                     onClick={() => setWorkflowTicketIdx(idx)}
@@ -541,6 +556,7 @@ const DeliveryWorkflow = ({
           <span>NO</span>
           <span>ACTIVITY</span>
           <span style={{ marginLeft: 30 }}>WORKING DAYS</span>
+          <span>WORKING HOURS</span>
           <span>START</span>
           <span>END</span>
           <span>RESPONSIBLE BY</span>
@@ -561,7 +577,7 @@ const DeliveryWorkflow = ({
             {completedSteps.step1 || ackCompleted ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
 
@@ -687,23 +703,28 @@ const DeliveryWorkflow = ({
           {/* Form Row for Step 01 */}
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                ACK · WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
                 variant="outlined"
                 value={ackWorkingDays}
-                error={missingFields.includes("Working Days")}
-                onChange={(e) => {
-                  setAckWorkingDays(e.target.value);
-                  if (missingFields.includes("Working Days")) {
-                    setMissingFields((prev) => prev.filter((f) => f !== "Working Days"));
-                  }
-                }}
+                onChange={(e) => setAckWorkingDays(e.target.value)}
                 sx={muiInputSx}
                 slotProps={{ htmlInput: { min: 1, max: 90 } }}
+              />
+            </div>
+
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={ackWorkingHours}
+                onChange={(e) => setAckWorkingHours(e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
 
@@ -852,15 +873,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step2 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Requirement captured with the customer and issued for review</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -868,6 +887,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step2.days}
                 onChange={(e) => handleStepChange("step2", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step2.hours ?? ""}
+                onChange={(e) => handleStepChange("step2", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -1021,15 +1052,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step3 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Business Understanding confirmed against the BRD.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -1037,6 +1066,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step3.days}
                 onChange={(e) => handleStepChange("step3", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step3.hours ?? ""}
+                onChange={(e) => handleStepChange("step3", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -1208,15 +1249,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step4 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Functional specification prepared and attached to the ticket.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -1224,6 +1263,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step4.days}
                 onChange={(e) => handleStepChange("step4", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step4.hours ?? ""}
+                onChange={(e) => handleStepChange("step4", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -1395,15 +1446,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step5 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Technical specification prepared and reviewed by the module lead.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -1411,6 +1460,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step5.days}
                 onChange={(e) => handleStepChange("step5", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step5.hours ?? ""}
+                onChange={(e) => handleStepChange("step5", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -1581,15 +1642,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step6 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Configuration executed in DEV with AI assistance; unit tested.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -1597,6 +1656,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step6.days}
                 onChange={(e) => handleStepChange("step6", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step6.hours ?? ""}
+                onChange={(e) => handleStepChange("step6", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -1768,15 +1839,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step7 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Internal testing executed against the test scripts before submission.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -1784,6 +1853,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step7.days}
                 onChange={(e) => handleStepChange("step7", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step7.hours ?? ""}
+                onChange={(e) => handleStepChange("step7", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -1955,15 +2036,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step8 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">User manual prepared for the customer team.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -1971,6 +2050,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step8.days}
                 onChange={(e) => handleStepChange("step8", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step8.hours ?? ""}
+                onChange={(e) => handleStepChange("step8", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -2121,15 +2212,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step9 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Deliverables and documents submitted to the customer for validation.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -2137,6 +2226,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step9.days}
                 onChange={(e) => handleStepChange("step9", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step9.hours ?? ""}
+                onChange={(e) => handleStepChange("step9", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -2287,15 +2388,13 @@ const DeliveryWorkflow = ({
             {completedSteps.step10 ? (
               <span className="mlp-dw-step-badge-completed">✓ Completed</span>
             ) : (
-              <span className="mlp-dw-step-badge-ontime">On time</span>
+              <span className="mlp-dw-step-badge-ontime">Pending</span>
             )}
           </div>
           <p className="mlp-dw-step-desc">Customer validates in QA and accepts. Acceptance closes the ticket.</p>
           <div className="mlp-dw-form-row">
             <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                WORKING DAYS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
+              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
               <TextField
                 type="number"
                 size="small"
@@ -2303,6 +2402,18 @@ const DeliveryWorkflow = ({
                 value={stepsState.step10.days}
                 onChange={(e) => handleStepChange("step10", "days", e.target.value)}
                 sx={muiInputSx}
+              />
+            </div>
+            <div className="mlp-dw-field-group">
+              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+              <TextField
+                type="number"
+                size="small"
+                variant="outlined"
+                value={stepsState.step10.hours ?? ""}
+                onChange={(e) => handleStepChange("step10", "hours", e.target.value)}
+                sx={muiInputSx}
+                slotProps={{ htmlInput: { min: 0 } }}
               />
             </div>
             <div className="mlp-dw-field-group">
@@ -2591,4 +2702,4 @@ const DeliveryWorkflow = ({
   );
 };
 
-export default DeliveryWorkflow;
+export default React.memo(DeliveryWorkflow);

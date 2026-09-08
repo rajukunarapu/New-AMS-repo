@@ -281,50 +281,19 @@ const ModuleLeadPage = () => {
     }
   }, [searchParams, filteredTickets]);
 
-  // Synchronize activeNav changes to URL searchParams and localStorage
-  useEffect(() => {
-    localStorage.setItem("moduleLeadActiveNav", activeNav);
-    if (activeNav === "tickets") {
-      setShowReviewBox(false);
-      const ticketInUrl = searchParams.get("ticket");
-      if (ticketInUrl && filteredTickets.length > 0) {
-        const idx = filteredTickets.findIndex(
-          (t) => String(t.ticketNo).toLowerCase() === String(ticketInUrl).toLowerCase()
-        );
-        if (idx !== -1) {
-          setSelectedTicketIdx(idx);
-          if (idx >= visibleCount) {
-            setVisibleCount(Math.ceil((idx + 1) / 20) * 20);
-          }
-          if (searchParams.get("tab") !== "tickets") {
-            setSearchParams({ tab: "tickets", ticket: ticketInUrl });
-          }
-          return;
-        }
-      }
-      // Only default to first ticket if no ticket parameter is in URL
-      if (!ticketInUrl && filteredTickets.length > 0 && filteredTickets[0]?.ticketNo) {
-        setSearchParams({ tab: "tickets", ticket: filteredTickets[0].ticketNo });
-      }
-    } else {
-      if (searchParams.get("tab") !== activeNav || searchParams.get("ticket")) {
-        setSearchParams({ tab: activeNav });
-      }
-    }
-  }, [activeNav]);
-
   const handleNavClick = (navId) => {
+    if (activeNav === navId) return;
     setActiveNav(navId);
     localStorage.setItem("moduleLeadActiveNav", navId);
     if (navId === "tickets") {
       const currentTicket = searchParams.get("ticket") || filteredTickets[0]?.ticketNo;
       if (currentTicket) {
-        setSearchParams({ tab: "tickets", ticket: currentTicket });
+        setSearchParams({ tab: "tickets", ticket: currentTicket }, { replace: true });
       } else {
-        setSearchParams({ tab: "tickets" });
+        setSearchParams({ tab: "tickets" }, { replace: true });
       }
     } else {
-      setSearchParams({ tab: navId });
+      setSearchParams({ tab: navId }, { replace: true });
     }
   };
 
@@ -502,7 +471,9 @@ const ModuleLeadPage = () => {
     return filteredTickets.slice(0, workflowVisibleCount);
   }, [filteredTickets, workflowVisibleCount]);
 
-  const selectedWorkflowTicket = workflowTickets[workflowTicketIdx] || filteredTickets[0] || null;
+  const selectedWorkflowTicket = useMemo(() => {
+    return workflowTickets[workflowTicketIdx] || filteredTickets[0] || null;
+  }, [workflowTickets, workflowTicketIdx, filteredTickets]);
 
   // Format date helper (MM/DD/YYYY)
   const getFormattedCreatedDate = (dateStr) => {

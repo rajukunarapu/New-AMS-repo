@@ -1,6 +1,6 @@
 import Axios from 'axios';
 
-export async function postTicketAcknowledgementAPI(ticketId, documentType, customerAck, endSLA, workingdays, responsibleBy, status, attachment) {
+export async function postTicketAcknowledgementAPI(ticketId, documentType, customerAck, endSLA, workingdays, responsibleBy, status, attachment, hours) {
     try {
         const formData = new FormData();
         formData.append("TicketId", ticketId);
@@ -10,6 +10,7 @@ export async function postTicketAcknowledgementAPI(ticketId, documentType, custo
         formData.append("WorkingDays", Number(workingdays) || 1);
         formData.append("ResponsibleBy", responsibleBy);
         formData.append("Status", status);
+        formData.append("Approvedhours", hours);
 
         // Append file if present (attachment should be a File/Blob object from <input type="file" />)
         if (attachment) {

@@ -1,0 +1,31 @@
+{
+  "xsappname": "gen-ai-analytics-platform",
+  "tenant-mode": "dedicated",
+  "description": "Security configuration for GEN-AI Analytics Platform",
+  "scopes": [
+    {
+      "name": "$XSAPPNAME.User",
+      "description": "User access"
+    },
+    {
+      "name": "$XSAPPNAME.Admin",
+      "description": "Administrator access"
+    }
+  ],
+  "role-templates": [
+    {
+      "name": "UserRole",
+      "description": "Standard user access template",
+      "scope-references": [
+        "$XSAPPNAME.User"
+      ]
+    },
+    {
+      "name": "AdminRole",
+      "description": "Administrator access template",
+      "scope-references": [
+        "$XSAPPNAME.Admin"
+      ]
+    }
+  ]
+}

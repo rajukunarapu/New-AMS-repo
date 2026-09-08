@@ -1,0 +1,9 @@
+{
+  "destinations": [
+    {
+      "name": "backend-api",
+      "url": "http://localhost:8000",
+      "forwardAuthToken": false
+    }
+  ]
+}

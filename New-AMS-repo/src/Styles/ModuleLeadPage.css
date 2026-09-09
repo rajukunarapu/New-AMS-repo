@@ -2742,19 +2742,40 @@
   margin: 0;
 }
 
-/* Step Form Row (Working days, Working hours, Start, End, Responsible, Status, Attachment) */
+/* Step Form Row (5 fields in Row 1, remaining in Row 2) */
 .mlp-dw-form-row {
   display: grid;
-  grid-template-columns: minmax(105px, 1fr) minmax(110px, 1fr) minmax(95px, 1fr) minmax(95px, 1fr) minmax(130px, 1.2fr) minmax(110px, 1fr) minmax(120px, 1.1fr);
-  gap: 12px;
+  grid-template-columns: minmax(85px, 0.85fr) minmax(90px, 0.85fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(180px, 1.4fr);
+  gap: 12px 14px;
   align-items: end;
   width: 100%;
   box-sizing: border-box;
 }
 
+.mlp-dw-field-group.mlp-dw-field-responsible {
+  min-width: 0;
+  width: 100%;
+}
+
+.mlp-dw-field-group.mlp-dw-field-status {
+  grid-column: span 2;
+  min-width: 0;
+  width: 100%;
+}
+
+.mlp-dw-field-group.mlp-dw-field-attachment {
+  grid-column: span 2;
+  min-width: 0;
+  width: 100%;
+}
+
 @media (max-width: 1200px) {
   .mlp-dw-form-row {
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+  .mlp-dw-field-group.mlp-dw-field-status,
+  .mlp-dw-field-group.mlp-dw-field-attachment {
+    grid-column: auto;
   }
 }
 
@@ -4049,6 +4070,10 @@
   }
   .mlp-dw-form-row {
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+  .mlp-dw-field-group.mlp-dw-field-status,
+  .mlp-dw-field-group.mlp-dw-field-attachment {
+    grid-column: auto;
   }
   .mlp-dw-bottom-cards-grid {
     grid-template-columns: 1fr;

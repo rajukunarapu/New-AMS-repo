@@ -97,13 +97,13 @@ const TicketDetailsPage = ({
                 onClick={() => handleSelectTicket(idx, ticket)}
               >
                 <div className="mlp-tc-row1">
-                  <span className="mlp-tc-no">{ticket.ticketNo || `T-${idx + 1}`}</span>
+                  <span className="mlp-tc-no">{ticket.ticketNo || "-"}</span>
                   <span className={`mlp-tc-priority ${getPriorityClass(ticket.priority)}`}>
                     {pCode}
                   </span>
                 </div>
-                <div className="mlp-tc-name">{ticket.remarks || ticket.createdname || "No title"}</div>
-                <div className="mlp-tc-status">{ticket.ticketStatus || "Created"}</div>
+                <div className="mlp-tc-name">{ticket.description || "NA"}</div>
+                <div className="mlp-tc-status">{ticket.ticketStatus || "-"}</div>
               </div>
             );
           })}
@@ -158,7 +158,7 @@ const TicketDetailsPage = ({
             {/* Card 1: Ticket Overview */}
             <div className="mlp-td-card">
               <h2 className="mlp-td-overview-name">
-                { selectedTicket.description ||  selectedTicket.remarks || selectedTicket.createdname }
+                { selectedTicket.description || "NA" }
               </h2>
               <div className="mlp-td-divider" />
 
@@ -169,11 +169,11 @@ const TicketDetailsPage = ({
                 </div>
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">CUSTOMER</span>
-                  <span className="mlp-td-value">{selectedTicket.clientName }</span>
+                  <span className="mlp-td-value">{selectedTicket.clientName || "-"}</span>
                 </div>
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">MODULE</span>
-                  <span className="mlp-td-value">{selectedTicket.module }</span>
+                  <span className="mlp-td-value">{selectedTicket.module || "-"}</span>
                 </div>
 
                 <div className="mlp-td-field">

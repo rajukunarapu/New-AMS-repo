@@ -950,6 +950,8 @@ const ModuleLeadPage = () => {
               getFormattedCreatedDate={getFormattedCreatedDate}
               getComputedEndDate={getComputedEndDate}
               loadingTickets={loadingTickets}
+              formatPriorityCode={formatPriorityCode}
+              getPriorityClass={getPriorityClass}
             />
           ) : activeNav === "ticket-sorting" ? (
             <TicketSorting

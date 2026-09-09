@@ -130,6 +130,8 @@ const DeliveryWorkflow = ({
   getFormattedCreatedDate,
   getComputedEndDate,
   loadingTickets,
+  formatPriorityCode,
+  getPriorityClass,
 }) => {
   const defaultConsultant =
     selectedWorkflowTicket?.name ||
@@ -544,11 +546,19 @@ const DeliveryWorkflow = ({
         {/* Header Card for Selected Ticket */}
         <div className="mlp-dw-header-card">
           <span className="mlp-dw-header-title">
-            {selectedWorkflowTicket?.ticketNo || "INC-1041"} — {selectedWorkflowTicket?.remarks || "Cannot post AP invoice in FB60 after July deployment"}
+            {selectedWorkflowTicket?.ticketNo } — {selectedWorkflowTicket?.description || "NA"}
           </span>
-          <span className="mlp-dw-header-meta">
-            {/* 33 working days planned across all 10 activities · 2 completed · plan ends 14 Oct */}
-          </span>
+          {selectedWorkflowTicket && (
+            <span
+              className={`mlp-tc-priority ${
+                getPriorityClass ? getPriorityClass(selectedWorkflowTicket.priority) : "NA"
+              }`}
+            >
+              {formatPriorityCode
+                ? formatPriorityCode(selectedWorkflowTicket.priority)
+                : selectedWorkflowTicket.priority || "NA"}
+            </span>
+          )}
         </div>
 
         {/* Columns guide */}
@@ -754,7 +764,7 @@ const DeliveryWorkflow = ({
               />
             </div>
 
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -779,7 +789,7 @@ const DeliveryWorkflow = ({
               </FormControl>
             </div>
 
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -919,7 +929,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -934,7 +944,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -949,7 +959,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -1098,7 +1108,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1113,7 +1123,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1128,7 +1138,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -1295,7 +1305,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1310,7 +1320,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1325,7 +1335,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -1492,7 +1502,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1507,7 +1517,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1522,7 +1532,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -1688,7 +1698,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1703,7 +1713,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1718,7 +1728,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -1885,7 +1895,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1900,7 +1910,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -1915,7 +1925,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -2082,7 +2092,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -2097,7 +2107,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -2112,7 +2122,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -2258,7 +2268,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -2273,7 +2283,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -2288,7 +2298,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"
@@ -2434,7 +2444,7 @@ const DeliveryWorkflow = ({
                 sx={muiInputSx}
               />
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-responsible">
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -2449,7 +2459,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
                 STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
@@ -2464,7 +2474,7 @@ const DeliveryWorkflow = ({
                 </Select>
               </FormControl>
             </div>
-            <div className="mlp-dw-field-group">
+            <div className="mlp-dw-field-group mlp-dw-field-attachment">
               <label className="mlp-dw-field-lbl">ATTACHMENT</label>
               <input
                 type="file"

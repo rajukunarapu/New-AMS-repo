@@ -1486,3 +1486,119 @@ body,
   }
 }
 
+/* Needs Attention Dark Mode */
+[data-theme="dark"] .mlp-na-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlp-na-subtitle,
+[data-theme="dark"] .mlp-na-desc,
+[data-theme="dark"] .mlp-na-col-sub,
+[data-theme="dark"] .mlp-na-customer,
+[data-theme="dark"] .mlp-na-ticket-company,
+[data-theme="dark"] .mlp-na-rank,
+[data-theme="dark"] .mlp-na-risk-score {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mlp-na-toggles,
+[data-theme="dark"] .mlp-na-card,
+[data-theme="dark"] .mlp-na-table-card,
+[data-theme="dark"] .mlp-na-th {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-na-toggle-btn {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .mlp-na-toggle-btn.active {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .mlp-na-toggle-btn:hover:not(.active) {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-na-col-title {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .mlp-na-col-header,
+[data-theme="dark"] .mlp-na-tr {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-na-tr:hover {
+  background: #243447 !important;
+}
+
+[data-theme="dark"] .mlp-na-card-reason,
+[data-theme="dark"] .mlp-na-reason-text {
+  color: #f1f5f9 !important;
+}
+
+[data-theme="dark"] .mlp-na-card-rec,
+[data-theme="dark"] .mlp-na-rec-text {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .mlp-na-btn-review:hover {
+  background: #334155 !important;
+  color: #ffffff !important;
+}
+
+/* Ticket Assignment Dark Mode */
+[data-theme="dark"] .mlp-ta-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlp-ta-subtitle,
+[data-theme="dark"] .mlp-ta-kpi-sub,
+[data-theme="dark"] .mlp-ta-banner-desc,
+[data-theme="dark"] .mlp-ta-cand-subtext,
+[data-theme="dark"] .mlp-ta-metric-lbl,
+[data-theme="dark"] .mlp-ta-guardrail-item,
+[data-theme="dark"] .mlp-ta-side-footnote {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mlp-ta-kpi-card,
+[data-theme="dark"] .mlp-ta-candidate-card,
+[data-theme="dark"] .mlp-ta-side-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-ta-kpi-val,
+[data-theme="dark"] .mlp-ta-banner-title,
+[data-theme="dark"] .mlp-ta-cand-name,
+[data-theme="dark"] .mlp-ta-cand-score,
+[data-theme="dark"] .mlp-ta-side-title,
+[data-theme="dark"] .mlp-ta-weight-row {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlp-ta-candidate-card.recommended {
+  border-color: #16a34a !important;
+}
+
+[data-theme="dark"] .mlp-ta-breakdown-box {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .mlp-ta-breakdown-title {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlp-ta-progress-track,
+[data-theme="dark"] .mlp-ta-weight-track {
+  background: #334155 !important;
+}
+
+
+

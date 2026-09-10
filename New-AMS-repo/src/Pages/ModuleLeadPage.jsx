@@ -14,6 +14,8 @@ import SupportDashboard from "../Features/ModuleLeadComponents/SupportDashboard"
 import TicketDetailsPage from "../Features/ModuleLeadComponents/TicketDetailsPage";
 import TicketList from "../Features/ModuleLeadComponents/TicketList";
 import DeliveryWorkflow from "../Features/ModuleLeadComponents/DeliveryWorkflow";
+import NeedsAttention from "../Features/ModuleLeadComponents/NeedsAttention";
+import TicketAssignment from "../Features/ModuleLeadComponents/TicketAssignment";
 import TicketSorting from "../Features/ModuleLeadComponents/TicketSorting";
 import Insights from "../Features/ModuleLeadComponents/Insights";
 import Analytics from "../Features/ModuleLeadComponents/Analytics";
@@ -936,6 +938,15 @@ const ModuleLeadPage = () => {
               slaRiskTicketsCount={slaRiskTicketsCount}
               needsTriageTicketsCount={needsTriageTicketsCount}
             />
+          ) : activeNav === "needs-attention" ? (
+            <NeedsAttention
+              tickets={tickets}
+              filteredTickets={filteredTickets}
+              handleTicketListRowClick={handleTicketListRowClick}
+              formatPriorityCode={formatPriorityCode}
+              getPriorityClass={getPriorityClass}
+              loadingTickets={loadingTickets}
+            />
           ) : activeNav === "workflow" ? (
             <DeliveryWorkflow
               filteredTickets={filteredTickets}
@@ -952,6 +963,16 @@ const ModuleLeadPage = () => {
               loadingTickets={loadingTickets}
               formatPriorityCode={formatPriorityCode}
               getPriorityClass={getPriorityClass}
+            />
+          ) : activeNav === "ticket-assignment" ? (
+            <TicketAssignment
+              tickets={tickets}
+              filteredTickets={filteredTickets}
+              selectedTicket={selectedTicket}
+              employees={employees}
+              handleNavClick={handleNavClick}
+              handleTicketListRowClick={handleTicketListRowClick}
+              loadingTickets={loadingTickets}
             />
           ) : activeNav === "ticket-sorting" ? (
             <TicketSorting

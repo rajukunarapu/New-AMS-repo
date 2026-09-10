@@ -495,7 +495,7 @@ const DeliveryWorkflow = ({
       <div>
         <h1 className="mlp-page-title">Delivery Workflow</h1>
         <p className="mlp-page-subtitle">
-          Thirteen governed steps from acceptance to closure, each with a planned duration and the time actually logged against it. Consultant steps advance here; customer steps complete in the customer portal; every transition is audited.
+          Ten governed steps from acceptance to closure, each with a planned duration and the time actually logged against it. Consultant steps advance here; customer steps complete in the customer portal; every transition is audited.
         </p>
       </div>
 

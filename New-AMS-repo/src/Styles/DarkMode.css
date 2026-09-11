@@ -1600,5 +1600,59 @@ body,
   background: #334155 !important;
 }
 
+/* Reports Dark Mode */
+[data-theme="dark"] .mlp-rep-title,
+[data-theme="dark"] .mlp-rep-chart-title,
+[data-theme="dark"] .mlp-rep-section-title,
+[data-theme="dark"] .mlp-rep-pack-title,
+[data-theme="dark"] .mlp-rep-metric-val {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .mlp-rep-subtitle,
+[data-theme="dark"] .mlp-rep-metric-sub,
+[data-theme="dark"] .mlp-rep-metric-lbl,
+[data-theme="dark"] .mlp-rep-chart-footnote,
+[data-theme="dark"] .mlp-rep-pack-desc,
+[data-theme="dark"] .mlp-rep-graphic-title,
+[data-theme="dark"] .mlp-rep-legend-note {
+  color: #94a3b8 !important;
+}
+
+[data-theme="dark"] .mlp-rep-metric-card,
+[data-theme="dark"] .mlp-rep-chart-card,
+[data-theme="dark"] .mlp-rep-pack-card {
+  background: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-rep-pack-graphic {
+  background: #0f172a !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-rep-pack-bullets li {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .mlp-rep-chart-legend,
+[data-theme="dark"] .mlp-rep-chart-footnote {
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-rep-breach-track {
+  background: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-rep-breach-score {
+  color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .mlp-rep-pack-badge.mgmt {
+  background: #334155 !important;
+  color: #cbd5e1 !important;
+}
+
+
 
 

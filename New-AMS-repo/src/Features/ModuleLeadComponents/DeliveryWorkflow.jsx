@@ -197,15 +197,15 @@ const DeliveryWorkflow = ({
 
   // Steps 02–10 state with initial dates, valid status names, and attachments
   const [stepsState, setStepsState] = useState({
-    step2: { days: 2, hours: "", startDate: "09/14/2026", responsible: defaultConsultant, status: "Closed", attachment: null, attachmentName: "" },
-    step3: { days: 2, hours: "", startDate: "09/16/2026", responsible: defaultConsultant, status: "Inprocess", attachment: null, attachmentName: "" },
-    step4: { days: 3, hours: "", startDate: "09/18/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step5: { days: 3, hours: "", startDate: "09/23/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step6: { days: 4, hours: "", startDate: "09/28/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step7: { days: 5, hours: "", startDate: "10/02/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step8: { days: 2, hours: "", startDate: "10/07/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step9: { days: 1, hours: "", startDate: "10/09/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
-    step10: { days: 3, hours: "", startDate: "10/12/2026", responsible: defaultConsultant, status: "Assigned", attachment: null, attachmentName: "" },
+    step2: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step3: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step4: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step5: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step6: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step7: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step8: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step9: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step10: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
   });
 
   const fileInputRefs = useRef({});
@@ -249,10 +249,10 @@ const DeliveryWorkflow = ({
 
       const defaultName =
         selectedWorkflowTicket.name ||
-        (employees && employees.length > 0 ? (employees[0].name || employees[0].employeeName) : "K. Menon");
+        (employees && employees.length > 0 ? (employees[0].name || employees[0].employeeName) : "");
       const defaultStatus =
         selectedWorkflowTicket.ticketStatus ||
-        (statuses && statuses.length > 0 ? statuses[0].name : "Assigned");
+        (statuses && statuses.length > 0 ? statuses[0].name : "");
 
       setAckResponsibleBy(defaultName);
       setAckStatus(defaultStatus);
@@ -320,7 +320,7 @@ const DeliveryWorkflow = ({
       return;
     }
 
-    const ticketId = selectedWorkflowTicket.ticketNo || selectedWorkflowTicket.txnId || "AAB2608266";
+    const ticketId = selectedWorkflowTicket.ticketNo || selectedWorkflowTicket.txnId ;
     let customerAckFormatted = "";
     let endSlaFormatted = "";
     let workingDaysVal = 1;
@@ -391,8 +391,8 @@ const DeliveryWorkflow = ({
       hoursVal = hasHours ? String(s.hours) : "";
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = s.status || "Assigned";
-      customerAckFormatted = formatToMMDDYYYY(s.startDate || "09/14/2026");
-      endSlaFormatted = getComputedEndDate(s.startDate || "09/14/2026", Number(s.days) || 1);
+      customerAckFormatted = formatToMMDDYYYY(s.startDate );
+      endSlaFormatted = getComputedEndDate(s.startDate , Number(s.days) || 1);
       attachmentVal = s.attachment || null;
     }
 

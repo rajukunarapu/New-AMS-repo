@@ -18,6 +18,7 @@ import NeedsAttention from "../Features/ModuleLeadComponents/NeedsAttention";
 import TicketAssignment from "../Features/ModuleLeadComponents/TicketAssignment";
 import TicketSorting from "../Features/ModuleLeadComponents/TicketSorting";
 import Insights from "../Features/ModuleLeadComponents/Insights";
+import Reports from "../Features/ModuleLeadComponents/Reports";
 import Analytics from "../Features/ModuleLeadComponents/Analytics";
 import AIConfiguration from "../Features/ModuleLeadComponents/AIConfiguration";
 import Notification from "../Features/ModuleLeadComponents/Notification";
@@ -986,6 +987,16 @@ const ModuleLeadPage = () => {
             />
           ) : activeNav === "insights" ? (
             <Insights />
+          ) : activeNav === "reports" ? (
+            <Reports
+              tickets={tickets}
+              filteredTickets={filteredTickets}
+              selectedTicket={selectedTicket}
+              handleTicketListRowClick={handleTicketListRowClick}
+              formatPriorityCode={formatPriorityCode}
+              getPriorityClass={getPriorityClass}
+              loadingTickets={loadingTickets}
+            />
           ) : activeNav === "analytics" ? (
             <Analytics />
           ) : activeNav === "neoai" ? (

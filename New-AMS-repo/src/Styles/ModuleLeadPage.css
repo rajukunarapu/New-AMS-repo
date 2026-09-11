@@ -5473,5 +5473,487 @@
   color: #475569;
 }
 
+/* ==========================================================================
+   REPORTS COMPONENT
+   ========================================================================== */
+
+.mlp-rep-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: 24px;
+}
+
+.mlp-rep-header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mlp-rep-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.mlp-rep-subtitle {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* ── Top 5 Metric Cards Strip ── */
+.mlp-rep-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1200px) {
+  .mlp-rep-metrics-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .mlp-rep-metrics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .mlp-rep-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mlp-rep-metric-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+}
+
+.mlp-rep-metric-accent {
+  height: 4px;
+  width: 100%;
+}
+
+.mlp-rep-metric-accent.accent-navy {
+  background: #334155;
+}
+
+.mlp-rep-metric-accent.accent-teal {
+  background: #0d9488;
+}
+
+.mlp-rep-metric-accent.accent-amber {
+  background: #d97706;
+}
+
+.mlp-rep-metric-accent.accent-purple {
+  background: #8b5cf6;
+}
+
+.mlp-rep-metric-accent.accent-green {
+  background: #16a34a;
+}
+
+.mlp-rep-metric-content {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.mlp-rep-metric-lbl {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mlp-rep-metric-val {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.mlp-rep-metric-sub {
+  font-size: 10.5px;
+  color: #64748b;
+}
+
+/* ── Middle Row: 3 Visual Charts ── */
+.mlp-rep-charts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+  .mlp-rep-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mlp-rep-chart-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.mlp-rep-chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mlp-rep-chart-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Ageing Bar chart styles */
+.mlp-rep-bar-chart-area {
+  display: flex;
+  align-items: flex-end;
+  height: 110px;
+  max-height: 110px;
+  padding: 10px 0 6px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mlp-rep-bars-container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  align-items: flex-end;
+  gap: 8px;
+  height: 100%;
+}
+
+.mlp-rep-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  height: 100%;
+  justify-content: flex-end;
+}
+
+.mlp-rep-bar-columns {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 80px;
+  max-height: 80px;
+  overflow: hidden;
+}
+
+.mlp-rep-bar {
+  width: 7px;
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  max-height: 75px;
+  transition: height 0.3s ease;
+  box-sizing: border-box;
+}
+
+.mlp-rep-bar.bar-p1 {
+  background: #0f172a;
+}
+
+.mlp-rep-bar.bar-p2 {
+  background: #10b981;
+}
+
+.mlp-rep-bar.bar-p3 {
+  background: #86efac;
+}
+
+.mlp-rep-bar-lbl {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.mlp-rep-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 10px;
+  color: #64748b;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+
+.mlp-rep-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.mlp-rep-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.mlp-rep-legend-dot.p1 {
+  background: #0f172a;
+}
+
+.mlp-rep-legend-dot.p2 {
+  background: #10b981;
+}
+
+.mlp-rep-legend-dot.p3 {
+  background: #86efac;
+}
+
+.mlp-rep-legend-note {
+  font-size: 9.5px;
+  color: #94a3b8;
+  margin-left: auto;
+}
+
+/* Line chart styles */
+.mlp-rep-line-chart-area {
+  height: 110px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mlp-rep-svg-chart {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.mlp-rep-chart-footnote {
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.4;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* Breach probability 5 tickets styles */
+.mlp-rep-breach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  justify-content: center;
+}
+
+.mlp-rep-breach-item {
+  display: grid;
+  grid-template-columns: 75px 1fr 35px;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.mlp-rep-breach-item:hover .mlp-rep-breach-ticket {
+  text-decoration: underline;
+  color: #166534;
+}
+
+.mlp-rep-breach-ticket {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #15803d;
+  text-decoration: none;
+}
+
+.mlp-rep-breach-track {
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.mlp-rep-breach-bar {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s ease;
+}
+
+.mlp-rep-breach-score {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #475569;
+  text-align: right;
+}
+
+/* ── Bottom Section: Share-ready packs ── */
+.mlp-rep-packs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.mlp-rep-section-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.mlp-rep-packs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .mlp-rep-packs-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mlp-rep-pack-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.mlp-rep-pack-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 4px;
+  width: max-content;
+}
+
+.mlp-rep-pack-badge.mgmt {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.mlp-rep-pack-badge.customer {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.mlp-rep-pack-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.mlp-rep-pack-desc {
+  font-size: 11.5px;
+  color: #64748b;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.mlp-rep-pack-graphic {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 4px 0;
+}
+
+.mlp-rep-graphic-title {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.04em;
+}
+
+.mlp-rep-graphic-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  height: 38px;
+}
+
+.mlp-rep-gbar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  min-height: 6px;
+}
+
+.mlp-rep-pack-bullets {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+  color: #334155;
+}
+
+.mlp-rep-btn-generate {
+  background: #15803d;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: max-content;
+  margin-top: 6px;
+}
+
+.mlp-rep-btn-generate:hover {
+  background: #166534;
+}
+
+
 
 

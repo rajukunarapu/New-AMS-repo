@@ -1,5 +1,20 @@
-import React from "react";
-import { Alert, Skeleton, LinearProgress } from "@mui/material";
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  Alert,
+  Skeleton,
+  LinearProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
+} from "@mui/material";
+import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
+import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
+import { GetScreenshotAPI } from "../../Services/GetScreenshotAPI";
 
 const TicketDetailsPage = ({
   filteredTickets,
@@ -40,6 +55,72 @@ const TicketDetailsPage = ({
   searchText,
   showAssignUpdateCard = true,
 }) => {
+  const [screenshotData, setScreenshotData] = useState(null);
+  const [loadingScreenshot, setLoadingScreenshot] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
+
+  const fetchScreenshot = useCallback(async (ticketId) => {
+    if (!ticketId) {
+      setScreenshotData(null);
+      return;
+    }
+    setLoadingScreenshot(true);
+    try {
+      const res = await GetScreenshotAPI(ticketId);
+      if (res) {
+        setScreenshotData(res);
+      } else {
+        setScreenshotData(null);
+      }
+    } catch (err) {
+      console.error("Error fetching ticket screenshot:", err);
+      setScreenshotData({
+        success: false,
+        screenshot: null,
+        message: "No screen shot found for this ticket",
+      });
+    } finally {
+      setLoadingScreenshot(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedTicket?.ticketNo) {
+      fetchScreenshot(selectedTicket.ticketNo);
+    } else {
+      setScreenshotData(null);
+    }
+  }, [selectedTicket?.ticketNo, fetchScreenshot]);
+
+  const handleCardClick = (idx, ticket) => {
+    if (handleSelectTicket) {
+      handleSelectTicket(idx, ticket);
+    }
+    if (ticket && ticket.ticketNo) {
+      fetchScreenshot(ticket.ticketNo);
+    }
+  };
+
+  const getScreenshotDataUrl = (data) => {
+    if (!data || !data.screenshot) return "";
+    const raw = String(data.screenshot).trim();
+    if (raw.startsWith("data:")) return raw;
+    const mime = data.contentType || "image/png";
+    return `data:${mime};base64,${raw}`;
+  };
+
+  const handleDownloadScreenshot = () => {
+    if (!screenshotData?.screenshot) return;
+    const dataUrl = getScreenshotDataUrl(screenshotData);
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download =
+      screenshotData.fileName ||
+      `Ticket_${selectedTicket?.ticketNo || "screenshot"}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
   return (
     <>
       {/* ── Ticket Details Page ── */}
@@ -94,7 +175,7 @@ const TicketDetailsPage = ({
               <div
                 key={ticket.ticketNo || idx}
                 className={`mlp-ticket-card ${isCardSelected ? "selected" : ""}`}
-                onClick={() => handleSelectTicket(idx, ticket)}
+                onClick={() => handleCardClick(idx, ticket)}
               >
                 <div className="mlp-tc-row1">
                   <span className="mlp-tc-no">{ticket.ticketNo || "-"}</span>
@@ -158,7 +239,13 @@ const TicketDetailsPage = ({
             {/* Card 1: Ticket Overview */}
             <div className="mlp-td-card">
               <h2 className="mlp-td-overview-name">
-                { selectedTicket.description || "NA" }
+                {loadingScreenshot ? (
+                  <Skeleton variant="text" width="60%" height={30} />
+                ) : (
+                  (screenshotData?.description && screenshotData.description.trim()) ||
+                  selectedTicket.description ||
+                  "NA"
+                )}
               </h2>
               <div className="mlp-td-divider" />
 
@@ -254,45 +341,166 @@ const TicketDetailsPage = ({
                   backgroundColor: "#fafbfc",
                 }}
               >
-                No delivery documents yet — only the acknowledgement email sent to the customer, below. Accepting an AI-drafted FS, Technical Design or Test Script in the delivery workflow attaches it here as a version on the ticket.
+                Only the acknowledgement email sent to the customer, below. Accepting an AI-drafted FS, Technical Design or Test Script in the delivery workflow attaches it here as a version on the ticket.
               </div>
 
-              <div
-                style={{
-                  border: "1px solid #e2e8f0",
-                  borderRadius: "4px",
-                  padding: "12px 16px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  backgroundColor: "#ffffff",
-                  flexWrap: "wrap",
-                  gap: "10px",
-                }}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-                  <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#1e293b" }}>
-                    Acknowledgement_{selectedTicket.ticketNo || "AAB2608266"}.eml
-                  </span>
-                  <span style={{ fontSize: "11px", color: "#64748b" }}>
-                    Acknowledgement email to the customer · v1.0 · 39 KB · sent 26 Aug · 07:37 IST to servicedesk@aab.example · reference {selectedTicket.ticketNo || "AAB2608266"}
-                  </span>
-                </div>
-                <span
+              {loadingScreenshot ? (
+                <div
                   style={{
-                    border: "1px solid #86efac",
-                    backgroundColor: "#f0fdf4",
-                    color: "#166534",
+                    border: "1px solid #e2e8f0",
                     borderRadius: "4px",
-                    padding: "4px 10px",
-                    fontSize: "11px",
-                    fontWeight: 500,
-                    whiteSpace: "nowrap",
+                    padding: "14px 16px",
+                    backgroundColor: "#ffffff",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "6px",
                   }}
                 >
-                  Sent to customer · 26 Aug · 07:37 IST
-                </span>
-              </div>
+                  <Skeleton variant="text" width="45%" height={22} />
+                  <Skeleton variant="text" width="25%" height={16} />
+                </div>
+              ) : screenshotData?.screenshot ? (
+                <div
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "4px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    backgroundColor: "#ffffff",
+                    flexWrap: "wrap",
+                    gap: "10px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: "200px", flex: 1 }}>
+                    <div
+                      onClick={() => setPreviewModalOpen(true)}
+                      style={{
+                        width: 44,
+                        height: 44,
+                        borderRadius: 4,
+                        border: "1px solid #cbd5e1",
+                        overflow: "hidden",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        backgroundColor: "#f8fafc",
+                        flexShrink: 0,
+                      }}
+                      title="Click to view full screenshot"
+                    >
+                      <img
+                        src={getScreenshotDataUrl(screenshotData)}
+                        alt={screenshotData?.fileName || "Screenshot"}
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: "3px", overflow: "hidden" }}>
+                      <span
+                        style={{
+                          fontSize: "12.5px",
+                          fontWeight: 600,
+                          color: "#1e40af",
+                          cursor: "pointer",
+                          wordBreak: "break-all",
+                        }}
+                        onClick={() => setPreviewModalOpen(true)}
+                        title={screenshotData?.fileName || "Screenshot"}
+                      >
+                        {screenshotData?.fileName || `Ticket_${selectedTicket?.ticketNo || "-"}.png`}
+                      </span>
+                      <span style={{ fontSize: "11px", color: "#64748b" }}>
+                        {screenshotData?.contentType ? `Attachment · ${screenshotData.contentType}` : "Screenshot attachment"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons: View and Download */}
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <button
+                      type="button"
+                      onClick={() => setPreviewModalOpen(true)}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        backgroundColor: "#f8fafc",
+                        color: "#1e293b",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "4px",
+                        padding: "6px 12px",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                      title="View screenshot preview"
+                    >
+                      <VisibilityOutlined style={{ fontSize: "16px", color: "#475569" }} />
+                      View
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDownloadScreenshot}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                        backgroundColor: "#15803d",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "4px",
+                        padding: "6px 14px",
+                        fontSize: "11.5px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                      title="Download screenshot file"
+                    >
+                      <DownloadOutlined style={{ fontSize: "16px" }} />
+                      Download
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "4px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    backgroundColor: "#ffffff",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 4,
+                      border: "1px solid #e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "#f8fafc",
+                      color: "#94a3b8",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <InsertDriveFileOutlined fontSize="small" />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ fontSize: "12.5px", fontWeight: 500, color: "#64748b" }}>
+                      {screenshotData?.message || "No screen shot found for this ticket"}
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div style={{ marginTop: "14px" }}>
                 <button
@@ -886,6 +1094,131 @@ const TicketDetailsPage = ({
           </p>
         </div>
       )}
+
+      {/* Screenshot Preview Modal */}
+      <Dialog
+        open={previewModalOpen}
+        onClose={() => setPreviewModalOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          style: {
+            borderRadius: 8,
+            overflow: "hidden",
+            maxHeight: "90vh",
+          },
+        }}
+      >
+        <DialogTitle
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 20px",
+            backgroundColor: "#0f172a",
+            color: "#ffffff",
+            fontSize: "14px",
+            fontWeight: 600,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+            <span>{screenshotData?.fileName || `Ticket_${selectedTicket?.ticketNo || ""}.png`}</span>
+            {selectedTicket?.ticketNo && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  backgroundColor: "#334155",
+                  color: "#cbd5e1",
+                  fontWeight: 500,
+                }}
+              >
+                {selectedTicket.ticketNo}
+              </span>
+            )}
+          </div>
+          <IconButton
+            onClick={() => setPreviewModalOpen(false)}
+            size="small"
+            style={{ color: "#cbd5e1" }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          style={{
+            padding: "20px",
+            backgroundColor: "#f8fafc",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "350px",
+            overflow: "auto",
+          }}
+        >
+          {screenshotData?.screenshot ? (
+            <img
+              src={getScreenshotDataUrl(screenshotData)}
+              alt={screenshotData.fileName || "Ticket Screenshot"}
+              style={{
+                maxWidth: "100%",
+                maxHeight: "70vh",
+                objectFit: "contain",
+                borderRadius: "6px",
+                boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                backgroundColor: "#ffffff",
+              }}
+            />
+          ) : (
+            <p style={{ color: "#64748b" }}>No screenshot image available to preview.</p>
+          )}
+        </DialogContent>
+        <DialogActions
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#ffffff",
+            borderTop: "1px solid #e2e8f0",
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <span style={{ fontSize: "12px", color: "#64748b" }}>
+            {screenshotData?.contentType ? `Format: ${screenshotData.contentType}` : "Image"}
+          </span>
+          <div style={{ display: "flex", gap: "8px" }}>
+            {screenshotData?.screenshot && (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={handleDownloadScreenshot}
+                startIcon={<DownloadOutlined />}
+                style={{
+                  backgroundColor: "#15803d",
+                  textTransform: "none",
+                  fontWeight: 600,
+                  fontSize: "12px",
+                }}
+              >
+                Download
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => setPreviewModalOpen(false)}
+              style={{
+                color: "#475569",
+                borderColor: "#cbd5e1",
+                textTransform: "none",
+                fontSize: "12px",
+              }}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

@@ -22,6 +22,140 @@ const STANDARD_LABELS = [
 ];
 
 /**
+ * Image Thumbnail Component with Click-to-Expand Modal / Lightbox View
+ */
+export const ImageThumbnail = ({ src, alt = "Screenshot Preview" }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  if (!src || typeof src !== "string" || !src.includes("data:image/")) {
+    return <span>{src || "None"}</span>;
+  }
+
+  let dataUrl = src.trim();
+  if (dataUrl.includes('src="')) {
+    const match = dataUrl.match(/src=["'](data:image\/[^"']+)["']/);
+    if (match) dataUrl = match[1];
+  } else if (dataUrl.startsWith("`") && dataUrl.endsWith("`")) {
+    dataUrl = dataUrl.slice(1, -1);
+  }
+  
+  const imgMatch = dataUrl.match(/(data:image\/[a-zA-Z0-9+=\/;,._%-]+)/);
+  if (imgMatch) {
+    dataUrl = imgMatch[1];
+  }
+
+  return (
+    <>
+      <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-start", marginTop: "4px", gap: "4px" }}>
+        <img
+          src={dataUrl}
+          alt={alt}
+          onClick={() => setIsExpanded(true)}
+          title="Click to view full size"
+          style={{
+            maxWidth: "160px",
+            maxHeight: "120px",
+            borderRadius: "6px",
+            border: "1px solid rgba(148, 163, 184, 0.4)",
+            cursor: "pointer",
+            objectFit: "contain",
+            boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+            backgroundColor: "#000",
+            transition: "transform 0.15s ease",
+          }}
+        />
+        <span
+          onClick={() => setIsExpanded(true)}
+          style={{
+            fontSize: "10px",
+            color: "#3b82f6",
+            cursor: "pointer",
+            fontWeight: 600,
+            textDecoration: "underline",
+          }}
+        >
+        View full size
+        </span>
+      </div>
+
+      {isExpanded && (
+        <div
+          onClick={() => setIsExpanded(false)}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            backgroundColor: "rgba(0, 0, 0, 0.85)",
+            zIndex: 999999,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backdropFilter: "blur(6px)",
+            padding: "20px",
+            boxSizing: "border-box",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: "relative",
+              maxWidth: "92vw",
+              maxHeight: "92vh",
+              background: "#1e293b",
+              borderRadius: "12px",
+              padding: "16px",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.6)",
+              border: "1px solid rgba(255,255,255,0.1)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+            }}
+          >
+            <div style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px", borderBottom: "1px solid #334155", paddingBottom: "8px" }}>
+              <span style={{ color: "#ffffff", fontSize: "13px", fontWeight: 700 }}>
+                📷 Screenshot Preview
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsExpanded(false)}
+                style={{
+                  background: "#ef4444",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "50%",
+                  width: "28px",
+                  height: "28px",
+                  fontSize: "14px",
+                  fontWeight: "bold",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+            <img
+              src={dataUrl}
+              alt={alt}
+              style={{
+                maxWidth: "88vw",
+                maxHeight: "80vh",
+                borderRadius: "8px",
+                objectFit: "contain",
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </>
+  );
+};
+
+/**
  * Helper to determine current theme (Dark or Light)
  */
 const useIsDark = () => {
@@ -271,7 +405,9 @@ export const SingleTicketCard = ({ ticket, title = null }) => {
               {item.label}
             </div>
             <div style={{ color: textColor, wordBreak: "break-word", lineHeight: "1.4" }}>
-              {item.isBadge ? (
+              {String(item.value).includes("data:image/") ? (
+                <ImageThumbnail src={String(item.value)} alt={item.label} />
+              ) : item.isBadge ? (
                 item.type === "priority" ? (
                   renderPriorityBadge(item.value, isDark)
                 ) : (
@@ -607,6 +743,10 @@ export const FormattedMarkdown = ({ text }) => {
 const renderInlineMarkdown = (textStr, isDark) => {
   if (!textStr) return "";
 
+  if (typeof textStr === "string" && (textStr.includes("data:image/") || textStr.includes('<img src="data:image/'))) {
+    return <ImageThumbnail src={textStr} />;
+  }
+
   const textColor = isDark ? "#ffffff" : "#000000";
   const missingRedColor = isDark ? "#f87171" : "#dc2626";
 
@@ -617,7 +757,12 @@ const renderInlineMarkdown = (textStr, isDark) => {
 
   while ((match = regex.exec(textStr)) !== null) {
     if (match.index > lastIdx) {
-      parts.push(textStr.substring(lastIdx, match.index));
+      const preceding = textStr.substring(lastIdx, match.index);
+      if (preceding.includes("data:image/")) {
+        parts.push(<ImageThumbnail key={`img-${lastIdx}`} src={preceding} />);
+      } else {
+        parts.push(preceding);
+      }
     }
     const token = match[0];
     if (token.startsWith("**") && token.endsWith("**")) {
@@ -636,23 +781,27 @@ const renderInlineMarkdown = (textStr, isDark) => {
       );
     } else if (token.startsWith("`") && token.endsWith("`")) {
       const inner = token.slice(1, -1);
-      parts.push(
-        <code
-          key={match.index}
-          style={{
-            background: isDark ? "rgba(255, 255, 255, 0.12)" : "#f1f5f9",
-            border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.25)" : "#cbd5e1"}`,
-            padding: "1px 5px",
-            borderRadius: "3px",
-            fontSize: "11px",
-            color: textColor,
-            fontWeight: 600,
-            fontFamily: "monospace",
-          }}
-        >
-          {inner}
-        </code>
-      );
+      if (inner.includes("data:image/")) {
+        parts.push(<ImageThumbnail key={match.index} src={inner} />);
+      } else {
+        parts.push(
+          <code
+            key={match.index}
+            style={{
+              background: isDark ? "rgba(255, 255, 255, 0.12)" : "#f1f5f9",
+              border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.25)" : "#cbd5e1"}`,
+              padding: "1px 5px",
+              borderRadius: "3px",
+              fontSize: "11px",
+              color: textColor,
+              fontWeight: 600,
+              fontFamily: "monospace",
+            }}
+          >
+            {inner}
+          </code>
+        );
+      }
     } else if (token.startsWith("*") && token.endsWith("*")) {
       const inner = token.slice(1, -1);
       const isMissingToken = /not provided|missing/i.test(inner);
@@ -673,7 +822,12 @@ const renderInlineMarkdown = (textStr, isDark) => {
   }
 
   if (lastIdx < textStr.length) {
-    parts.push(textStr.substring(lastIdx));
+    const trailing = textStr.substring(lastIdx);
+    if (trailing.includes("data:image/")) {
+      parts.push(<ImageThumbnail key={`img-tail`} src={trailing} />);
+    } else {
+      parts.push(trailing);
+    }
   }
 
   return parts;

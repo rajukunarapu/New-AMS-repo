@@ -1,5 +1,5 @@
 """
-main.py - FastAPI Application Entry Point for AMS Ticket Intelligence Assistant.
+main.py - FastAPI Application Entry Point for AMS Ticket Intelligence Assistant (Updated).
 """
 
 from datetime import datetime, timezone
@@ -75,4 +75,4 @@ def root():
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["routers", "services", "models"])
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["."])

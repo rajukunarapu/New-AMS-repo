@@ -2,15 +2,23 @@ from datetime import datetime
 
 
 def contains(value, search):
-    if value is None:
+    if value is None or search is None:
         return False
-    return search.lower() in str(value).lower()
+    v_str = str(value).strip().lower()
+    s_str = str(search).strip().lower()
+    if not v_str or not s_str or v_str in ["none", "null", "n/a", "—", "-"]:
+        return False
+    return s_str in v_str
 
 
 def equals(value, search):
-    if value is None:
+    if value is None or search is None:
         return False
-    return str(value).strip().lower() == str(search).strip().lower()
+    v_str = str(value).strip().lower()
+    s_str = str(search).strip().lower()
+    if not v_str or not s_str or v_str in ["none", "null", "n/a", "—", "-"]:
+        return False
+    return v_str == s_str
 
 
 def filter_tickets(
@@ -57,9 +65,32 @@ def filter_tickets(
 
     target_group = assigntogroup or module
     if target_group:
+        tg_clean = str(target_group).strip().lower()
+        tg_nohyphen = tg_clean.replace("-", " ").replace("_", " ").strip()
+        tg_sub = re.sub(r'^(?:sap|module)\s*[\-_]?\s*', '', tg_clean).strip()
+
+        def matches_grp(val):
+            if val is None:
+                return False
+            v_str = str(val).strip().lower()
+            v_nohyphen = v_str.replace("-", " ").replace("_", " ").strip()
+            if tg_clean == v_str or tg_nohyphen == v_nohyphen:
+                return True
+            pattern_full = r'\b' + re.escape(tg_clean) + r'\b'
+            if re.search(pattern_full, v_str):
+                return True
+            pattern_nohyphen = r'\b' + re.escape(tg_nohyphen) + r'\b'
+            if re.search(pattern_nohyphen, v_nohyphen):
+                return True
+            if tg_sub and len(tg_sub) >= 2:
+                pattern_sub = r'\b' + re.escape(tg_sub) + r'\b'
+                if re.search(pattern_sub, v_str) or re.search(pattern_sub, v_nohyphen):
+                    return True
+            return False
+
         result = [
             t for t in result
-            if contains(t.get("assigntogroup"), target_group) or contains(t.get("module"), target_group)
+            if matches_grp(t.get("assigntogroup")) or matches_grp(t.get("module"))
         ]
 
     if created_name:

@@ -32,6 +32,16 @@ class ChatService:
         session_key = TicketSessionManager.get_session_key(request.username, request.session_id)
         active_draft = request.ticket_draft or TicketSessionManager.get_draft(session_key)
 
+        # Extract screenshot centrally from request or ticket_draft
+        incoming_screenshot = (
+            getattr(request, "screenshort", None)
+            or getattr(request, "screenshot", None)
+            or (request.ticket_draft.get("screenshort") if isinstance(request.ticket_draft, dict) else None)
+            or (request.ticket_draft.get("screenshot") if isinstance(request.ticket_draft, dict) else None)
+        )
+        if incoming_screenshot and str(incoming_screenshot).strip().lower() in ["none", "null", "*none*", "*not provided*", ""]:
+            incoming_screenshot = None
+
         # 1. Initialize AMS client
         ams = AMSApi(email=request.username)
         ams.token = token
@@ -50,6 +60,9 @@ class ChatService:
 
         # 3. Handle Active Ticket Creation Draft in progress
         if active_draft:
+            if incoming_screenshot:
+                active_draft["screenshort"] = incoming_screenshot
+
             intent, mod_fields = analyze_user_intent_on_draft(
                 user_message=request.message,
                 current_draft=active_draft,
@@ -81,7 +94,13 @@ class ChatService:
                         if v is not None:
                             active_draft[k] = v
 
+                if incoming_screenshot:
+                    active_draft["screenshort"] = incoming_screenshot
+
                 active_draft = finalize_draft_fields(active_draft, user_email=request.username, known_clients=known_clients)
+                if incoming_screenshot:
+                    active_draft["screenshort"] = incoming_screenshot
+
                 missing = get_missing_core_fields(active_draft)
                 active_draft["_pending_field"] = missing[0] if missing else None
                 active_draft["_awaiting_confirmation"] = (len(missing) == 0)
@@ -98,6 +117,9 @@ class ChatService:
 
             # --- User affirms/confirms ticket creation ---
             elif intent == "confirm":
+                if incoming_screenshot:
+                    active_draft["screenshort"] = incoming_screenshot
+
                 missing = get_missing_core_fields(active_draft)
                 if missing:
                     # Still missing essential fields
@@ -130,6 +152,9 @@ class ChatService:
                 # All fields ready AND preview was shown & explicitly confirmed! Submit to /api/Ticket/CreateTicket
                 try:
                     finalized = finalize_draft_fields(active_draft, user_email=request.username, known_clients=known_clients)
+                    if incoming_screenshot:
+                        finalized["screenshort"] = incoming_screenshot
+
                     result = submit_ticket_to_ams(finalized, ams)
 
                     # Clear session draft
@@ -208,10 +233,21 @@ class ChatService:
             )
 
         # 4. Check if new message initiates a Ticket Creation request
-        if is_ticket_creation_prompt(request.message):
+        if is_ticket_creation_prompt(request.message) or incoming_screenshot:
             initial_draft = create_initial_draft(user_email=request.username)
+            if incoming_screenshot:
+                initial_draft["screenshort"] = incoming_screenshot
+
             draft = extract_fields_with_llm(request.message, initial_draft, known_clients)
+
+            if incoming_screenshot:
+                draft["screenshort"] = incoming_screenshot
+
             draft = finalize_draft_fields(draft, user_email=request.username, known_clients=known_clients)
+
+            if incoming_screenshot:
+                draft["screenshort"] = incoming_screenshot
+
             missing = get_missing_core_fields(draft)
             draft["_pending_field"] = missing[0] if missing else None
             draft["_awaiting_confirmation"] = (len(missing) == 0)

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import "../../Styles/NeoAIFullPage.css";
 import { CircularProgress } from "@mui/material";
 import { useNeoAI } from "../../Context/NeoAIContext";
-import FormattedMarkdown, { SingleTicketCard, MultiTicketTable } from "./FormattedMessage";
+import FormattedMarkdown, { SingleTicketCard, MultiTicketTable, ImageThumbnail } from "./FormattedMessage";
  
 const NeoAIFullPage = () => {
   const [query, setQuery] = useState("");
@@ -119,11 +119,7 @@ const NeoAIFullPage = () => {
     const q = (questionText || query).trim();
     if (!q && !attachedFile) return;
 
-    if (attachedFile) {
-      askNeoAI(q || `Attached file: ${attachedFile.name}`, attachedFile);
-    } else {
-      askNeoAI(q);
-    }
+    askNeoAI(q, attachedFile);
 
     setQuery("");
     setAttachedFile(null);
@@ -209,6 +205,19 @@ const NeoAIFullPage = () => {
                       <span className="neoai-bubble-sender-lbl user">YOU</span>
                       <div className="neoai-user-bubble">
                         {m.query || m.text}
+                        {m.attachedFileName && (
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", marginTop: "8px", marginBottom: "4px", opacity: 0.9 }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                            </svg>
+                            <span>Attached: <strong>{m.attachedFileName}</strong></span>
+                          </div>
+                        )}
+                        {m.screenshotUrl && (
+                          <div style={{ marginTop: "4px" }}>
+                            <ImageThumbnail src={m.screenshotUrl} alt={m.attachedFileName || "Uploaded screenshot"} />
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

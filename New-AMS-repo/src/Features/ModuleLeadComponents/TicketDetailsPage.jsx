@@ -507,7 +507,7 @@ const TicketDetailsPage = ({
             </div>
 
             {/* Card 5: Ticket actions — deterministic */}
-            <div className="mlp-td-card">
+            {/* <div className="mlp-td-card">
               <h3 className="mlp-td-card-title" style={{ marginBottom: 10 }}>
                 Ticket actions — deterministic, written through the Ticket API
               </h3>
@@ -519,9 +519,9 @@ const TicketDetailsPage = ({
                 <button type="button" className="mlp-td-action-btn">Downgrade priority</button>
               </div>
               <p style={{ fontSize: 10, color: "#94a3b8", margin: 0 }}>
-                {/* Tier 0 auto · Tier 1 one-click approval · Tier 2 human only — you hold Tier 2 authority. */}
               </p>
-            </div>
+            </div> */}
+                {/* Tier 0 auto · Tier 1 one-click approval · Tier 2 human only — you hold Tier 2 authority. */}
 
             {/* Card 6: Assign and update */}
             {showAssignUpdateCard && (

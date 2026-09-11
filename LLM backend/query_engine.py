@@ -11,11 +11,187 @@ import time
 import json
 import re
 import warnings
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import requests
 from dotenv import load_dotenv
 from models.schemas import normalize_ticket_type
+
+try:
+    from Module_Router import GROUPS, GROUP_KEYWORDS, _match_group_from_text
+except Exception:
+    GROUPS = [
+        "RPA", "SAP-FICO", "SAP-SD", "SAP ABAP", "SAP-BASIS", "SAP-PM", "SAP-MM",
+        "SAP-PP", "SAP-DBM", "SAP-SF", "SAP-PS", "SAP-CPI", "SAP-PMO", "AWS",
+        "SAP-Analytics", "SAP-BW", "SAP-Delivery", "SAP-HCM", "SAP-QM", "SAP-PI",
+        "Dot Net Technologies", "SAP", "Infra Cloud", "Freelancer", "SAP-EWM",
+        "SAP EHS", "SAP-SOLUTION MANAGER", "SAP-DMS", "SAP-PPQM", "Support",
+        "SAP-VIM", "Siemens", "SAP-VSS", "Linux Admin", "SAP SAC", "SAP ARIBA",
+        "Mendix", "HRBP", "Inside Sales", "SAP-AI", "SAP-BTP", "Data Analytics & AI",
+        "SAP PPVC", "SAP SDM", "UI / UX"
+    ]
+    GROUP_KEYWORDS = {}
+    _match_group_from_text = None
+
+GROUP_ALIASES = {
+    # SAP Modules
+    "fico": "SAP-FICO",
+    "sap fico": "SAP-FICO",
+    "sap-fico": "SAP-FICO",
+    "finance": "SAP-FICO",
+    "mm": "SAP-MM",
+    "sap mm": "SAP-MM",
+    "sap-mm": "SAP-MM",
+    "materials": "SAP-MM",
+    "material management": "SAP-MM",
+    "sd": "SAP-SD",
+    "sap sd": "SAP-SD",
+    "sap-sd": "SAP-SD",
+    "sales": "SAP-SD",
+    "basis": "SAP-BASIS",
+    "sap basis": "SAP-BASIS",
+    "sap-basis": "SAP-BASIS",
+    "abap": "SAP ABAP",
+    "sap abap": "SAP ABAP",
+    "sap-abap": "SAP ABAP",
+    "pm": "SAP-PM",
+    "sap pm": "SAP-PM",
+    "sap-pm": "SAP-PM",
+    "pp": "SAP-PP",
+    "sap pp": "SAP-PP",
+    "sap-pp": "SAP-PP",
+    "qm": "SAP-QM",
+    "sap qm": "SAP-QM",
+    "sap-qm": "SAP-QM",
+    "bw": "SAP-BW",
+    "sap bw": "SAP-BW",
+    "sap-bw": "SAP-BW",
+    "cpi": "SAP-CPI",
+    "sap cpi": "SAP-CPI",
+    "sap-cpi": "SAP-CPI",
+    "pi": "SAP-PI",
+    "sap pi": "SAP-PI",
+    "sap-pi": "SAP-PI",
+    "sf": "SAP-SF",
+    "sap sf": "SAP-SF",
+    "sap-sf": "SAP-SF",
+    "successfactors": "SAP-SF",
+    "ps": "SAP-PS",
+    "sap ps": "SAP-PS",
+    "sap-ps": "SAP-PS",
+    "pmo": "SAP-PMO",
+    "sap pmo": "SAP-PMO",
+    "sap-pmo": "SAP-PMO",
+    "dbm": "SAP-DBM",
+    "sap dbm": "SAP-DBM",
+    "sap-dbm": "SAP-DBM",
+    "ewm": "SAP-EWM",
+    "sap ewm": "SAP-EWM",
+    "sap-ewm": "SAP-EWM",
+    "ehs": "SAP EHS",
+    "sap ehs": "SAP EHS",
+    "sap-ehs": "SAP EHS",
+    "dms": "SAP-DMS",
+    "sap dms": "SAP-DMS",
+    "sap-dms": "SAP-DMS",
+    "ppqm": "SAP-PPQM",
+    "sap ppqm": "SAP-PPQM",
+    "sap-ppqm": "SAP-PPQM",
+    "vim": "SAP-VIM",
+    "sap vim": "SAP-VIM",
+    "sap-vim": "SAP-VIM",
+    "vss": "SAP-VSS",
+    "sap vss": "SAP-VSS",
+    "sap-vss": "SAP-VSS",
+    "sac": "SAP SAC",
+    "sap sac": "SAP SAC",
+    "ariba": "SAP ARIBA",
+    "sap ariba": "SAP ARIBA",
+    "ai": "SAP-AI",
+    "sap ai": "SAP-AI",
+    "sap-ai": "SAP-AI",
+    "joule": "SAP-AI",
+    "btp": "SAP-BTP",
+    "sap btp": "SAP-BTP",
+    "sap-btp": "SAP-BTP",
+    "analytics": "SAP-Analytics",
+    "sap analytics": "SAP-Analytics",
+    "sap-analytics": "SAP-Analytics",
+    "delivery": "SAP-Delivery",
+    "sap delivery": "SAP-Delivery",
+    "sap-delivery": "SAP-Delivery",
+    "hcm": "SAP-HCM",
+    "sap hcm": "SAP-HCM",
+    "sap-hcm": "SAP-HCM",
+    "solution manager": "SAP-SOLUTION MANAGER",
+    "sap solution manager": "SAP-SOLUTION MANAGER",
+    "sap-solution manager": "SAP-SOLUTION MANAGER",
+    "ppvc": "SAP PPVC",
+    "sap ppvc": "SAP PPVC",
+    "sdm": "SAP SDM",
+    "sap sdm": "SAP SDM",
+    # Non-SAP Groups
+    "rpa": "RPA",
+    "bot": "RPA",
+    "uipath": "RPA",
+    "dotnet": "Dot Net Technologies",
+    "dot net": "Dot Net Technologies",
+    ".net": "Dot Net Technologies",
+    "c#": "Dot Net Technologies",
+    "ui/ux": "UI / UX",
+    "ui ux": "UI / UX",
+    "ui": "UI / UX",
+    "ux": "UI / UX",
+    "aws": "AWS",
+    "amazon": "AWS",
+    "cloud": "Infra Cloud",
+    "infra": "Infra Cloud",
+    "infra cloud": "Infra Cloud",
+    "linux": "Linux Admin",
+    "linux admin": "Linux Admin",
+    "support": "Support",
+    "helpdesk": "Support",
+    "hrbp": "HRBP",
+    "hr": "HRBP",
+    "inside sales": "Inside Sales",
+    "sales team": "Inside Sales",
+    "siemens": "Siemens",
+    "mendix": "Mendix",
+    "freelancer": "Freelancer",
+    "data analytics": "Data Analytics & AI",
+    "data analytics & ai": "Data Analytics & AI"
+}
+
+
+def normalize_group_name(group_input: Optional[str]) -> Optional[str]:
+    """
+    Normalizes a group/module input string into a standard GROUPS name if possible.
+    """
+    if not group_input or not str(group_input).strip():
+        return None
+    g_clean = str(group_input).strip()
+    g_lower = g_clean.lower()
+
+    if g_lower in GROUP_ALIASES:
+        return GROUP_ALIASES[g_lower]
+
+    for g in GROUPS:
+        if g.lower() == g_lower:
+            return g
+
+    g_nohyphen = g_lower.replace("-", " ").replace("_", " ").strip()
+    for g in GROUPS:
+        g_cand_nohyphen = g.lower().replace("-", " ").replace("_", " ").strip()
+        if g_cand_nohyphen == g_nohyphen:
+            return g
+
+    if _match_group_from_text:
+        matched = _match_group_from_text(g_clean)
+        if matched:
+            return matched
+
+    return g_clean
 
 load_dotenv(override=True)
 warnings.filterwarnings("ignore")
@@ -200,6 +376,14 @@ Concise, clear, business-friendly, directly answer the question first. Provide c
 
 ## 12. Safety and Accuracy
 Always use actual AMS ticket data as the source of truth.
+
+---
+
+## 13. Group & Module Filtering Intent & Not Found Responses
+When the user asks to filter or fetch tickets by group name or module name (e.g. "filter through group name SAP-FICO", "fetch ticket details for group RPA", "show tickets assigned to group SAP-MM", "module FICO", "filter by group Basis", "show tickets in group SAP AI"):
+1. Extract the target group name into `detected_group_or_module`.
+2. Map informal names or aliases to standard group names (e.g. 'FICO' -> 'SAP-FICO', 'MM' -> 'SAP-MM', 'Basis' -> 'SAP-BASIS', 'ABAP' -> 'SAP ABAP', 'DotNet' -> 'Dot Net Technologies', 'UI/UX' -> 'UI / UX', 'AI' -> 'SAP-AI').
+3. If no tickets match the requested group or module in the database, explicitly state "Group Not Found" or "Module Not Found" in the response (e.g., "Group Not Found: No tickets found for group 'SAP-FICO'").
 """
 
 
@@ -336,7 +520,8 @@ def get_dataset_metadata(tickets):
             "unique_clients": [],
             "unique_statuses": [],
             "unique_priorities": [],
-            "unique_groups": [],
+            "unique_groups": GROUPS,
+            "all_known_groups": GROUPS,
             "sample_rows": []
         }
 
@@ -362,8 +547,74 @@ def get_dataset_metadata(tickets):
         "unique_statuses": unique_statuses,
         "unique_priorities": unique_priorities,
         "unique_groups": unique_groups,
+        "all_known_groups": GROUPS,
         "sample_rows": sample_rows
     }
+
+
+def sanitize_and_enforce_intent(plan, user_question, meta):
+    """
+    Universal post-processing rule engine that guarantees intent disambiguation,
+    group/module extraction precedence, and limit handling across both LLM and heuristic plans.
+    """
+    if not isinstance(plan, dict):
+        plan = {}
+
+    q_lower = user_question.lower().strip()
+
+    # 1. Dynamic group / module entity extraction if missed by LLM
+    group_val = plan.get("detected_group_or_module")
+    if not group_val:
+        grp_match = re.search(
+            r'\b(?:group\s*name|assigned\s*group|module\s*name|module|group)\s*(?:is|:|=|\b)?\s*([A-Za-z0-9_\-\s/&\.]+)',
+            user_question,
+            re.IGNORECASE
+        )
+        if grp_match:
+            cand = grp_match.group(1).strip()
+            cand = re.sub(r'\s+(?:tickets?|issues?|records?|details?|only|and|or|for|with|in|having|status).*$', '', cand, flags=re.IGNORECASE).strip()
+            if cand.lower() not in ["name", "is", "of", "for", "in", "by", "with", "the", "a", "an"]:
+                group_val = normalize_group_name(cand) or cand
+
+    if not group_val:
+        all_cands = list(meta.get("unique_groups", [])) + list(meta.get("all_known_groups", GROUPS)) + list(GROUP_ALIASES.keys())
+        sorted_cands = sorted(set(all_cands), key=lambda x: len(x), reverse=True)
+        for g in sorted_cands:
+            if len(g) <= 4:
+                if re.search(r'\b' + re.escape(g) + r'\b', user_question, re.IGNORECASE):
+                    group_val = normalize_group_name(g) or g
+                    break
+            else:
+                pattern = r'\b' + re.escape(g.lower()) + r'\b'
+                if re.search(pattern, q_lower):
+                    group_val = normalize_group_name(g) or g
+                    break
+
+    # 2. When a group or module entity is detected, enforce Filtering Intent precedence over Ranking
+    if group_val:
+        plan["detected_group_or_module"] = group_val
+
+        # OVERRIDE intent to filtering (or counting if requested)
+        if any(k in q_lower for k in ["how many", "count"]):
+            plan["intent"] = "counting"
+        else:
+            plan["intent"] = "filtering"
+
+        # CLEAR group_by_field so system-wide group breakdown is NEVER generated
+        plan["group_by_field"] = None
+
+        # CLEAR semantic text search if structural words like 'group' or 'module' are present
+        if plan.get("semantic_text_search"):
+            st = str(plan["semantic_text_search"]).lower()
+            if any(w in st for w in ["group", "module", "assigned", "tickets", "show", "details"]):
+                plan["semantic_text_search"] = None
+
+    # 3. Limit extraction ("top 10", "top 5", "limit 10", "first 5")
+    lim_match = re.search(r'\b(?:top|first|limit)\s*(\d{1,3})\b', q_lower)
+    if lim_match:
+        plan["limit"] = int(lim_match.group(1))
+
+    return plan
 
 
 def parse_query_plan_with_llm(user_question, meta, history=None):
@@ -373,7 +624,13 @@ def parse_query_plan_with_llm(user_question, meta, history=None):
     history_context = ""
     if history and len(history) > 0:
         recent = history[-4:] # Last 2 turns
-        history_context = "\n".join([f"{msg['role'].upper()}: {msg['content']}" for msg in recent])
+        formatted_h = []
+        for msg in recent:
+            if isinstance(msg, dict):
+                r = msg.get("role") or msg.get("sender") or "USER"
+                c = msg.get("content") or msg.get("text") or msg.get("query") or ""
+                formatted_h.append(f"{str(r).upper()}: {c}")
+        history_context = "\n".join(formatted_h)
 
     prompt = f"""You are a dynamic query planner for an AMS Ticket dataset.
 Analyze the user's question, dataset metadata, and conversation context to produce a JSON query plan.
@@ -385,6 +642,7 @@ Analyze the user's question, dataset metadata, and conversation context to produ
 - Known Ticket Statuses in dataset: {json.dumps(meta['unique_statuses'])}
 - Known Priorities in dataset: {json.dumps(meta['unique_priorities'])}
 - Known Assignment Groups / Modules in dataset: {json.dumps(meta['unique_groups'])}
+- All Valid Standard AMS Assignment Groups: {json.dumps(meta.get('all_known_groups', GROUPS))}
 - Sample ticket object: {json.dumps(meta['sample_rows'][:1] if meta['sample_rows'] else [])}
 
 ### CONVERSATION HISTORY:
@@ -397,6 +655,8 @@ Analyze the user's question, dataset metadata, and conversation context to produ
 1. If the user specifies a NEW value for an attribute (e.g. client 'ATG' after previous turn had client 'Karamtara', or status 'Closed' after 'Open'), the NEW value MUST REPLACE the old value in detected fields. Do NOT include the old value.
 2. If the user's question is a standalone new query (e.g., 'Show all closed tickets'), CLEAR non-mentioned filters from previous turns.
 3. If the user's question is a follow-up refinement (e.g. 'only High priority ones', 'filter by FICO module'), PRESERVE active client/status filters from history and ADD the new priority/group filter.
+4. GROUP / MODULE FILTERING INTENT: If the user asks to filter, fetch, list, or query tickets by group name or module name (e.g. 'filter through group name SAP-FICO', 'filter by group RPA', 'fetch ticket details for group SAP-MM', 'module FICO', 'tickets assigned to Basis', 'show me tickets of group abc'), extract the target group into `detected_group_or_module`.
+5. UNKNOWN / ABSENT GROUP OR MODULE: If the user requests any group or module (including arbitrary or unrecognized names like 'abc', 'xyz', 'test'), populate `detected_group_or_module` with that requested group name so the execution engine can report 'Group not found' or 'Module not found'. DO NOT set `semantic_text_search` when a group/module is mentioned.
 
 ---
 Generate a valid JSON object matching this exact structure:
@@ -434,19 +694,21 @@ Respond ONLY with the JSON object. Do not include markdown code block syntax unl
 """
 
     raw_response = _call_llm(prompt, system_instruction=SYSTEM_PROMPT, json_response=True)
-    
+    plan = None
     if raw_response:
         try:
             cleaned = raw_response.strip()
             if cleaned.startswith("```"):
                 cleaned = re.sub(r"^```(?:json)?\n?", "", cleaned)
                 cleaned = re.sub(r"\n?```$", "", cleaned)
-            return json.loads(cleaned)
+            plan = json.loads(cleaned)
         except Exception:
-            pass
+            plan = None
 
-    # Heuristic fallback if LLM is unreachable or response parsing fails
-    return heuristic_query_plan(user_question, meta)
+    if not plan or not isinstance(plan, dict):
+        plan = heuristic_query_plan(user_question, meta)
+
+    return sanitize_and_enforce_intent(plan, user_question, meta)
 
 
 def heuristic_query_plan(user_question, meta):
@@ -457,7 +719,7 @@ def heuristic_query_plan(user_question, meta):
 
     # Greetings & General Inquiries
     greetings = ["hi", "hello", "hey", "hola", "namaste", "good morning", "good afternoon", "good evening", "greetings", "help", "who are you", "what can you do"]
-    if q_lower in greetings or any(q_lower == g for g in greetings):
+    if q_lower in greetings or any(q_lower == g0 for g0 in greetings):
         return {
             "intent": "greeting",
             "detected_client": None,
@@ -509,11 +771,17 @@ def heuristic_query_plan(user_question, meta):
             "clarification_question": None
         }
 
+    # Limit detection (e.g. "top 10", "first 5", "limit 10")
+    limit_val = None
+    lim_match = re.search(r'\b(?:top|first|limit)\s*(\d{1,3})\b', q_lower)
+    if lim_match:
+        limit_val = int(lim_match.group(1))
+
     # Intent detection
     intent = "filtering"
     if any(k in q_lower for k in ["how many", "count"]):
         intent = "counting"
-    elif any(k in q_lower for k in ["top", "most", "highest", "largest", "worst"]):
+    elif any(k in q_lower for k in ["most tickets", "highest tickets", "rank groups", "worst client", "top clients", "top groups"]) and not detected_group:
         intent = "ranking"
     elif "compare" in q_lower:
         intent = "comparison"
@@ -531,17 +799,43 @@ def heuristic_query_plan(user_question, meta):
     # Client detection against meta
     detected_client = None
     matched_clients = []
-    for c in meta["unique_clients"]:
-        if len(c) <= 4:
-            if re.search(r'\b' + re.escape(c) + r'\b', user_question, re.IGNORECASE):
-                matched_clients.append(c)
-        else:
-            if c.lower() in q_lower:
-                matched_clients.append(c)
 
-    if len(matched_clients) == 1:
-        detected_client = matched_clients[0]
-    elif len(matched_clients) > 1:
+    # 1. Check explicit "client <name>" or "for client <name>" pattern in user prompt
+    explicit_client_match = re.search(
+        r'\b(?:client|for client|of client)\s*[:=]?\s*([A-Za-z0-9_\-\s]+?)(?:\s+(?:of|in|with|having|for|group|module|status|priority|tickets?|issues?)|$)',
+        user_question,
+        re.IGNORECASE
+    )
+    if explicit_client_match:
+        c_target = explicit_client_match.group(1).strip().lower()
+        if c_target and c_target not in ["is", "name", "the", "a", "an"]:
+            for c in meta["unique_clients"]:
+                c_clean = str(c).strip()
+                if not c_clean or c_clean.lower() in ["none", "null", "n/a", "—", "-"]:
+                    continue
+                if c_target == c_clean.lower() or c_target in c_clean.lower():
+                    matched_clients.append(c_clean)
+
+    if not matched_clients:
+        corporate_stopwords = {"pvt", "ltd", "private", "limited", "inc", "corp", "co", "plc", "llp", "industries", "india", "services", "technologies", "engineering", "group"}
+        for c in meta["unique_clients"]:
+            c_clean = str(c).strip()
+            if not c_clean or c_clean.lower() in ["none", "null", "n/a", "—", "-"]:
+                continue
+            if len(c_clean) <= 4:
+                if re.search(r'\b' + re.escape(c_clean) + r'\b', user_question, re.IGNORECASE):
+                    matched_clients.append(c_clean)
+            else:
+                if c_clean.lower() in q_lower:
+                    matched_clients.append(c_clean)
+                else:
+                    words = [w.lower() for w in re.findall(r'[A-Za-z0-9]+', c_clean) if len(w) >= 3 and w.lower() not in corporate_stopwords]
+                    for w in words:
+                        if re.search(r'\b' + re.escape(w) + r'\b', q_lower):
+                            matched_clients.append(c_clean)
+                            break
+
+    if len(matched_clients) >= 1:
         detected_client = matched_clients[0]
 
     # Status semantic detection - Each status handled separately and exclusively
@@ -589,10 +883,30 @@ def heuristic_query_plan(user_question, meta):
 
     # Assignment group / module match
     detected_group = None
-    for g in meta["unique_groups"]:
-        if g.lower() in q_lower:
-            detected_group = g
-            break
+    grp_match = re.search(
+        r'\b(?:group\s*name|assigned\s*group|module\s*name|module|group)\s*(?:is|:|=|\b)?\s*([A-Za-z0-9_\-\s/&\.]+)',
+        user_question,
+        re.IGNORECASE
+    )
+    if grp_match:
+        cand_grp = grp_match.group(1).strip()
+        cand_grp = re.sub(r'\s+(?:tickets?|issues?|records?|details?|only|and|or|for|with|in|having|status).*$', '', cand_grp, flags=re.IGNORECASE).strip()
+        if cand_grp.lower() not in ["name", "is", "of", "for", "in", "by", "with", "the", "a", "an"]:
+            detected_group = normalize_group_name(cand_grp) or cand_grp
+
+    if not detected_group:
+        all_cands = list(meta.get("unique_groups", [])) + list(meta.get("all_known_groups", GROUPS)) + list(GROUP_ALIASES.keys())
+        sorted_cands = sorted(set(all_cands), key=lambda x: len(x), reverse=True)
+        for g in sorted_cands:
+            if len(g) <= 4:
+                if re.search(r'\b' + re.escape(g) + r'\b', user_question, re.IGNORECASE):
+                    detected_group = normalize_group_name(g) or g
+                    break
+            else:
+                pattern = r'\b' + re.escape(g.lower()) + r'\b'
+                if re.search(pattern, q_lower):
+                    detected_group = normalize_group_name(g) or g
+                    break
 
     # Date range detection
     date_type = None
@@ -627,11 +941,11 @@ def heuristic_query_plan(user_question, meta):
         "detected_ticket_no": t_no,
         "date_range": {"type": date_type, "start_date": None, "end_date": None},
         "semantic_text_search": semantic_text,
-        "group_by_field": "clientName" if ("client" in q_lower and intent in ["ranking", "counting", "aggregation"]) else ("assigntogroup" if "group" in q_lower or "module" in q_lower else None),
+        "group_by_field": "clientName" if ("client" in q_lower and intent in ["ranking", "counting", "aggregation"] and not detected_client) else ("assigntogroup" if ("group" in q_lower or "module" in q_lower) and intent in ["ranking", "counting", "aggregation"] and not detected_group else None),
         "aggregation": {"function": "count", "field": "ticketNo"},
         "comparison_clients": [c for c in meta["unique_clients"] if c.lower() in q_lower],
         "sort": {"field": "createddate", "direction": "desc"},
-        "limit": 5 if "top 5" in q_lower else (10 if "top 10" in q_lower else None),
+        "limit": limit_val if limit_val else (5 if "top 5" in q_lower else (10 if "top 10" in q_lower else None)),
         "ambiguous_client_match": False,
         "clarification_question": None
     }
@@ -741,16 +1055,28 @@ def execute_query_plan(tickets_data, plan):
         )
         result = result[mask]
 
-    # 2. Filter by Client Name (Entity Resolution)
+    # 2. Filter by Client Name (Entity Resolution - Strict AND Matching)
     client = plan.get("detected_client")
     if client and "clientName" in result.columns and not t_no:
-        mask = result["clientName"].apply(
-            lambda x: str(client).lower() == str(x).lower()
-            or str(client).lower() in str(x).lower()
-            or str(x).lower() in str(client).lower()
-            if pd.notna(x) else False
-        )
-        result = result[mask]
+        c_clean = str(client).strip().lower()
+
+        def matches_client(val):
+            if val is None or pd.isna(val):
+                return False
+            v_str = str(val).strip().lower()
+            if not v_str or v_str in ["none", "null", "n/a", "—", "-"] or len(v_str) < 2:
+                return False
+
+            if v_str == c_clean:
+                return True
+
+            if len(c_clean) <= 4:
+                pattern = r'\b' + re.escape(c_clean) + r'\b'
+                return bool(re.search(pattern, v_str))
+            else:
+                return c_clean in v_str or (len(v_str) >= 3 and v_str in c_clean)
+
+        result = result[result["clientName"].apply(matches_client)]
 
     # 3. Filter by Status Semantics - Strict separate handling per status
     status_sem = plan.get("detected_status_semantic")
@@ -873,16 +1199,57 @@ def execute_query_plan(tickets_data, plan):
         )
         result = result[mask]
 
-    # 5. Filter by Assignment Group / Module
+    # 5. Filter by Assignment Group / Module (Strict AND Matching)
     group = plan.get("detected_group_or_module")
     if group and not t_no:
-        g_lower = str(group).lower()
-        mask = result.apply(
-            lambda r: g_lower in str(r.get("assigntogroup", "")).lower()
-            or g_lower in str(r.get("module", "")).lower()
-            or g_lower in str(r.get("remarks", "")).lower(),
-            axis=1
-        )
+        norm_grp = normalize_group_name(group) or group
+        target_std = normalize_group_name(norm_grp) or norm_grp
+
+        def matches_group(row):
+            ass_grp = str(row.get("assigntogroup", "")).strip()
+            mod_grp = str(row.get("module", "")).strip()
+
+            norm_ass = normalize_group_name(ass_grp) if ass_grp else None
+            norm_mod = normalize_group_name(mod_grp) if mod_grp else None
+
+            # Strict equality between recognized standard groups
+            if target_std:
+                if norm_ass and norm_ass.lower() == target_std.lower():
+                    return True
+                if norm_mod and norm_mod.lower() == target_std.lower():
+                    return True
+                # If row has a known standard group distinct from target_std, do not match across groups
+                if norm_ass and norm_ass in GROUPS and norm_ass.lower() != target_std.lower():
+                    return False
+                if norm_mod and norm_mod in GROUPS and norm_mod.lower() != target_std.lower():
+                    return False
+
+            g_clean = str(norm_grp).lower().strip()
+            if not g_clean or g_clean in ["none", "null", "n/a", "—", "-"]:
+                return False
+
+            g_nohyphen = g_clean.replace("-", " ").replace("_", " ").strip()
+
+            for target in [ass_grp, mod_grp]:
+                if not target or not str(target).strip() or str(target).strip().lower() in ["none", "null", "n/a", "—", "-"]:
+                    continue
+                target_clean = target.lower().strip()
+                target_nohyphen = target_clean.replace("-", " ").replace("_", " ").strip()
+
+                if g_clean == target_clean or g_nohyphen == target_nohyphen:
+                    return True
+
+                pattern_full = r'(?<![A-Za-z0-9\-])' + re.escape(g_clean) + r'(?![A-Za-z0-9\-])'
+                if re.search(pattern_full, target_clean):
+                    return True
+
+                pattern_nohyphen = r'(?<![A-Za-z0-9\-])' + re.escape(g_nohyphen) + r'(?![A-Za-z0-9\-])'
+                if re.search(pattern_nohyphen, target_nohyphen):
+                    return True
+
+            return False
+
+        mask = result.apply(matches_group, axis=1)
         result = result[mask]
 
     # 6. Filter by Reporter
@@ -920,7 +1287,14 @@ def execute_query_plan(tickets_data, plan):
     search_text = plan.get("semantic_text_search")
     if search_text and not t_no:
         st_lower = str(search_text).lower().strip()
-        search_keywords = [w for w in re.findall(r'\w+', st_lower) if len(w) > 2 and w not in ["show", "find", "tickets", "list", "get", "with", "where", "about", "for", "the", "and", "are", "have"]]
+        search_stop_words = {
+            "show", "find", "tickets", "ticket", "list", "get", "fetch", "search", "filter",
+            "group", "groups", "module", "modules", "assigned", "name", "names", "details",
+            "record", "records", "issue", "issues", "with", "where", "about", "for", "the",
+            "and", "are", "have", "through", "under", "please", "into", "from", "that", "this",
+            "you", "neoai", "can", "could", "would", "tell", "display"
+        }
+        search_keywords = [w for w in re.findall(r'\w+', st_lower) if len(w) > 2 and w not in search_stop_words]
         if search_keywords:
             def matches_text(row):
                 text_blob = " ".join([
@@ -983,6 +1357,8 @@ Formulate a clear, business-friendly natural language response to the user's que
 4. If no tickets matched, state clearly that no matching tickets were found. Never invent ticket IDs or records.
 5. If the request was analytical (e.g. "which client has the most tickets?"), state the conclusion clearly first.
 6. When ticket details are requested or a single ticket is fetched, list ALL available label fields (Ticket Number, Client Name, Ticket Status, Priority, Type of Ticket, Assigned Group, Module, Reported By, Reported Date & Time, Reporter Email, Description, Transaction ID, AMS System, Remarks) clearly in bullet points or markdown section.
+7. If no tickets were found for a specific group or module requested by the user, explicitly start your response with "Group Not Found" or "Module Not Found" (e.g. "### Group Not Found\n\nNo tickets found for group 'SAP-FICO' in the current database.").
+8. IF A SPECIFIC GROUP OR MODULE IS FILTERED (detected_group_or_module is set), DO NOT generate system-wide group breakdown tables ("SAP-MM has the highest ticket count..."). State the matching ticket count for that specific group/module directly.
 
 ### USER QUESTION:
 "{user_question}"
@@ -1010,6 +1386,7 @@ Write the natural language response:
     priority = plan.get("detected_priority")
     status_sem = plan.get("detected_status_semantic")
     t_no = plan.get("detected_ticket_no")
+    group_req = plan.get("detected_group_or_module")
 
     if intent in ["greeting", "general_inquiry"]:
         return (
@@ -1065,10 +1442,18 @@ Write the natural language response:
         return "\n".join(lines)
 
     if count == 0:
+        if group_req:
+            is_module_query = "module" in user_question.lower()
+            label = "Module" if is_module_query else "Group"
+            target_str = f" for client **{client}**" if client else ""
+            return (
+                f"### {label} Not Found\n\n"
+                f"No tickets were found matching {label.lower()} **'{group_req}'**{target_str} in the current database."
+            )
         target_str = f" for client **{client}**" if client else ""
         return f"I couldn't find any tickets matching your request (**'{user_question}'**){target_str} in the current dataset."
 
-    if intent in ["ranking", "counting", "aggregation"] and summary_stats.get("group_stats"):
+    if intent in ["ranking", "counting", "aggregation"] and summary_stats.get("group_stats") and not group_req:
         top_group = summary_stats["group_stats"][0]
         field_name = plan.get("group_by_field") or "category"
         top_name = top_group.get(field_name) or top_group.get("clientName") or top_group.get("assigntogroup")
@@ -1083,6 +1468,7 @@ Write the natural language response:
 
     filter_desc = []
     if client: filter_desc.append(f"client **{client}**")
+    if group_req: filter_desc.append(f"group **{group_req}**")
     if status_sem: filter_desc.append(f"status **{status_sem}**")
     if priority: filter_desc.append(f"priority **{priority}**")
 

@@ -64,6 +64,8 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(None, description="Optional unique session identifier")
     ticket_draft: Optional[Dict[str, Any]] = Field(None, description="Optional active ticket draft payload")
     history: Optional[List[Dict[str, Any]]] = Field(None, description="Optional chat conversation history")
+    screenshort: Optional[Any] = Field(None, description="Optional screenshot path, URL, filename, or File data type")
+    Screenshot: Optional[Any] = Field(None, description="Optional screenshot alias matching Swagger field name")
 
 
 class ChatResponse(BaseModel):
@@ -79,22 +81,33 @@ class ChatResponse(BaseModel):
 # --- Ticket Management Schemas ---
 class TicketCreateRequest(BaseModel):
     clientName: Optional[str] = Field(None, description="Registered client name", example="Karamtara Engineering Pvt Ltd")
+    ClientName: Optional[str] = Field(None, description="Swagger PascalCase alias")
     ams: Optional[str] = Field(None, description="AMS system/instance name", example="AMS")
+    AMS: Optional[str] = Field(None, description="Swagger PascalCase alias")
     typeofticket: Optional[str] = Field(
         default="Incident",
         description="Type of ticket. Allowed values: 'Change Request', 'S PO', 'Incident', 'Service Request'",
         example="Incident"
     )
+    Typeofticket: Optional[str] = Field(None, description="Swagger PascalCase alias")
     priority: Optional[str] = Field(None, description="Priority: 'Low', 'Medium', 'High', or 'Very High'", example="High")
+    Priority: Optional[str] = Field(None, description="Swagger PascalCase alias")
     reportedon: Optional[str] = Field(None, description="Reported date-time in ISO format", example="2026-09-03T10:30:00")
+    Reportedon: Optional[str] = Field(None, description="Swagger PascalCase alias")
     reportedontime: Optional[str] = Field(None, description="Reported time", example="10:30:00")
+    Reportedontime: Optional[str] = Field(None, description="Swagger PascalCase alias")
     reportedby: Optional[str] = Field(None, description="Name or email of reporter", example="jaswanth.b@neovatic.com")
+    Reportedby: Optional[str] = Field(None, description="Swagger PascalCase alias")
     descriptionofTicket: Optional[str] = Field(None, description="Detailed ticket issue description", example="SAP login error when accessing FICO module")
-    screenshort: Optional[str] = Field(None, description="Screenshot path, URL, or identifier", example="")
+    DescriptionofTicket: Optional[str] = Field(None, description="Swagger PascalCase alias")
+    screenshort: Optional[Any] = Field(None, description="Screenshot path, URL, filename, or File data type", example="")
+    Screenshot: Optional[Any] = Field(None, description="Swagger binary/string screenshot alias")
     remarks: Optional[str] = Field(None, description="Additional remarks or notes", example="Urgent request")
+    Remarks: Optional[str] = Field(None, description="Swagger PascalCase alias")
     assigntogroup: Optional[str] = Field(None, description="Target group/module. Auto-classified if omitted.", example="SAP-FICO")
+    Assigntogroup: Optional[str] = Field(None, description="Swagger PascalCase alias")
 
-    @field_validator("typeofticket", mode="before")
+    @field_validator("typeofticket", "Typeofticket", mode="before")
     @classmethod
     def validate_type_of_ticket(cls, v):
         return normalize_ticket_type(v)

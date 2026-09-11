@@ -1,5 +1,5 @@
 """
-routers/chat.py - Chat & Natural Language Query endpoint.
+routers/chat.py - Chat & Natural Language Query endpoint (Updated).
 """
 
 from typing import Optional

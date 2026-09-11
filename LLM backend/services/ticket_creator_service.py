@@ -12,6 +12,7 @@ Handles:
 import json
 import re
 import threading
+import urllib.parse
 from datetime import datetime
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -100,8 +101,8 @@ def is_capability_or_info_question(prompt: str) -> bool:
 
 def is_ticket_creation_prompt(prompt: str) -> bool:
     """
-    Checks whether a user message expresses an intention to create or raise a ticket.
-    Returns False for capability/informational questions like 'can you create ticket'.
+    Checks whether a user message expresses an intention to create or raise a ticket,
+    or describes a system issue/problem/error even without explicitly mentioning the word 'ticket'.
     """
     if is_capability_or_info_question(prompt):
         return False
@@ -110,13 +111,41 @@ def is_ticket_creation_prompt(prompt: str) -> bool:
     ticket_variations = r"(?:ticket|tickate|tikit|tickt|tikket|tikate)"
     verbs = r"(?:create|raise|open|log|make|generate|submit|post|file|register|new|want\s+to\s+create|need\s+a?)"
     
-    # "create ticket", "raise a ticket", "new ticket", etc.
+    # 1. Explicit ticket verbs & variations
     if re.search(rf"\b{verbs}\b.*\b{ticket_variations}\b", p_lower):
         return True
     if re.search(rf"\b{ticket_variations}\b.*\b{verbs}\b", p_lower):
         return True
-    if re.search(rf"\b(?:create|raise|open)\s+(?:an?\s+)?issue\b", p_lower):
+    if re.search(rf"\b(?:create|raise|open|log|file)\s+(?:an?\s+)?(?:issue|request|incident)\b", p_lower):
         return True
+    if re.search(r"\bplease\s+(?:raise|create|open|log|file|submit)\b", p_lower):
+        return True
+
+    # 2. Problem/issue reporting phrases combined with system context or ticket fields
+    if is_explicit_query_prompt(prompt):
+        return False
+
+    problem_phrases = [
+        r'\b(?:am\s+)?facing\b', r'\bexperiencing\b', r'\bencountering\b',
+        r'\bhaving\s+(?:an?\s+)?(?:issue|problem|error|crash|dump|failure|bug)\b',
+        r'\b(?:issue|problem|error|crash|failure|bug)\s+(?:is|in|with|on|for)\b',
+        r'\bnot\s+working\b', r'\bsystem\s+down\b', r'\bserver\s+down\b', r'\bfailed\b'
+    ]
+
+    has_problem = any(re.search(pat, p_lower) for pat in problem_phrases)
+
+    meta_indicators = [
+        r'\b(?:priority|proirity|prio)\s*[:=]?\s*(?:is\s+)?(?:high|low|medium|very high|critical|p1|p2|p3|p4)\b',
+        r'\b(?:type|category|type\s*category)\s*[:=]?\s*(?:is\s+)?(?:incident|change request|service request|s po)\b',
+        r'\bfor\s+(?:client\s+)?[A-Za-z0-9_-]+\b',
+        r'\bplease\s+raise\b'
+    ]
+
+    has_meta = any(re.search(pat, p_lower) for pat in meta_indicators)
+
+    if has_problem or has_meta:
+        return True
+
     return False
 
 
@@ -133,7 +162,9 @@ def is_explicit_query_prompt(prompt: str) -> bool:
         r'\b(?:list|get|fetch|display)\s+(?:all\s+)?(?:the\s+)?(?:tickets?|issues?|records?)\b',
         r'\b(?:how\s+many|count\s+of)\s+tickets?\b',
         r'\bfilter\s+(?:all\s+)?(?:the\s+)?tickets?\b',
-        r'\btickets?\s+(?:where|with|for|assigned|reported|having|status|created|in)\b',
+        r'\bfilter\s+(?:through|by|with)?\s*(?:group\s*name|assigned\s*group|module|group)\b',
+        r'\b(?:group\s*name|assigned\s*group|module)\s*(?:is|:|=|\b)\b',
+        r'\btickets?\s+(?:where|with|for|assigned|reported|having|status|created|in|under|by)\b',
         r'\bwhat\s+(?:is|are)\s+the\s+tickets?\b',
         r'\bopen\s+tickets?\b',
         r'\bclosed\s+tickets?\b',
@@ -210,58 +241,142 @@ def create_initial_draft(user_email: str = "") -> Dict[str, Any]:
     }
 
 
-def clean_ticket_description(desc: Optional[str], client_name: Optional[str] = None) -> Optional[str]:
+def extract_filename_from_screenshot(screenshot_val: Optional[str]) -> Optional[str]:
+    """Extracts file name from screenshot string/data URL or object if present."""
+    if not screenshot_val or not isinstance(screenshot_val, str):
+        return None
+    s = screenshot_val.strip()
+    if ";name=" in s:
+        try:
+            m = re.search(r';name=([^;]+);', s)
+            if m:
+                return urllib.parse.unquote(m.group(1)).strip()
+        except Exception:
+            pass
+    if re.search(r'\b[\w\s-]+\.(?:png|jpg|jpeg|gif|webp|bmp)\b', s, re.IGNORECASE):
+        m = re.search(r'\b([\w\s-]+\.(?:png|jpg|jpeg|gif|webp|bmp))\b', s, re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+    return None
+
+
+def clean_user_message_text(text: Optional[str], screenshot_val: Optional[str] = None) -> str:
+    """
+    Strips file attachment tags, [Attached file: ...], Attached file: ...,
+    and screenshot filenames from user message text.
+    """
+    if not text or not str(text).strip():
+        return ""
+    
+    t = str(text).strip()
+    
+    # Extract filename if screenshot data URL is passed
+    fname = extract_filename_from_screenshot(screenshot_val) if screenshot_val else None
+    if fname:
+        t = re.sub(re.escape(fname), '', t, flags=re.IGNORECASE).strip()
+        
+    # Strip common file attachment patterns
+    t = re.sub(r'\[\s*Attached\s+file\s*:?\s*[^\]]*\]', '', t, flags=re.IGNORECASE).strip()
+    t = re.sub(r'Attached\s+file\s*:?\s*[^\n,;]*', '', t, flags=re.IGNORECASE).strip()
+    t = re.sub(r'\[\s*Screenshot\s+Attached\s*\]', '', t, flags=re.IGNORECASE).strip()
+    t = re.sub(r'Screenshot\s+Attached', '', t, flags=re.IGNORECASE).strip()
+    
+    # Strip generic screenshot filenames like "Screenshot 2026-07-24 160213.png" or "image.png"
+    t = re.sub(r'\bScreenshot\s+\d{4}-\d{2}-\d{2}.*?\.(?:png|jpg|jpeg|gif|webp|bmp)\b', '', t, flags=re.IGNORECASE).strip()
+    
+    # Strip standalone file extension strings if the whole message is just a filename
+    if re.match(r'^[\w\s-]+\.(?:png|jpg|jpeg|gif|webp|bmp)$', t, re.IGNORECASE):
+        return ""
+        
+    return t.strip()
+
+
+def clean_ticket_description(desc: Optional[str], client_name: Optional[str] = None, screenshot_val: Optional[str] = None) -> Optional[str]:
     """
     Cleans and rewrites description to contain ONLY the core problem reported,
     stripping meta-instructions, priority tags, client names, and conversational phrasing.
     Formats the output as a short, neutral factual statement.
     Example:
-    Input: "create a ticket about the issue of joule icon missing, keep it p2 for aab"
-    Output: "Joule icon is missing."
+    Input: "create a ticket for client AAB, priority Low, am encountering issue with joule"
+    Output: "Encountering issue with Joule."
     """
     if not desc or not str(desc).strip():
         return None
-    d = str(desc).strip().strip('"\'`')
-    
-    # 1. Remove leading intent / command phrases
+
+    # Step 0: Clean file attachment markers & filenames
+    cleaned_msg = clean_user_message_text(desc, screenshot_val)
+    if not cleaned_msg:
+        return None
+    d = cleaned_msg.strip().strip('"\'`')
+
+    # Step 1: Remove leading/trailing ticket creation command verb phrases (e.g. "create a ticket", "raise ticket", "please raise")
     d = re.sub(
-        r'^(?:please\s+)?(?:i\s+want\s+to\s+|i\s+need\s+to\s+|can\s+you\s+)?(?:create|raise|open|log|make|file|generate|submit)\s+(?:an?\s+)?(?:new\s+)?(?:ticket|issue|request)\s+(?:for\s+me\s+)?(?:for|client|on|about|regarding)?\s*',
+        r'^(?:please\s+)?(?:i\s+want\s+to\s+|i\s+need\s+to\s+|can\s+you\s+)?(?:create|raise|open|log|make|file|generate|submit)\s+(?:an?\s+)?(?:(?:very\s+high|critical|high|medium|low|med|p1|p2|p3|p4|new|priority|prio)\s+)*(?:ticket|issue|request)\b\s*(?:for\s+me\s+)?',
         '', d, flags=re.IGNORECASE
     ).strip()
-    
-    # 2. Remove leading "the issue of", "the problem of", "issue is", "the issue is", "problem is", "the problem is", "because"
+    d = re.sub(r'[\s,;\.]+(?:please\s+)?(?:raise|create|open|log|make|file|submit|register|report|help|fix|resolve)\b.*$', '', d, flags=re.IGNORECASE).strip()
+
+    # Step 2: Remove client specifications
+    if client_name:
+        d = re.sub(r'\bfor\s+client\s+' + re.escape(client_name) + r'\b', '', d, flags=re.IGNORECASE).strip()
+        d = re.sub(r'\bfor\s+' + re.escape(client_name) + r'\b', '', d, flags=re.IGNORECASE).strip()
+        d = re.sub(r'\bclient\s+' + re.escape(client_name) + r'\b', '', d, flags=re.IGNORECASE).strip()
+        d = re.sub(r'\b' + re.escape(client_name) + r'\b', '', d, flags=re.IGNORECASE).strip()
+        
+        # Strip individual non-stop words of client_name (e.g. Karamtara, Balaji, ACSEN)
+        corporate_stopwords = {"pvt", "ltd", "private", "limited", "inc", "corp", "co", "company", "plc", "llp", "industries", "india", "services", "technologies", "engineering", "group"}
+        c_words = [w for w in re.findall(r'[A-Za-z0-9]+', str(client_name)) if len(w) >= 3 and w.lower() not in corporate_stopwords]
+        for cw in c_words:
+            d = re.sub(r'\bfor\s+' + re.escape(cw) + r'\b', '', d, flags=re.IGNORECASE).strip()
+            d = re.sub(r'\b' + re.escape(cw) + r'\b', '', d, flags=re.IGNORECASE).strip()
+
+    d = re.sub(r'\bfor\s+(?:client\s+)?(?:aab|karamtara|atg|balaji|kims|dixon|hfcl|wavin|casagrand|rockman|uml|phonepe|chambal|electrosteel|heritage|himedia|bajaj|avon|ajax|acsen|ananth)\b', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\b(?:client|company|customer)\s*[:=]?\s*(?:[A-Za-z0-9_\-\.]+\s*)?', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\b(?:co\.|co|ltd|pvt|corp|inc)\b', '', d, flags=re.IGNORECASE).strip()
+
+    # Step 3: Remove priority specifications & keywords (including typos like proirity)
+    d = re.sub(r'\b(?:priority|prio|proirity|prioriti|prioity)\s*[:=]?\s*(?:is\s+)?(?:very\s+high|critical|high|medium|low|med|moderate|p1|p2|p3|p4)\b', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\bkeep\s+it\s+(?:p1|p2|p3|p4|very\s+high|high|medium|low)\b', '', d, flags=re.IGNORECASE).strip()
+
+    # Step 4: Remove ticket type & category specifications
+    d = re.sub(r'\b(?:type\s*(?:category|of\s*ticket)?|category)\s*[:=]?\s*(?:is\s+)?(?:change\s+request|s\s*po|incident|service\s+request)\b', '', d, flags=re.IGNORECASE).strip()
+
+    # Step 5: Remove leading/dangling standalone keywords like "for", "regarding", "about", "issue is", "because", "and"
+    d = re.sub(r'^(?:for|regarding|about|because)\b\s*', '', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'^(?:the\s+)?(?:issue|problem)\s+(?:of|with|about|is)\s+', '', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'^(?:the\s+)?(?:issue|problem)\s+', '', d, flags=re.IGNORECASE).strip()
-    d = re.sub(r'^because\s+', '', d, flags=re.IGNORECASE).strip()
-    
-    # 3. Remove trailing metadata instructions (priority, client name, etc.) including typos
-    d = re.sub(r'[,\s]*\b(?:and\s+)?(?:keep\s+it|priority|prio|proirity|prioriti|prioity)\s*[:=]?\s*(?:is\s+)?(?:very\s+high|critical|high|medium|low|med|moderate|p1|p2|p3|p4)\b.*$', '', d, flags=re.IGNORECASE).strip()
-    d = re.sub(r'[,\s]*\bfor\s+(?:client\s+)?(?:aab|karamtara|atg|balaji|kims|dixon|hfcl|wavin|[A-Za-z0-9_-]{2,20})\b.*$', '', d, flags=re.IGNORECASE).strip()
-    if client_name:
-        d = re.sub(r'[,\s]*\bfor\s+' + re.escape(client_name) + r'\b.*$', '', d, flags=re.IGNORECASE).strip()
-    
-    # 4. Clean dangling leading/trailing punctuation
-    d = re.sub(r'^[:\-\s,]+', '', d).strip()
-    d = re.sub(r'[:\-\s,]+$', '', d).strip()
+    d = re.sub(r'\b(?:and|or|with|for|co)\b(?=\s*[\.,;:]|$)', '', d, flags=re.IGNORECASE).strip()
 
-    # 5. Normalize phrasing e.g. "joule icon missing" -> "Joule icon is missing"
-    m_missing = re.search(r'^(.*?\b\w+)\s+missing\.?$', d, re.IGNORECASE)
-    if m_missing and not re.search(r'\bis\s+missing\b', d, re.IGNORECASE):
-        subject = m_missing.group(1).strip()
-        d = f"{subject} is missing"
+    # Step 6: Clean dangling punctuation & spaces
+    d = re.sub(r'[,:\-\s]+', ' ', d).strip()
+    d = re.sub(r'^[,:\-\s]+', '', d).strip()
+    d = re.sub(r'[,:\-\s\.]+$', '', d).strip()
 
-    m_not_working = re.search(r'^(.*?\b\w+)\s+not\s+working\.?$', d, re.IGNORECASE)
-    if m_not_working and not re.search(r'\bis\s+not\s+working\b', d, re.IGNORECASE):
-        subject = m_not_working.group(1).strip()
-        d = f"{subject} is not working"
+    # Step 7: Normalize leading "am facing" / "am encountering" / "is "
+    d = re.sub(r'^am facing severe\s+', 'Facing severe ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^am facing\s+', 'Facing ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^facing severe\s+', 'Facing severe ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^facing\s+', 'Facing ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^am encountering issue with\s+', 'Encountering issue with ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^am encountering problem with\s+', 'Encountering problem with ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^am encountering\s+', 'Encountering ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^am experiencing\s+', 'Experiencing ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^is\s+', '', d, flags=re.IGNORECASE).strip()
 
-    # 6. Capitalize first letter and append period
+    # Step 8: Proper casing for Joule & acronyms
+    d = re.sub(r'\bjoule\b', 'Joule', d, flags=re.IGNORECASE)
+    d = re.sub(r'\bsap\b', 'SAP', d, flags=re.IGNORECASE)
+
+    # Step 9: Capitalize first letter and append period
     if d:
         d = d[0].upper() + d[1:]
         if not d.endswith('.'):
             d += '.'
 
-    return d
+    if re.match(r'^[\w\s-]+\.(?:png|jpg|jpeg|gif|webp|bmp)\.?$', d, re.IGNORECASE):
+        return None
+
+    return d if d else None
 
 
 def validate_and_refine_description(extracted_draft: Dict[str, Any], prompt: str) -> Dict[str, Any]:
@@ -272,12 +387,17 @@ def validate_and_refine_description(extracted_draft: Dict[str, Any], prompt: str
     calls LLM to perform a 1-shot semantic distillation pass.
     """
     desc = extracted_draft.get("descriptionofTicket")
-    if not desc or not str(desc).strip():
+    scr_val = extracted_draft.get("screenshort")
+
+    # If description is a screenshot filename or empty, clean it or fallback
+    clean_d = clean_ticket_description(desc, extracted_draft.get("clientName"), scr_val)
+    if not clean_d:
+        if scr_val or (prompt and ("screenshot" in prompt.lower() or "attached" in prompt.lower())):
+            extracted_draft["descriptionofTicket"] = "Screenshot attached"
         return extracted_draft
 
-    d_clean = clean_ticket_description(desc, extracted_draft.get("clientName"))
-    extracted_draft["descriptionofTicket"] = d_clean
-    desc = d_clean
+    extracted_draft["descriptionofTicket"] = clean_d
+    desc = clean_d
 
     desc_lower = desc.lower()
     
@@ -299,22 +419,24 @@ def validate_and_refine_description(extracted_draft: Dict[str, Any], prompt: str
         needs_refinement = True
 
     if needs_refinement:
+        clean_p = clean_user_message_text(prompt, scr_val)
         refinement_system_prompt = (
             "You are an NLP editor for an AMS ticket system. Your only job is to rewrite raw problem text "
             "into a clean, short, neutral factual statement in proper English describing ONLY the issue reported. "
             "STRICT CONSTRAINTS:\n"
             "1. MUST NEVER include words like 'priority', 'proirity', 'client', 'ticket', 'issue is', 'problem is', 'because', or priority/client values.\n"
-            "2. Output ONLY the rewritten factual issue string (e.g. 'Joule icon is missing.'). Do not include JSON or quotes."
+            "2. MUST NEVER include screenshot filenames or attachment markers.\n"
+            "3. Output ONLY the rewritten factual issue string (e.g. 'Joule icon is missing.'). Do not include JSON or quotes."
         )
         refinement_prompt = f"""Rewrite the following problem text to remove all metadata, priority mentions, client names, and filler words:
 Raw text: "{desc}"
-Original message: "{prompt}"
+Original message: "{clean_p or prompt}"
 
 Clean factual statement:"""
 
         refined_res = _call_llm(refinement_prompt, system_instruction=refinement_system_prompt, json_response=False)
         if refined_res and len(refined_res.strip()) > 3:
-            cleaned_refined = clean_ticket_description(refined_res.strip(), extracted_draft.get("clientName"))
+            cleaned_refined = clean_ticket_description(refined_res.strip(), extracted_draft.get("clientName"), scr_val)
             if cleaned_refined:
                 extracted_draft["descriptionofTicket"] = cleaned_refined
 
@@ -417,21 +539,44 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
     p_lower = p.lower()
     draft = dict(current_draft)
 
-    # 1. Client Name
-    for client in known_clients:
-        if len(client) <= 4:
-            if re.search(r'\b' + re.escape(client) + r'\b', p, re.IGNORECASE):
-                draft["clientName"] = client
-                break
-        else:
-            if client.lower() in p_lower:
-                draft["clientName"] = client
-                break
+    # 1. Client Name Extraction & Entity Resolution
+    explicit_client = re.search(
+        r'\b(?:for\s+client|client|for)\s*[:=]?\s*([A-Za-z0-9_\-\s]+?)(?:\s+(?:priority|prio|proirity|regarding|about|with|having|for|group|module|status|type|ticket|issue)|$)',
+        p,
+        re.IGNORECASE
+    )
+    if explicit_client:
+        c_cand = explicit_client.group(1).strip()
+        c_clean_cand = re.sub(r'\b(?:co\.|co|corp|inc|ltd|pvt|company)\b', '', c_cand, flags=re.IGNORECASE).strip()
+        if c_clean_cand and c_clean_cand.lower() not in ["a", "an", "the", "me", "new", "ticket", "issue", "request", "is", "name"]:
+            resolved = resolve_client_name(c_clean_cand, known_clients)
+            if resolved:
+                draft["clientName"] = resolved
+            else:
+                draft["clientName"] = c_clean_cand
 
     if not draft.get("clientName"):
-        m_client = re.search(r'\b(?:client|company|customer)(?:\s+name)?\s*[:=]\s*([^,\n;]+)', p, re.IGNORECASE)
-        if m_client:
-            draft["clientName"] = m_client.group(1).strip()
+        corporate_stopwords = {"pvt", "ltd", "private", "limited", "inc", "corp", "co", "plc", "llp", "industries", "india", "services", "technologies", "engineering", "group"}
+        for client in known_clients:
+            c_clean = str(client).strip()
+            if not c_clean or c_clean.lower() in ["none", "null", "n/a", "—", "-"]:
+                continue
+            if len(c_clean) <= 4:
+                if re.search(r'\b' + re.escape(c_clean) + r'\b', p, re.IGNORECASE):
+                    draft["clientName"] = client
+                    break
+            else:
+                if c_clean.lower() in p_lower:
+                    draft["clientName"] = client
+                    break
+                else:
+                    words = [w.lower() for w in re.findall(r'[A-Za-z0-9]+', c_clean) if len(w) >= 3 and w.lower() not in corporate_stopwords]
+                    for w in words:
+                        if re.search(r'\b' + re.escape(w) + r'\b', p_lower):
+                            draft["clientName"] = client
+                            break
+                    if draft.get("clientName"):
+                        break
 
     # 2. Priority
     prio_patterns = [
@@ -460,20 +605,23 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
     # 3. Description
     m_desc = re.search(r'\b(?:issue|problem|description|error|summary)(?:\s+of\s+ticket)?\s*[:=]\s*([^;\n]+)', p, re.IGNORECASE)
     if m_desc:
-        draft["descriptionofTicket"] = m_desc.group(1).strip()
-    elif not draft.get("descriptionofTicket"):
-        # Extract problem description directly from prompt text
-        if ":" in p:
-            parts = p.split(":", 1)
+        cand_desc = clean_ticket_description(m_desc.group(1).strip(), draft.get("clientName"), draft.get("screenshort"))
+        if cand_desc:
+            draft["descriptionofTicket"] = cand_desc
+    
+    if not draft.get("descriptionofTicket"):
+        clean_prompt = clean_user_message_text(p, draft.get("screenshort"))
+        if ":" in clean_prompt:
+            parts = clean_prompt.split(":", 1)
             candidate = parts[1].strip()
             candidate = re.sub(r'\b(?:priority|prio|reported\s+by|type|category|remarks?)\s*[:=].*$', '', candidate, flags=re.IGNORECASE).strip()
-            if len(candidate) > 3:
-                draft["descriptionofTicket"] = candidate
-        else:
-            # Strip intent verbs, client name, priority keywords to isolate problem description
+            cleaned_cand = clean_ticket_description(candidate, draft.get("clientName"), draft.get("screenshort"))
+            if cleaned_cand:
+                draft["descriptionofTicket"] = cleaned_cand
+        elif len(clean_prompt) >= 4:
             cleaned_p = re.sub(
                 r'^(?:please\s+)?(?:i\s+want\s+to\s+|i\s+need\s+to\s+|can\s+you\s+)?(?:create|raise|open|log|make|file|generate|submit)\s+(?:an?\s+)?(?:new\s+)?(?:ticket|issue|request)\s+(?:for\s+me\s+)?(?:for|client|on|about|regarding)?\s*',
-                '', p, flags=re.IGNORECASE
+                '', clean_prompt, flags=re.IGNORECASE
             ).strip()
 
             if draft.get("clientName"):
@@ -487,8 +635,16 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
             cleaned_p = re.sub(r'^[:\-\s,]+', '', cleaned_p).strip()
             cleaned_p = re.sub(r'[:\-\s,]+$', '', cleaned_p).strip()
 
-            if len(cleaned_p) >= 4 and cleaned_p.lower() not in ["ticket", "issue", "ams", "create", "raise"]:
-                draft["descriptionofTicket"] = cleaned_p
+            cleaned_final = clean_ticket_description(cleaned_p, draft.get("clientName"), draft.get("screenshort"))
+            if cleaned_final:
+                draft["descriptionofTicket"] = cleaned_final
+
+    # Fallback if still no description
+    if not draft.get("descriptionofTicket"):
+        if current_draft.get("descriptionofTicket"):
+            draft["descriptionofTicket"] = current_draft["descriptionofTicket"]
+        elif draft.get("screenshort") or current_draft.get("screenshort"):
+            draft["descriptionofTicket"] = "Screenshot attached"
 
     # 4. Reported By
     m_rep = re.search(r'\breported\s*(?:by|from)\s*[:=]?\s*([A-Za-z0-9\._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}|[A-Za-z\s]{2,25})\b', p, re.IGNORECASE)
@@ -701,8 +857,15 @@ def analyze_user_intent_on_draft(
                 elif any(w in msg_lower for w in ["medium", "med", "p3"]):
                     return "modify", {"priority": "Medium"}
             elif pending_field == "descriptionofTicket":
-                if len(msg_clean) > 3:
-                    return "modify", {"descriptionofTicket": msg_clean}
+                clean_msg = clean_user_message_text(msg_clean, current_draft.get("screenshort"))
+                if len(clean_msg) > 3:
+                    cleaned_desc = clean_ticket_description(clean_msg, current_draft.get("clientName"), current_draft.get("screenshort"))
+                    if cleaned_desc:
+                        return "modify", {"descriptionofTicket": cleaned_desc}
+                if current_draft.get("descriptionofTicket"):
+                    return "modify", {"descriptionofTicket": current_draft["descriptionofTicket"]}
+                elif current_draft.get("screenshort"):
+                    return "modify", {"descriptionofTicket": "Screenshot attached"}
 
     # If missing fields exist and user message is an explicit search/query prompt, route to query engine
     if missing_fields and is_explicit_query_prompt(user_message):
@@ -714,7 +877,8 @@ def analyze_user_intent_on_draft(
         "The user has a pending ticket draft. Determine if their message is an affirmation/approval to proceed, "
         "a modification/provision of ticket fields, a cancellation, or an explicit search query. "
         "CRITICAL: If the user provides a standalone value (e.g. 'AAB', 'High', 'SAP error') answering a prompt for a missing field, "
-        "classify it as 'modify' and assign that value to the pending missing field. Do NOT classify it as 'unrelated' unless they explicitly ask to search/query tickets."
+        "classify it as 'modify' and assign that value to the pending missing field. Do NOT classify it as 'unrelated' unless they explicitly ask to search/query tickets. "
+        "NEVER use screenshot file names (e.g. 'Screenshot 2026-07-24 160213.png') as descriptionofTicket."
     )
 
     intent_prompt = f"""Current pending ticket draft:
@@ -764,17 +928,26 @@ Respond with a JSON object:
             if "typeofticket" in mod_fields and mod_fields["typeofticket"]:
                 mod_fields["typeofticket"] = normalize_ticket_type(mod_fields["typeofticket"])
             if "descriptionofTicket" in mod_fields and mod_fields["descriptionofTicket"]:
-                mod_fields["descriptionofTicket"] = clean_ticket_description(mod_fields["descriptionofTicket"], mod_fields.get("clientName") or current_draft.get("clientName"))
+                cleaned_desc = clean_ticket_description(mod_fields["descriptionofTicket"], mod_fields.get("clientName") or current_draft.get("clientName"), current_draft.get("screenshort"))
+                mod_fields["descriptionofTicket"] = cleaned_desc or current_draft.get("descriptionofTicket") or "Screenshot attached"
 
             if intent == "modify" or (mod_fields and len(mod_fields) > 0):
                 if pending_field and not any(k in mod_fields for k in ["clientName", "descriptionofTicket", "priority", "assigntogroup", "typeofticket"]):
-                    mod_fields[pending_field] = clean_ticket_description(msg_clean, current_draft.get("clientName")) if pending_field == "descriptionofTicket" else msg_clean
+                    if pending_field == "descriptionofTicket":
+                        clean_m = clean_user_message_text(msg_clean, current_draft.get("screenshort"))
+                        mod_fields[pending_field] = clean_ticket_description(clean_m, current_draft.get("clientName"), current_draft.get("screenshort")) or current_draft.get("descriptionofTicket") or "Screenshot attached"
+                    else:
+                        mod_fields[pending_field] = msg_clean
                 return "modify", mod_fields
             elif intent in ["confirm", "cancel"]:
                 return intent, mod_fields
             elif intent == "unrelated" and missing_fields and not is_explicit_query_prompt(user_message):
                 # User provided a standalone answer to missing field prompt, override 'unrelated'
-                mod_fields[pending_field] = clean_ticket_description(msg_clean, current_draft.get("clientName")) if pending_field == "descriptionofTicket" else msg_clean
+                if pending_field == "descriptionofTicket":
+                    clean_m = clean_user_message_text(msg_clean, current_draft.get("screenshort"))
+                    mod_fields[pending_field] = clean_ticket_description(clean_m, current_draft.get("clientName"), current_draft.get("screenshort")) or current_draft.get("descriptionofTicket") or "Screenshot attached"
+                else:
+                    mod_fields[pending_field] = msg_clean
                 return "modify", mod_fields
             elif intent == "unrelated":
                 return "unrelated", {}
@@ -862,6 +1035,17 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
             elif key == "priority":
                 status_str = "*Ready*"
                 val_display = f"**`{val}`**"
+            elif key == "screenshort":
+                val_str = str(val).strip()
+                if val_str.startswith("data:image/"):
+                    status_str = "*Attached*"
+                    val_display = f'<img src="{val_str}" alt="Screenshot Preview" style="max-width:160px; max-height:120px; border-radius:6px; cursor:pointer;" />'
+                elif val_str.lower() in ["none", "null", "*none*", "*not provided*"]:
+                    status_str = "*Optional / None*"
+                    val_display = "*None*"
+                else:
+                    status_str = "*Attached*"
+                    val_display = f"`{val_str}`"
             else:
                 status_str = "*Provided*"
                 val_display = f"`{val}`"
@@ -891,17 +1075,28 @@ def submit_ticket_to_ams(draft: Dict[str, Any], ams: AMSApi) -> Dict[str, Any]:
     Calls AMS live API /api/Ticket/CreateTicket with the finalized payload.
     """
     payload = {
-        "clientName": draft.get("clientName"),
-        "ams": draft.get("ams") or "AMS",
-        "typeofticket": normalize_ticket_type(draft.get("typeofticket")),
-        "priority": draft.get("priority"),
-        "reportedon": draft.get("reportedon"),
-        "reportedontime": draft.get("reportedontime"),
-        "reportedby": draft.get("reportedby"),
-        "descriptionofTicket": draft.get("descriptionofTicket"),
-        "screenshort": draft.get("screenshort"),
-        "remarks": draft.get("remarks"),
-        "assigntogroup": draft.get("assigntogroup")
+        "ClientName": draft.get("ClientName") or draft.get("clientName"),
+        "AMS": draft.get("AMS") or draft.get("ams") or "AMS",
+        "Typeofticket": normalize_ticket_type(draft.get("Typeofticket") or draft.get("typeofticket")),
+        "Priority": draft.get("Priority") or draft.get("priority"),
+        "Reportedon": draft.get("Reportedon") or draft.get("reportedon"),
+        "Reportedontime": draft.get("Reportedontime") or draft.get("reportedontime"),
+        "Reportedby": draft.get("Reportedby") or draft.get("reportedby"),
+        "DescriptionofTicket": draft.get("DescriptionofTicket") or draft.get("descriptionofTicket"),
+        "Screenshot": draft.get("Screenshot") or draft.get("screenshort") or draft.get("screenshot"),
+        "Remarks": draft.get("Remarks") or draft.get("remarks"),
+        "Assigntogroup": draft.get("Assigntogroup") or draft.get("assigntogroup"),
+        "clientName": draft.get("clientName") or draft.get("ClientName"),
+        "ams": draft.get("ams") or draft.get("AMS") or "AMS",
+        "typeofticket": normalize_ticket_type(draft.get("typeofticket") or draft.get("Typeofticket")),
+        "priority": draft.get("priority") or draft.get("Priority"),
+        "reportedon": draft.get("reportedon") or draft.get("Reportedon"),
+        "reportedontime": draft.get("reportedontime") or draft.get("Reportedontime"),
+        "reportedby": draft.get("reportedby") or draft.get("Reportedby"),
+        "descriptionofTicket": draft.get("descriptionofTicket") or draft.get("DescriptionofTicket"),
+        "screenshort": draft.get("screenshort") or draft.get("Screenshot") or draft.get("screenshot"),
+        "remarks": draft.get("remarks") or draft.get("Remarks"),
+        "assigntogroup": draft.get("assigntogroup") or draft.get("Assigntogroup")
     }
 
     # Clean None values if necessary or send as null

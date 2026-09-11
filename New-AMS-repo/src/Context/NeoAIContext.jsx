@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { sendAIChatQuery } from "../Services/AIChatService";
-
+ 
 export const DEFAULT_SUGGESTIONS = [
   "Which tickets are high priority?",
   "Show me open incidents for Karamtara",
   "What is our SLA compliance this month?",
   "Has FB60 error happened before?",
 ];
-
+ 
 export const KNOWLEDGE_RESPONSES = {};
-
+ 
 const NeoAIContext = createContext();
-
+ 
 export const NeoAIProvider = ({ children }) => {
   const [messages, setMessages] = useState(() => {
     try {
@@ -21,8 +21,9 @@ export const NeoAIProvider = ({ children }) => {
       return [];
     }
   });
-
+ 
   const [isThinking, setIsThinking] = useState(false);
+  const [activeTicketDraft, setActiveTicketDraft] = useState(null);
   const [activeTrace, setActiveTrace] = useState({
     intent: "live Ticket LLM Intelligence",
     scope: "authenticated user + customer tenants",
@@ -33,7 +34,26 @@ export const NeoAIProvider = ({ children }) => {
     writeActions: "routed via FastAPI backend",
     lastCall: "—",
   });
-
+ 
+  // Helper to read file as Base64 Data URL preserving exact binary payload and filename
+  const readFileAsDataUrl = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        let result = reader.result;
+        if (result && typeof result === "string" && !result.includes(";name=")) {
+          const parts = result.split(";base64,");
+          if (parts.length === 2) {
+            result = `${parts[0]};name=${encodeURIComponent(file.name)};base64,${parts[1]}`;
+          }
+        }
+        resolve(result);
+      };
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
+  };
+ 
   // Keep localStorage updated with chat turns
   useEffect(() => {
     try {
@@ -42,25 +62,39 @@ export const NeoAIProvider = ({ children }) => {
       console.error("Error persisting NeoAI messages", e);
     }
   }, [messages]);
-
-  const askNeoAI = useCallback(async (questionText) => {
-    const q = (questionText || "").trim();
-    if (!q) return;
-
+ 
+  const askNeoAI = useCallback(async (questionText, attachedFile = null) => {
+    const userTypedText = (questionText || "").trim();
+    const cleanUserText = userTypedText.replace(/^(?:\[\s*Attached\s+file:[^\]]*\]|Attached\s+file:[^\n]*)\s*/i, "").trim();
+ 
+    let screenshotDataUrl = null;
+    let attachedFileName = null;
+    if (attachedFile) {
+      try {
+        attachedFileName = attachedFile.name;
+        screenshotDataUrl = await readFileAsDataUrl(attachedFile);
+      } catch (fileErr) {
+        console.error("Error reading file attachment:", fileErr);
+      }
+    }
+ 
+    const promptText = cleanUserText || (attachedFileName ? "[Screenshot Attached]" : "");
     const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
+ 
     // 1. Add user message
     const userMsg = {
       id: Date.now(),
       sender: "user",
-      query: q,
-      text: q,
+      query: cleanUserText || (attachedFileName ? `[Attached: ${attachedFileName}]` : ""),
+      text: cleanUserText || (attachedFileName ? `[Attached: ${attachedFileName}]` : ""),
+      attachedFileName: attachedFileName,
+      screenshotUrl: screenshotDataUrl,
       time: timeStr,
     };
-
+ 
     setMessages((prev) => [...prev, userMsg]);
     setIsThinking(true);
-
+ 
     try {
       const userEmailStored = localStorage.getItem("userEmail") || localStorage.getItem("email") || localStorage.getItem("neo_email");
       let username = userEmailStored || "user@neovatic.com";
@@ -74,13 +108,28 @@ export const NeoAIProvider = ({ children }) => {
         }
       }
       const token = localStorage.getItem("token") || localStorage.getItem("jwt") || "";
-
+ 
+      // Format conversation history for LLM context
+      const historyList = messages.map((m) => ({
+        sender: m.sender,
+        text: m.text || m.query || "",
+      }));
+ 
       const res = await sendAIChatQuery({
         username,
-        message: q,
+        message: cleanUserText || (screenshotDataUrl ? "[Screenshot Attached]" : ""),
         bearerToken: token,
+        ticketDraft: activeTicketDraft,
+        history: historyList,
+        screenshort: screenshotDataUrl,
       });
-
+ 
+      if (res.ticketDraft !== undefined) {
+        setActiveTicketDraft(res.ticketDraft);
+      }
+ 
+      const actionType = res.actionType || "query";
+ 
       const botMsg = {
         id: Date.now() + 1,
         sender: "bot",
@@ -88,19 +137,19 @@ export const NeoAIProvider = ({ children }) => {
         text: res.response,
         data: res.data || null,
         count: res.count || 0,
-        actionType: res.actionType,
+        actionType: actionType,
         ticketDraft: res.ticketDraft,
         error: res.error,
-        tags: res.data && res.data.length > 0 ? [`Records: ${res.count}`, `Action: ${res.actionType}`] : ["LLM-Response"],
-        telemetry: `FASTAPI AI ENGINE · ${res.count} MATCHES · TYPE: ${res.actionType.toUpperCase()}`,
+        tags: res.data && res.data.length > 0 ? [`Records: ${res.count}`, `Action: ${actionType}`] : ["LLM-Response"],
+        telemetry: `FASTAPI AI ENGINE · ${res.count} MATCHES · TYPE: ${actionType.toUpperCase()}`,
         citation: "Cited from: Neovatic AMS Intelligence System",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
-
+ 
       setMessages((prev) => [...prev, botMsg]);
       setActiveTrace((prev) => ({
         ...prev,
-        intent: res.actionType || "query",
+        intent: actionType,
         lastCall: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
       }));
     } catch (err) {
@@ -117,16 +166,17 @@ export const NeoAIProvider = ({ children }) => {
     } finally {
       setIsThinking(false);
     }
-  }, [messages]);
-
+  }, [messages, activeTicketDraft]);
+ 
   const resetChat = useCallback(() => {
     setMessages([]);
+    setActiveTicketDraft(null);
     setIsThinking(false);
     try {
       localStorage.removeItem("neoai_shared_messages");
     } catch { }
   }, []);
-
+ 
   const loadConversation = useCallback((newMessages) => {
     const list = Array.isArray(newMessages) ? newMessages : [];
     setMessages(list);
@@ -135,7 +185,7 @@ export const NeoAIProvider = ({ children }) => {
       localStorage.setItem("neoai_shared_messages", JSON.stringify(list));
     } catch { }
   }, []);
-
+ 
   return (
     <NeoAIContext.Provider
       value={{
@@ -152,7 +202,7 @@ export const NeoAIProvider = ({ children }) => {
     </NeoAIContext.Provider>
   );
 };
-
+ 
 export const useNeoAI = () => {
   const context = useContext(NeoAIContext);
   if (!context) {
@@ -168,5 +218,5 @@ export const useNeoAI = () => {
   }
   return context;
 };
-
+ 
 export default NeoAIContext;

@@ -133,30 +133,97 @@ const DeliveryWorkflow = ({
   formatPriorityCode,
   getPriorityClass,
 }) => {
+  // Helper to format date for input[type="date"] (YYYY-MM-DD)
+  const formatDateForInput = (val) => {
+    if (!val) return "";
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+      if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) return trimmed.split("T")[0];
+    }
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return "";
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  // Format date helper (MM/DD/YYYY) from ticket createddate
+  const formatCreatedDate = (dateStr) => {
+    if (getFormattedCreatedDate) return getFormattedCreatedDate(dateStr);
+    if (!dateStr) return "00/00/0000";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "00/00/0000";
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  };
+
+  // Compute end date from start date by adding working days (skipping weekends)
+  const computeEndDate = (startDateStr, workingDaysCount) => {
+    if (getComputedEndDate) return getComputedEndDate(startDateStr, workingDaysCount);
+    let d = new Date(startDateStr);
+    if (isNaN(d.getTime())) d = new Date();
+    let days = parseInt(workingDaysCount, 10) || 1;
+    let current = new Date(d);
+    while (days > 1) {
+      current.setDate(current.getDate() + 1);
+      const dayOfWeek = current.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        days--;
+      }
+    }
+    const mm = String(current.getMonth() + 1).padStart(2, "0");
+    const dd = String(current.getDate()).padStart(2, "0");
+    const yyyy = current.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  };
+
   const defaultConsultant =
     selectedWorkflowTicket?.name ||
-    (employees && employees.length > 0 ? (employees[0].name || employees[0].employeeName) : "K. Menon");
+    selectedWorkflowTicket?.responsibleBy ||
+    selectedWorkflowTicket?.ResponsibleBy ||
+    (employees && employees.length > 0 ? (employees[0].name || employees[0].employeeName) : "");
   const defaultTicketStatus =
     selectedWorkflowTicket?.ticketStatus ||
-    (statuses && statuses.length > 0 ? statuses[0].name : "Assigned");
+    selectedWorkflowTicket?.status ||
+    selectedWorkflowTicket?.Status ||
+    (statuses && statuses.length > 0 ? statuses[0].name : "");
+
+  const initialAckDate = formatDateForInput(
+    selectedWorkflowTicket?.customerAcknowledgedOn ||
+    selectedWorkflowTicket?.CustomerAcknowledgedOn
+  );
+  const initialWorkingDays =
+    selectedWorkflowTicket?.workingDays ??
+    selectedWorkflowTicket?.WorkingDays ??
+    "";
+  const initialWorkingHours =
+    selectedWorkflowTicket?.approvedHours ??
+    selectedWorkflowTicket?.Approvedhours ??
+    selectedWorkflowTicket?.ApprovedHours ??
+    selectedWorkflowTicket?.approvedhours ??
+    "";
 
   // Delivery Workflow local states
   const [workflowDocTab, setWorkflowDocTab] = useState("FS Document");
-  const [ackCustomerDate, setAckCustomerDate] = useState("");
-  const [ackWorkingDays, setAckWorkingDays] = useState(1);
-  const [ackWorkingHours, setAckWorkingHours] = useState("");
+  const [ackCustomerDate, setAckCustomerDate] = useState(initialAckDate);
+  const [ackWorkingDays, setAckWorkingDays] = useState(initialWorkingDays !== "" ? initialWorkingDays : "");
+  const [ackWorkingHours, setAckWorkingHours] = useState(initialWorkingHours !== "" ? initialWorkingHours : "");
   const [ackResponsibleBy, setAckResponsibleBy] = useState(defaultConsultant);
   const [ackStatus, setAckStatus] = useState(defaultTicketStatus);
   const [ackAttachment, setAckAttachment] = useState(null);
   const [ackAttachmentName, setAckAttachmentName] = useState("");
-  const [ackCompleted, setAckCompleted] = useState(false);
+  const [ackCompleted, setAckCompleted] = useState(Boolean(initialAckDate));
   const ackFileInputRef = useRef(null);
   const prevTicketIdRef = useRef(null);
 
   // Submitting and completed tracking for all 10 steps
   const [submittingSteps, setSubmittingSteps] = useState({});
   const [completedSteps, setCompletedSteps] = useState({
-    step1: false,
+    step1: Boolean(initialAckDate),
     step2: false,
     step3: false,
     step4: false,
@@ -197,15 +264,15 @@ const DeliveryWorkflow = ({
 
   // Steps 02–10 state with initial dates, valid status names, and attachments
   const [stepsState, setStepsState] = useState({
-    step2: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step3: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step4: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step5: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step6: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step7: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step8: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step9: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
-    step10: { days: "", hours: "", startDate: "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step2: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step3: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step4: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step5: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step6: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step7: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step8: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step9: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
+    step10: { days: initialWorkingDays !== "" ? initialWorkingDays : "", hours: initialWorkingHours !== "" ? initialWorkingHours : "", responsible: defaultConsultant, status: "", attachment: null, attachmentName: "" },
   });
 
   const fileInputRefs = useRef({});
@@ -239,37 +306,88 @@ const DeliveryWorkflow = ({
     }
   };
 
-  // Auto-sync responsible consultant and status when selected workflow ticket changes
+  // Auto-sync persistent ticket fields (Customer Acknowledgment, working days/hours, responsible, status) when selected workflow ticket changes
   useEffect(() => {
     if (selectedWorkflowTicket) {
-      const currentTicketId = selectedWorkflowTicket.ticketNo || selectedWorkflowTicket.txnId || selectedWorkflowTicket.id;
+      const currentTicketId =
+        selectedWorkflowTicket.ticketNo ||
+        selectedWorkflowTicket.txnId ||
+        selectedWorkflowTicket.id;
       const isNewTicket = prevTicketIdRef.current !== currentTicketId;
       if (!isNewTicket && prevTicketIdRef.current !== null) return;
       prevTicketIdRef.current = currentTicketId;
 
       const defaultName =
         selectedWorkflowTicket.name ||
+        selectedWorkflowTicket.responsibleBy ||
+        selectedWorkflowTicket.ResponsibleBy ||
         (employees && employees.length > 0 ? (employees[0].name || employees[0].employeeName) : "");
       const defaultStatus =
         selectedWorkflowTicket.ticketStatus ||
+        selectedWorkflowTicket.status ||
+        selectedWorkflowTicket.Status ||
         (statuses && statuses.length > 0 ? statuses[0].name : "");
 
+      const custAckDate = formatDateForInput(
+        selectedWorkflowTicket.customerAcknowledgedOn ||
+        selectedWorkflowTicket.CustomerAcknowledgedOn
+      );
+
+      const wDays =
+        selectedWorkflowTicket.workingDays ??
+        selectedWorkflowTicket.WorkingDays ??
+        "";
+
+      const wHours =
+        selectedWorkflowTicket.approvedHours ??
+        selectedWorkflowTicket.Approvedhours ??
+        selectedWorkflowTicket.ApprovedHours ??
+        selectedWorkflowTicket.approvedhours ??
+        "";
+
+      setAckCustomerDate(custAckDate);
+      setAckWorkingDays(wDays !== null && wDays !== undefined && wDays !== "" ? wDays : "");
+      setAckWorkingHours(wHours !== null && wHours !== undefined && wHours !== "" ? wHours : "");
       setAckResponsibleBy(defaultName);
       setAckStatus(defaultStatus);
 
+      if (custAckDate) {
+        setCompletedSteps((prev) => ({ ...prev, step1: true }));
+        setAckCompleted(true);
+      } else {
+        setCompletedSteps((prev) => ({ ...prev, step1: false }));
+        setAckCompleted(false);
+      }
+
       setStepsState((prev) => ({
-        step2: { ...prev.step2, responsible: defaultName },
-        step3: { ...prev.step3, responsible: defaultName },
-        step4: { ...prev.step4, responsible: defaultName },
-        step5: { ...prev.step5, responsible: defaultName },
-        step6: { ...prev.step6, responsible: defaultName },
-        step7: { ...prev.step7, responsible: defaultName },
-        step8: { ...prev.step8, responsible: defaultName },
-        step9: { ...prev.step9, responsible: defaultName },
-        step10: { ...prev.step10, responsible: defaultName },
+        step2: { ...prev.step2, responsible: defaultName, days: prev.step2.days || (wDays !== "" ? wDays : ""), hours: prev.step2.hours || (wHours !== "" ? wHours : "") },
+        step3: { ...prev.step3, responsible: defaultName, days: prev.step3.days || (wDays !== "" ? wDays : ""), hours: prev.step3.hours || (wHours !== "" ? wHours : "") },
+        step4: { ...prev.step4, responsible: defaultName, days: prev.step4.days || (wDays !== "" ? wDays : ""), hours: prev.step4.hours || (wHours !== "" ? wHours : "") },
+        step5: { ...prev.step5, responsible: defaultName, days: prev.step5.days || (wDays !== "" ? wDays : ""), hours: prev.step5.hours || (wHours !== "" ? wHours : "") },
+        step6: { ...prev.step6, responsible: defaultName, days: prev.step6.days || (wDays !== "" ? wDays : ""), hours: prev.step6.hours || (wHours !== "" ? wHours : "") },
+        step7: { ...prev.step7, responsible: defaultName, days: prev.step7.days || (wDays !== "" ? wDays : ""), hours: prev.step7.hours || (wHours !== "" ? wHours : "") },
+        step8: { ...prev.step8, responsible: defaultName, days: prev.step8.days || (wDays !== "" ? wDays : ""), hours: prev.step8.hours || (wHours !== "" ? wHours : "") },
+        step9: { ...prev.step9, responsible: defaultName, days: prev.step9.days || (wDays !== "" ? wDays : ""), hours: prev.step9.hours || (wHours !== "" ? wHours : "") },
+        step10: { ...prev.step10, responsible: defaultName, days: prev.step10.days || (wDays !== "" ? wDays : ""), hours: prev.step10.hours || (wHours !== "" ? wHours : "") },
       }));
     }
-  }, [selectedWorkflowTicket?.ticketNo, selectedWorkflowTicket?.txnId, selectedWorkflowTicket?.name, selectedWorkflowTicket?.ticketStatus]);
+  }, [
+    selectedWorkflowTicket?.ticketNo,
+    selectedWorkflowTicket?.txnId,
+    selectedWorkflowTicket?.name,
+    selectedWorkflowTicket?.responsibleBy,
+    selectedWorkflowTicket?.ResponsibleBy,
+    selectedWorkflowTicket?.ticketStatus,
+    selectedWorkflowTicket?.status,
+    selectedWorkflowTicket?.customerAcknowledgedOn,
+    selectedWorkflowTicket?.CustomerAcknowledgedOn,
+    selectedWorkflowTicket?.workingDays,
+    selectedWorkflowTicket?.WorkingDays,
+    selectedWorkflowTicket?.approvedHours,
+    selectedWorkflowTicket?.Approvedhours,
+    selectedWorkflowTicket?.ApprovedHours,
+    selectedWorkflowTicket?.approvedhours,
+  ]);
 
   const handleAckFileChange = (e) => {
     const file = e.target.files?.[0];
@@ -304,9 +422,9 @@ const DeliveryWorkflow = ({
 
   // Get YYYY-MM-DD for datepicker min attribute
   const getMinAckDate = (dateStr) => {
-    if (!dateStr) return "2026-09-02";
+    if (!dateStr) return "0000-00-00";
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "2026-09-02";
+    if (isNaN(d.getTime())) return "0000-00-00";
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
@@ -320,7 +438,7 @@ const DeliveryWorkflow = ({
       return;
     }
 
-    const ticketId = selectedWorkflowTicket.ticketNo || selectedWorkflowTicket.txnId ;
+    const ticketId = selectedWorkflowTicket.ticketNo || selectedWorkflowTicket.txnId;
     let customerAckFormatted = "";
     let endSlaFormatted = "";
     let workingDaysVal = 1;
@@ -346,8 +464,8 @@ const DeliveryWorkflow = ({
         return;
       }
 
-      const hasAckDays = ackWorkingDays && String(ackWorkingDays).trim() !== "" && Number(ackWorkingDays) > 0;
-      const hasAckHours = ackWorkingHours && String(ackWorkingHours).trim() !== "" && Number(ackWorkingHours) > 0;
+      const hasAckDays = ackWorkingDays !== "" && ackWorkingDays !== null && ackWorkingDays !== undefined && Number(ackWorkingDays) > 0;
+      const hasAckHours = ackWorkingHours !== "" && ackWorkingHours !== null && ackWorkingHours !== undefined && Number(ackWorkingHours) > 0;
       if (!hasAckDays && !hasAckHours) {
         showStepAlert(stepKey, "error", "Provide Either Hours or Days.");
         return;
@@ -365,14 +483,14 @@ const DeliveryWorkflow = ({
         showStepAlert(
           stepKey,
           "error",
-          `Customer Acknowledged On date cannot be earlier than Acknowledgement Sent On (${getFormattedCreatedDate(selectedWorkflowTicket?.createddate)}). Please select a date on or after the sent date.`
+          `Customer Acknowledged On date cannot be earlier than Acknowledgement Sent On (${formatCreatedDate(selectedWorkflowTicket?.createddate)}). Please select a date on or after the sent date.`
         );
         return;
       }
       setMissingFields([]);
 
       customerAckFormatted = formatToMMDDYYYY(ackCustomerDate);
-      endSlaFormatted = getComputedEndDate(selectedWorkflowTicket?.createddate || new Date(), Number(ackWorkingDays) || 1);
+      endSlaFormatted = computeEndDate(selectedWorkflowTicket?.createddate || new Date(), Number(ackWorkingDays) || 1);
       workingDaysVal = hasAckDays ? Number(ackWorkingDays) : 0;
       hoursVal = hasAckHours ? String(ackWorkingHours) : "";
       responsibleVal = ackResponsibleBy;
@@ -391,8 +509,8 @@ const DeliveryWorkflow = ({
       hoursVal = hasHours ? String(s.hours) : "";
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = s.status || "Assigned";
-      customerAckFormatted = formatToMMDDYYYY(s.startDate );
-      endSlaFormatted = getComputedEndDate(s.startDate , Number(s.days) || 1);
+      customerAckFormatted = formatToMMDDYYYY(selectedWorkflowTicket?.createddate || new Date());
+      endSlaFormatted = computeEndDate(selectedWorkflowTicket?.createddate || new Date(), Number(s.days) || 1);
       attachmentVal = s.attachment || null;
     }
 
@@ -414,12 +532,30 @@ const DeliveryWorkflow = ({
         showStepAlert(stepKey, "success", resp.message || `${docType} saved successfully.`);
         setCompletedSteps((prev) => ({ ...prev, [stepKey]: true }));
         if (stepKey === "step1") setAckCompleted(true);
+        if (selectedWorkflowTicket) {
+          if (stepKey === "step1") {
+            selectedWorkflowTicket.customerAcknowledgedOn = customerAckFormatted;
+            selectedWorkflowTicket.workingDays = workingDaysVal;
+            selectedWorkflowTicket.approvedHours = hoursVal;
+            selectedWorkflowTicket.name = responsibleVal;
+            selectedWorkflowTicket.ticketStatus = statusVal;
+          }
+        }
       } else {
         const isSuccessMsg = resp?.message && (resp.message.toLowerCase().includes("success") || resp.message.toLowerCase().includes("saved"));
         showStepAlert(stepKey, isSuccessMsg ? "success" : "error", resp?.message || `Failed to record ${docType}.`);
         if (isSuccessMsg) {
           setCompletedSteps((prev) => ({ ...prev, [stepKey]: true }));
           if (stepKey === "step1") setAckCompleted(true);
+          if (selectedWorkflowTicket) {
+            if (stepKey === "step1") {
+              selectedWorkflowTicket.customerAcknowledgedOn = customerAckFormatted;
+              selectedWorkflowTicket.workingDays = workingDaysVal;
+              selectedWorkflowTicket.approvedHours = hoursVal;
+              selectedWorkflowTicket.name = responsibleVal;
+              selectedWorkflowTicket.ticketStatus = statusVal;
+            }
+          }
         }
       }
     } catch (err) {
@@ -611,7 +747,7 @@ const DeliveryWorkflow = ({
                 <TextField
                   size="small"
                   variant="outlined"
-                  value={getFormattedCreatedDate(selectedWorkflowTicket?.createddate)}
+                  value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
                   disabled
                   sx={muiInputSx}
                   title="Start date taken from API createddate (fixed)"
@@ -745,7 +881,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getFormattedCreatedDate(selectedWorkflowTicket?.createddate)}
+                value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
                 disabled
                 sx={muiInputSx}
               />
@@ -758,7 +894,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(selectedWorkflowTicket?.createddate || new Date(), ackWorkingDays)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), ackWorkingDays)}
                 disabled
                 sx={muiInputSx}
               />
@@ -915,7 +1051,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step2.startDate} disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -924,7 +1060,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step2.startDate, stepsState.step2.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step2.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1094,7 +1230,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step3.startDate } disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -1103,7 +1239,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step3.startDate, stepsState.step3.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step3.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1291,7 +1427,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step4.startDate} disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -1300,7 +1436,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step4.startDate, stepsState.step4.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step4.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1488,7 +1624,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step5.startDate } disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -1497,7 +1633,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step5.startDate, stepsState.step5.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step5.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1684,7 +1820,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step6.startDate } disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -1693,7 +1829,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step6.startDate, stepsState.step6.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step6.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1881,7 +2017,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step7.startDate } disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -1890,7 +2026,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step7.startDate || "10/02/2026", stepsState.step7.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step7.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -2078,7 +2214,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step8.startDate } disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -2087,7 +2223,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step8.startDate, stepsState.step8.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step8.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -2254,7 +2390,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step9.startDate } disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -2263,7 +2399,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step9.startDate, stepsState.step9.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step9.days)}
                 disabled
                 sx={muiInputSx}
               />
@@ -2430,7 +2566,7 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <TextField size="small" variant="outlined" value={stepsState.step10.startDate } disabled sx={muiInputSx} />
+              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
             </div>
             <div className="mlp-dw-field-group">
               <label className="mlp-dw-field-lbl">
@@ -2439,7 +2575,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={getComputedEndDate(stepsState.step10.startDate, stepsState.step10.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step10.days)}
                 disabled
                 sx={muiInputSx}
               />

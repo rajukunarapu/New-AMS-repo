@@ -139,7 +139,7 @@ const TicketAssignment = ({
     remarks: "Cannot post AP invoice in FB60 after July deployment",
   };
 
-  const ticketTitle = activeTicket.ticketNo || "INC-1041";
+  const ticketTitle = activeTicket.ticketNo || "";
   const ticketDesc =
     activeTicket.description ||
     activeTicket.remarks ||

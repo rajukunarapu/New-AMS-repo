@@ -342,8 +342,8 @@ const ConsultantPage = () => {
   const toPriorityPayloadString = (p) => {
     if (!p) return "Low";
     const raw = String(p).trim().toLowerCase();
-    if (raw.includes("very high") || raw === "p1" || raw.includes("production")) return "Very High";
-    if (raw.includes("high") || raw === "p2" || raw.includes("business")) return "High";
+    if (raw.includes("very high") || raw === "p1" || raw.includes("production")) return "Very High (Production Impacted)";
+    if (raw.includes("high") || raw === "p2" || raw.includes("business")) return "High (Business Impacted)";
     if (raw.includes("medium") || raw === "p3") return "Medium";
     if (raw.includes("low") || raw === "p4") return "Low";
     return p;

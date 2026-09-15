@@ -508,12 +508,12 @@ const ModuleLeadPage = () => {
     return `${mm}/${dd}/${yyyy}`;
   };
 
-  // Convert priority to strict payload string: "Low", "Medium", "High", "Very High"
+  // Convert priority to strict payload string: "Low", "Medium", "High (Business Impacted)", "Very High (Production Impacted)"
   const toPriorityPayloadString = (p) => {
     if (!p) return "Low";
     const raw = String(p).trim().toLowerCase();
-    if (raw.includes("very high") || raw === "p1" || raw.includes("production")) return "Very High";
-    if (raw.includes("high") || raw === "p2" || raw.includes("business")) return "High";
+    if (raw.includes("very high") || raw === "p1" || raw.includes("production")) return "Very High (Production Impacted)";
+    if (raw.includes("high") || raw === "p2" || raw.includes("business")) return "High (Business Impacted)";
     if (raw.includes("medium") || raw === "p3") return "Medium";
     if (raw.includes("low") || raw === "p4") return "Low";
     return p;

@@ -923,6 +923,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(ackResponsibleBy || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={ackResponsibleBy || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
 
             <div className="mlp-dw-field-group mlp-dw-field-status">
@@ -954,7 +961,7 @@ const DeliveryWorkflow = ({
           {/* Step 01 Action footer with Record customer acknowledgement button */}
           <div className="mlp-dw-step-footer">
             <p className="mlp-dw-step-subtext">
-              {ackWorkingDays || 1} working days · Completed within the planned end date · responsible {ackResponsibleBy || "K. Menon"}
+              {ackWorkingDays || 1} working days · Completed within the planned end date · responsible {ackResponsibleBy || ""}
             </p>
             <button
               type="button"
@@ -1079,6 +1086,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step2.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step2.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -1258,6 +1272,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step3.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step3.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -1455,6 +1476,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step4.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step4.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -1515,7 +1543,7 @@ const DeliveryWorkflow = ({
             </div>
           </div>
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step4.days} working days · responsible by {stepsState.step4.responsible || "-"}</p>
+            <p className="mlp-dw-step-subtext">{stepsState.step4.days} working days · responsible by {stepsState.step4.responsible || ""}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -1652,6 +1680,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step5.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step5.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -1712,7 +1747,7 @@ const DeliveryWorkflow = ({
             </div>
           </div>
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step5.days} working days · responsible by {stepsState.step5.responsible || "-"}</p>
+            <p className="mlp-dw-step-subtext">{stepsState.step5.days} working days · responsible by {stepsState.step5.responsible || ""}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -1848,6 +1883,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step6.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step6.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -1908,7 +1950,7 @@ const DeliveryWorkflow = ({
             </div>
           </div>
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step6.days} working days · responsible by {stepsState.step6.responsible || "-"}</p>
+            <p className="mlp-dw-step-subtext">{stepsState.step6.days} working days · responsible by {stepsState.step6.responsible || ""}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -2045,6 +2087,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step7.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step7.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -2105,7 +2154,7 @@ const DeliveryWorkflow = ({
             </div>
           </div>
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step7.days} working days · responsible by {stepsState.step7.responsible || "-"}</p>
+            <p className="mlp-dw-step-subtext">{stepsState.step7.days} working days · responsible by {stepsState.step7.responsible || ""}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -2242,6 +2291,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step8.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step8.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -2302,7 +2358,7 @@ const DeliveryWorkflow = ({
             </div>
           </div>
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step8.days} working days · responsible by {stepsState.step8.responsible || "-"}</p>
+            <p className="mlp-dw-step-subtext">{stepsState.step8.days} working days · responsible by {stepsState.step8.responsible || ""}</p>
             <button
               type="button"
               className="mlp-dw-primary-btn"
@@ -2418,6 +2474,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step9.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step9.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -2478,7 +2541,7 @@ const DeliveryWorkflow = ({
             </div>
           </div>
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step9.days} working days · responsible by {stepsState.step9.responsible || "-"}</p>
+            <p className="mlp-dw-step-subtext">{stepsState.step9.days} working days · responsible by {stepsState.step9.responsible || ""}</p>
             <button
               type="button"
               className="mlp-dw-primary-btn"
@@ -2594,6 +2657,13 @@ const DeliveryWorkflow = ({
                   {renderEmployeeOptions(stepsState.step10.responsible || defaultConsultant)}
                 </Select>
               </FormControl>
+              <TextField
+                size="small"
+                variant="outlined"
+                value={stepsState.step10.responsible || defaultConsultant || "NA"}
+                disabled
+                sx={muiInputSx}
+              />
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
@@ -2704,7 +2774,7 @@ const DeliveryWorkflow = ({
         {/* Card 1: Documents attached to ticket */}
         <div className="mlp-dw-side-card">
           <div className="mlp-dw-side-header">
-            <h4 className="mlp-dw-side-title">Documents attached to {selectedWorkflowTicket?.ticketNo || "-"}</h4>
+            <h4 className="mlp-dw-side-title">Documents attached to {selectedWorkflowTicket?.ticketNo || ""}</h4>
             <span className="mlp-dw-side-meta">reference & history</span>
           </div>
           <p className="mlp-dw-side-desc">

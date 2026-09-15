@@ -13,7 +13,6 @@ import { updateTicketsAPI } from "../Services/UpdateTicketsAPI";
 import SupportDashboard from "../Features/ModuleLeadComponents/SupportDashboard";
 import TicketDetailsPage from "../Features/ModuleLeadComponents/TicketDetailsPage";
 import TicketList from "../Features/ModuleLeadComponents/TicketList";
-import DeliveryWorkflow from "../Features/ModuleLeadComponents/DeliveryWorkflow";
 import NeedsAttention from "../Features/ModuleLeadComponents/NeedsAttention";
 import TicketAssignment from "../Features/ModuleLeadComponents/TicketAssignment";
 import TicketSorting from "../Features/ModuleLeadComponents/TicketSorting";
@@ -28,7 +27,6 @@ import NeoAIFullPage from "../Components/Common/NeoAIFullPage";
 const navItemsList = [
   { id: "dashboard", label: "Support Dashboard" },
   { id: "tickets", label: "Ticket Details" },
-  { id: "workflow", label: "Delivery Workflow" },
   { id: "notifications", label: "Notifications" },
   { id: "needs-attention", label: "Needs Attention" },
   { id: "ticket-list", label: "Ticket List" },
@@ -102,10 +100,6 @@ const ModuleLeadPage = () => {
   const [ticketListStatusFilter, setTicketListStatusFilter] = useState("All");
   const [ticketListPriorityFilter, setTicketListPriorityFilter] = useState("ALL");
   const [ticketListVisibleCount, setTicketListVisibleCount] = useState(20);
-
-  // Delivery Workflow state
-  const [workflowTicketIdx, setWorkflowTicketIdx] = useState(0);
-  const [workflowVisibleCount, setWorkflowVisibleCount] = useState(10);
 
   // Assign and update form state
   const [assignTo, setAssignTo] = useState("");
@@ -469,45 +463,6 @@ const ModuleLeadPage = () => {
     setSearchParams({ tab: "ticket-list" });
   };
 
-  // Delivery Workflow tickets (paginated by workflowVisibleCount)
-  const workflowTickets = useMemo(() => {
-    return filteredTickets.slice(0, workflowVisibleCount);
-  }, [filteredTickets, workflowVisibleCount]);
-
-  const selectedWorkflowTicket = useMemo(() => {
-    return workflowTickets[workflowTicketIdx] || filteredTickets[0] || null;
-  }, [workflowTickets, workflowTicketIdx, filteredTickets]);
-
-  // Format date helper (MM/DD/YYYY)
-  const getFormattedCreatedDate = (dateStr) => {
-    if (!dateStr) return "08/30/2026";
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "08/30/2026";
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    const yyyy = d.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
-  };
-
-  // Compute end date from start date by adding working days (skipping weekends)
-  const getComputedEndDate = (startDateStr, workingDaysCount) => {
-    let d = new Date(startDateStr);
-    if (isNaN(d.getTime())) d = new Date();
-    let days = parseInt(workingDaysCount, 10) || 1;
-    let current = new Date(d);
-    while (days > 1) {
-      current.setDate(current.getDate() + 1);
-      const dayOfWeek = current.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        days--;
-      }
-    }
-    const mm = String(current.getMonth() + 1).padStart(2, "0");
-    const dd = String(current.getDate()).padStart(2, "0");
-    const yyyy = current.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
-  };
-
   // Convert priority to strict payload string: "Low", "Medium", "High (Business Impacted)", "Very High (Production Impacted)"
   const toPriorityPayloadString = (p) => {
     if (!p) return "Low";
@@ -683,24 +638,6 @@ const ModuleLeadPage = () => {
                 </svg>
               </span>
               <span>Ticket Details</span>
-            </button>
-
-            <button
-              type="button"
-              className={`mlp-nav-item ${activeNav === "workflow" ? "active" : ""}`}
-              onClick={() => handleNavClick("workflow")}
-            >
-              <span className="mlp-nav-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6" />
-                  <line x1="8" y1="12" x2="21" y2="12" />
-                  <line x1="8" y1="18" x2="21" y2="18" />
-                  <line x1="3" y1="6" x2="3.01" y2="6" />
-                  <line x1="3" y1="12" x2="3.01" y2="12" />
-                  <line x1="3" y1="18" x2="3.01" y2="18" />
-                </svg>
-              </span>
-              <span>Delivery Workflow</span>
             </button>
 
             <button
@@ -947,23 +884,6 @@ const ModuleLeadPage = () => {
               formatPriorityCode={formatPriorityCode}
               getPriorityClass={getPriorityClass}
               loadingTickets={loadingTickets}
-            />
-          ) : activeNav === "workflow" ? (
-            <DeliveryWorkflow
-              filteredTickets={filteredTickets}
-              workflowTickets={workflowTickets}
-              workflowVisibleCount={workflowVisibleCount}
-              setWorkflowVisibleCount={setWorkflowVisibleCount}
-              workflowTicketIdx={workflowTicketIdx}
-              setWorkflowTicketIdx={setWorkflowTicketIdx}
-              selectedWorkflowTicket={selectedWorkflowTicket}
-              employees={employees}
-              statuses={statuses}
-              getFormattedCreatedDate={getFormattedCreatedDate}
-              getComputedEndDate={getComputedEndDate}
-              loadingTickets={loadingTickets}
-              formatPriorityCode={formatPriorityCode}
-              getPriorityClass={getPriorityClass}
             />
           ) : activeNav === "ticket-assignment" ? (
             <TicketAssignment

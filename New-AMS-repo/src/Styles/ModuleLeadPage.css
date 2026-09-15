@@ -2758,13 +2758,13 @@
 }
 
 .mlp-dw-field-group.mlp-dw-field-status {
-  grid-column: span 2;
+  grid-column: span 1;
   min-width: 0;
   width: 100%;
 }
 
 .mlp-dw-field-group.mlp-dw-field-attachment {
-  grid-column: span 2;
+  grid-column: span 1;
   min-width: 0;
   width: 100%;
 }

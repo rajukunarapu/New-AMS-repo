@@ -305,11 +305,19 @@ const ConsultantPage = () => {
     }
   };
 
+  // Only tickets that have a consultant assigned (i.e. 'name' property from API is non-empty)
+  const consultantAssignedTickets = useMemo(() => {
+    return filteredTickets.filter((t) => Boolean(t.name && String(t.name).trim()));
+  }, [filteredTickets]);
+
   const workflowTickets = useMemo(() => {
     return filteredTickets.slice(0, workflowVisibleCount);
   }, [filteredTickets, workflowVisibleCount]);
+    return consultantAssignedTickets.slice(0, workflowVisibleCount);
+  }, [consultantAssignedTickets, workflowVisibleCount]);
 
   const selectedWorkflowTicket = workflowTickets[workflowTicketIdx] || filteredTickets[0] || null;
+  const selectedWorkflowTicket = workflowTickets[workflowTicketIdx] || consultantAssignedTickets[0] || null;
 
   const getFormattedCreatedDate = (dateStr) => {
     if (!dateStr) return "08/30/2026";
@@ -852,6 +860,7 @@ const ConsultantPage = () => {
           ) : activeNav === "workflow" ? (
             <DeliveryWorkflow
               filteredTickets={filteredTickets}
+              filteredTickets={consultantAssignedTickets}
               workflowTickets={workflowTickets}
               workflowVisibleCount={workflowVisibleCount}
               setWorkflowVisibleCount={setWorkflowVisibleCount}
@@ -863,6 +872,8 @@ const ConsultantPage = () => {
               getFormattedCreatedDate={getFormattedCreatedDate}
               getComputedEndDate={getComputedEndDate}
               loadingTickets={loadingTickets}
+              formatPriorityCode={formatPriorityCode}
+              getPriorityClass={getPriorityClass}
             />
           ) : activeNav === "neoai" ? (
             <NeoAIFullPage />

@@ -311,12 +311,9 @@ const ConsultantPage = () => {
   }, [filteredTickets]);
 
   const workflowTickets = useMemo(() => {
-    return filteredTickets.slice(0, workflowVisibleCount);
-  }, [filteredTickets, workflowVisibleCount]);
     return consultantAssignedTickets.slice(0, workflowVisibleCount);
   }, [consultantAssignedTickets, workflowVisibleCount]);
 
-  const selectedWorkflowTicket = workflowTickets[workflowTicketIdx] || filteredTickets[0] || null;
   const selectedWorkflowTicket = workflowTickets[workflowTicketIdx] || consultantAssignedTickets[0] || null;
 
   const getFormattedCreatedDate = (dateStr) => {
@@ -859,7 +856,7 @@ const ConsultantPage = () => {
             />
           ) : activeNav === "workflow" ? (
             <DeliveryWorkflow
-              filteredTickets={filteredTickets}
+              // filteredTickets={filteredTickets}
               filteredTickets={consultantAssignedTickets}
               workflowTickets={workflowTickets}
               workflowVisibleCount={workflowVisibleCount}

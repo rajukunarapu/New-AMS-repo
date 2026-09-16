@@ -904,25 +904,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth error={missingFields.includes("Responsible By")}>
-                <Select
-                  value={ackResponsibleBy || ""}
-                  onChange={(e) => {
-                    setAckResponsibleBy(e.target.value);
-                    if (missingFields.includes("Responsible By")) {
-                      setMissingFields((prev) => prev.filter((f) => f !== "Responsible By"));
-                    }
-                  }}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                  displayEmpty
-                >
-                  <MenuItem value="">
-                    <span style={{ color: "#94a3b8" }}>Select Responsible</span>
-                  </MenuItem>
-                  {renderEmployeeOptions(ackResponsibleBy || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -1076,16 +1057,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step2.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step2", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step2.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -1262,16 +1233,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step3.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step3", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step3.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -1466,16 +1427,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step4.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step4", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step4.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -1670,16 +1621,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step5.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step5", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step5.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -1873,16 +1814,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step6.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step6", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step6.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -2077,16 +2008,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step7.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step7", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step7.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -2281,16 +2202,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step8.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step8", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step8.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -2464,16 +2375,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step9.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step9", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step9.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"
@@ -2647,16 +2548,6 @@ const DeliveryWorkflow = ({
               <label className="mlp-dw-field-lbl">
                 RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
-              <FormControl size="small" fullWidth>
-                <Select
-                  value={stepsState.step10.responsible || defaultConsultant}
-                  onChange={(e) => handleStepChange("step10", "responsible", e.target.value)}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  {renderEmployeeOptions(stepsState.step10.responsible || defaultConsultant)}
-                </Select>
-              </FormControl>
               <TextField
                 size="small"
                 variant="outlined"

@@ -856,7 +856,6 @@ const ConsultantPage = () => {
             />
           ) : activeNav === "workflow" ? (
             <DeliveryWorkflow
-              // filteredTickets={filteredTickets}
               filteredTickets={consultantAssignedTickets}
               workflowTickets={workflowTickets}
               workflowVisibleCount={workflowVisibleCount}

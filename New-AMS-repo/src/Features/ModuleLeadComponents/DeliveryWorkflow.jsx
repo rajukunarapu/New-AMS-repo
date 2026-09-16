@@ -161,24 +161,77 @@ const DeliveryWorkflow = ({
     return `${mm}/${dd}/${yyyy}`;
   };
 
-  // Compute end date from start date by adding working days (skipping weekends)
-  const computeEndDate = (startDateStr, workingDaysCount) => {
-    if (getComputedEndDate) return getComputedEndDate(startDateStr, workingDaysCount);
+  // Short date helper (DD Mon) like "16 Sep"
+  const formatDateShort = (dateVal) => {
+    if (!dateVal) return "--";
+    let d = new Date(dateVal);
+    if (isNaN(d.getTime())) {
+      if (typeof dateVal === "string" && dateVal.includes("/")) {
+        const parts = dateVal.split("/");
+        if (parts.length === 3) {
+          d = new Date(parts[2], parts[0] - 1, parts[1]);
+        }
+      }
+    }
+    if (isNaN(d.getTime())) return String(dateVal);
+    const day = d.getDate();
+    const month = d.toLocaleString("en-US", { month: "short" });
+    return `${day} ${month}`;
+  };
+
+  // Compute end date from start date by adding working days / working hours (skipping weekends, 8 hrs = 1 day)
+  const computeEndDate = (startDateStr, workingDaysCount, workingHoursCount) => {
+    if (getComputedEndDate) return getComputedEndDate(startDateStr, workingDaysCount, workingHoursCount);
     let d = new Date(startDateStr);
     if (isNaN(d.getTime())) d = new Date();
-    let days = parseInt(workingDaysCount, 10) || 1;
+    
+    let days = 1;
+    const hasHours = workingHoursCount !== null && workingHoursCount !== undefined && String(workingHoursCount).trim() !== "" && Number(workingHoursCount) > 0;
+    const hasDays = workingDaysCount !== null && workingDaysCount !== undefined && String(workingDaysCount).trim() !== "" && Number(workingDaysCount) > 0;
+
+    if (hasHours) {
+      days = Math.ceil(Number(workingHoursCount) / 8);
+    } else if (hasDays) {
+      days = parseInt(workingDaysCount, 10) || 1;
+    }
+
+    if (days < 1) days = 1;
+
     let current = new Date(d);
-    while (days > 1) {
+    let remainingDays = days;
+    while (remainingDays > 1) {
       current.setDate(current.getDate() + 1);
       const dayOfWeek = current.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        days--;
+        remainingDays--;
       }
     }
     const mm = String(current.getMonth() + 1).padStart(2, "0");
     const dd = String(current.getDate()).padStart(2, "0");
     const yyyy = current.getFullYear();
     return `${mm}/${dd}/${yyyy}`;
+  };
+
+  // Helper to render footer statement: "16 Sep → 18 Sep · 3 working days · responsible K. Menon"
+  const renderStepFooterSubtext = (stepDays, stepHours, stepResponsible) => {
+    const startDateRaw = selectedWorkflowTicket?.createddate || new Date();
+    const startDateFormatted = formatDateShort(startDateRaw);
+    const endDateRaw = computeEndDate(startDateRaw, stepDays, stepHours);
+    const endDateFormatted = formatDateShort(endDateRaw);
+
+    const hasHours = stepHours !== null && stepHours !== undefined && String(stepHours).trim() !== "" && Number(stepHours) > 0;
+    const hasDays = stepDays !== null && stepDays !== undefined && String(stepDays).trim() !== "" && Number(stepDays) > 0;
+    
+    let effectiveDays = 1;
+    if (hasHours) {
+      effectiveDays = Math.ceil(Number(stepHours) / 8);
+    } else if (hasDays) {
+      effectiveDays = Number(stepDays);
+    }
+
+    const responsibleName = stepResponsible || defaultConsultant || "NA";
+
+    return `${startDateFormatted} → ${endDateFormatted} · ${effectiveDays} working days · responsible ${responsibleName}`;
   };
 
   const defaultConsultant =
@@ -301,8 +354,41 @@ const DeliveryWorkflow = ({
           },
         }));
         setUploadingFiles((prev) => ({ ...prev, [stepKey]: false }));
-        showStepAlert(stepKey, "info", `File attached: ${file.name}`);
-      }, 500);
+      }, 400);
+    }
+  };
+
+  const handleRemoveStepFile = (stepKey) => {
+    setStepsState((prev) => ({
+      ...prev,
+      [stepKey]: {
+        ...prev[stepKey],
+        attachment: null,
+        attachmentName: "",
+      },
+    }));
+    if (fileInputRefs.current[stepKey]) {
+      fileInputRefs.current[stepKey].value = "";
+    }
+  };
+
+  const handleAckFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setUploadingFiles((prev) => ({ ...prev, step1: true }));
+      setTimeout(() => {
+        setAckAttachment(file);
+        setAckAttachmentName(file.name);
+        setUploadingFiles((prev) => ({ ...prev, step1: false }));
+      }, 400);
+    }
+  };
+
+  const handleRemoveAckFile = () => {
+    setAckAttachment(null);
+    setAckAttachmentName("");
+    if (ackFileInputRef.current) {
+      ackFileInputRef.current.value = "";
     }
   };
 
@@ -388,19 +474,6 @@ const DeliveryWorkflow = ({
     selectedWorkflowTicket?.ApprovedHours,
     selectedWorkflowTicket?.approvedhours,
   ]);
-
-  const handleAckFileChange = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setUploadingFiles((prev) => ({ ...prev, step1: true }));
-      setTimeout(() => {
-        setAckAttachment(file);
-        setAckAttachmentName(file.name);
-        setUploadingFiles((prev) => ({ ...prev, step1: false }));
-        showStepAlert("step1", "info", `File attached: ${file.name}`);
-      }, 500);
-    }
-  };
 
   // Format dates to MM/DD/YYYY as expected by backend
   const formatToMMDDYYYY = (val) => {
@@ -490,8 +563,8 @@ const DeliveryWorkflow = ({
       setMissingFields([]);
 
       customerAckFormatted = formatToMMDDYYYY(ackCustomerDate);
-      endSlaFormatted = computeEndDate(selectedWorkflowTicket?.createddate || new Date(), Number(ackWorkingDays) || 1);
-      workingDaysVal = hasAckDays ? Number(ackWorkingDays) : 0;
+      endSlaFormatted = computeEndDate(selectedWorkflowTicket?.createddate || new Date(), ackWorkingDays, ackWorkingHours);
+      workingDaysVal = hasAckDays ? Number(ackWorkingDays) : (hasAckHours ? Math.ceil(Number(ackWorkingHours) / 8) : 0);
       hoursVal = hasAckHours ? String(ackWorkingHours) : "";
       responsibleVal = ackResponsibleBy;
       statusVal = ackStatus;
@@ -505,12 +578,12 @@ const DeliveryWorkflow = ({
         return;
       }
 
-      workingDaysVal = hasDays ? Number(s.days) : 0;
+      workingDaysVal = hasDays ? Number(s.days) : (hasHours ? Math.ceil(Number(s.hours) / 8) : 0);
       hoursVal = hasHours ? String(s.hours) : "";
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = s.status || "Assigned";
       customerAckFormatted = formatToMMDDYYYY(selectedWorkflowTicket?.createddate || new Date());
-      endSlaFormatted = computeEndDate(selectedWorkflowTicket?.createddate || new Date(), Number(s.days) || 1);
+      endSlaFormatted = computeEndDate(selectedWorkflowTicket?.createddate || new Date(), s.days, s.hours);
       attachmentVal = s.attachment || null;
     }
 
@@ -894,7 +967,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), ackWorkingDays)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), ackWorkingDays, ackWorkingHours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -915,7 +988,7 @@ const DeliveryWorkflow = ({
 
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                TICKET ACK STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth error={missingFields.includes("Status")}>
                 <Select
@@ -939,10 +1012,37 @@ const DeliveryWorkflow = ({
             </div>
           </div>
 
+          {/* Persistent Attached Document Box for Step 01 */}
+          {ackAttachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={ackAttachmentName}>
+                  {ackAttachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={handleRemoveAckFile}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
           {/* Step 01 Action footer with Record customer acknowledgement button */}
           <div className="mlp-dw-step-footer">
             <p className="mlp-dw-step-subtext">
-              {ackWorkingDays || 1} working days · Completed within the planned end date · responsible {ackResponsibleBy || ""}
+              {renderStepFooterSubtext(ackWorkingDays, ackWorkingHours, ackResponsibleBy)}
             </p>
             <button
               type="button"
@@ -1048,7 +1148,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step2.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step2.days, stepsState.step2.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1067,7 +1167,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                BRD STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -1123,9 +1223,35 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 02 */}
+          {stepsState.step2.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step2.attachmentName}>
+                  {stepsState.step2.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step2")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
             <p className="mlp-dw-step-subtext">
-              {stepsState.step2.days} working days · Completed within the planned end date · responsible {stepsState.step2.responsible}
+              {renderStepFooterSubtext(stepsState.step2.days, stepsState.step2.hours, stepsState.step2.responsible)}
             </p>
             <button
               type="button"
@@ -1224,7 +1350,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step3.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step3.days, stepsState.step3.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1243,7 +1369,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                BUD STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -1299,8 +1425,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 03 */}
+          {stepsState.step3.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step3.attachmentName}>
+                  {stepsState.step3.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step3")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step3.days} working days · responsible by {stepsState.step3.responsible || "-"}</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step3.days, stepsState.step3.hours, stepsState.step3.responsible)}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -1418,7 +1570,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step4.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step4.days, stepsState.step4.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1437,7 +1589,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                FS STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -1493,8 +1645,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 04 */}
+          {stepsState.step4.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step4.attachmentName}>
+                  {stepsState.step4.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step4")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step4.days} working days · responsible by {stepsState.step4.responsible || ""}</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step4.days, stepsState.step4.hours, stepsState.step4.responsible)}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -1612,7 +1790,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step5.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step5.days, stepsState.step5.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1631,7 +1809,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                TS STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -1687,8 +1865,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 05 */}
+          {stepsState.step5.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step5.attachmentName}>
+                  {stepsState.step5.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step5")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step5.days} working days · responsible by {stepsState.step5.responsible || ""}</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step5.days, stepsState.step5.hours, stepsState.step5.responsible)}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -1805,7 +2009,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step6.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step6.days, stepsState.step6.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -1824,7 +2028,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                CONFIG STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -1880,8 +2084,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 06 */}
+          {stepsState.step6.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step6.attachmentName}>
+                  {stepsState.step6.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step6")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step6.days} working days · responsible by {stepsState.step6.responsible || ""}</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step6.days, stepsState.step6.hours, stepsState.step6.responsible)}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -1999,7 +2229,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step7.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step7.days, stepsState.step7.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -2018,7 +2248,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                TEST INTERNAL STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -2074,8 +2304,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 07 */}
+          {stepsState.step7.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step7.attachmentName}>
+                  {stepsState.step7.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step7")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step7.days} working days · responsible by {stepsState.step7.responsible || ""}</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step7.days, stepsState.step7.hours, stepsState.step7.responsible)}</p>
             <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
               <button
                 type="button"
@@ -2193,7 +2449,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step8.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step8.days, stepsState.step8.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -2212,7 +2468,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                U.MANUAL STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -2268,8 +2524,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 08 */}
+          {stepsState.step8.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step8.attachmentName}>
+                  {stepsState.step8.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step8")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step8.days} working days · responsible by {stepsState.step8.responsible || ""}</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step8.days, stepsState.step8.hours, stepsState.step8.responsible)}</p>
             <button
               type="button"
               className="mlp-dw-primary-btn"
@@ -2366,7 +2648,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step9.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step9.days, stepsState.step9.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -2385,7 +2667,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                SUBMISSION STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -2441,8 +2723,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 09 */}
+          {stepsState.step9.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step9.attachmentName}>
+                  {stepsState.step9.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step9")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step9.days} working days · responsible by {stepsState.step9.responsible || ""}</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step9.days, stepsState.step9.hours, stepsState.step9.responsible)}</p>
             <button
               type="button"
               className="mlp-dw-primary-btn"
@@ -2539,7 +2847,7 @@ const DeliveryWorkflow = ({
               <TextField
                 size="small"
                 variant="outlined"
-                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step10.days)}
+                value={computeEndDate(selectedWorkflowTicket?.createddate || new Date(), stepsState.step10.days, stepsState.step10.hours)}
                 disabled
                 sx={muiInputSx}
               />
@@ -2558,7 +2866,7 @@ const DeliveryWorkflow = ({
             </div>
             <div className="mlp-dw-field-group mlp-dw-field-status">
               <label className="mlp-dw-field-lbl">
-                STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
+                VA STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
               </label>
               <FormControl size="small" fullWidth>
                 <Select
@@ -2614,8 +2922,34 @@ const DeliveryWorkflow = ({
               </button>
             </div>
           </div>
+          {/* Persistent Attached Document Box for Step 10 */}
+          {stepsState.step10.attachmentName && (
+            <div className="mlp-dw-attached-file-box">
+              <div className="mlp-dw-attached-file-info">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                  <line x1="16" y1="13" x2="8" y2="13" />
+                  <line x1="16" y1="17" x2="8" y2="17" />
+                  <polyline points="10 9 9 9 8 9" />
+                </svg>
+                <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                <span className="mlp-dw-attached-file-name" title={stepsState.step10.attachmentName}>
+                  {stepsState.step10.attachmentName}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="mlp-dw-attached-file-remove"
+                onClick={() => handleRemoveStepFile("step10")}
+                title="Remove attachment"
+              >
+                ×
+              </button>
+            </div>
+          )}
           <div className="mlp-dw-step-footer">
-            <p className="mlp-dw-step-subtext">{stepsState.step10.days} working days · responsible by {stepsState.step10.responsible }</p>
+            <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step10.days, stepsState.step10.hours, stepsState.step10.responsible)}</p>
             <button
               type="button"
               className="mlp-dw-primary-btn"

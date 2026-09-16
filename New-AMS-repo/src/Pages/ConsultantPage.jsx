@@ -326,16 +326,28 @@ const ConsultantPage = () => {
     return `${mm}/${dd}/${yyyy}`;
   };
 
-  const getComputedEndDate = (startDateStr, workingDaysCount) => {
+  const getComputedEndDate = (startDateStr, workingDaysCount, workingHoursCount) => {
     let d = new Date(startDateStr);
     if (isNaN(d.getTime())) d = new Date();
-    let days = parseInt(workingDaysCount, 10) || 1;
+    let days = 1;
+    const hasHours = workingHoursCount !== null && workingHoursCount !== undefined && String(workingHoursCount).trim() !== "" && Number(workingHoursCount) > 0;
+    const hasDays = workingDaysCount !== null && workingDaysCount !== undefined && String(workingDaysCount).trim() !== "" && Number(workingDaysCount) > 0;
+
+    if (hasHours) {
+      days = Math.ceil(Number(workingHoursCount) / 8);
+    } else if (hasDays) {
+      days = parseInt(workingDaysCount, 10) || 1;
+    }
+
+    if (days < 1) days = 1;
+
     let current = new Date(d);
-    while (days > 1) {
+    let remainingDays = days;
+    while (remainingDays > 1) {
       current.setDate(current.getDate() + 1);
       const dayOfWeek = current.getDay();
       if (dayOfWeek !== 0 && dayOfWeek !== 6) {
-        days--;
+        remainingDays--;
       }
     }
     const mm = String(current.getMonth() + 1).padStart(2, "0");

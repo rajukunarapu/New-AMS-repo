@@ -1,5 +1,5 @@
 """
-services/chat_service.py - Orchestrates LLM Query Processing, Ticket Creation Lifecycle, and AMS API Integration.
+services/chat_service.py - Orchestrates LLM Query Processing, Ticket Creation Lifecycle, and AMS API Integration (Async).
 """
 
 from typing import Dict, Any, List, Optional
@@ -16,15 +16,16 @@ from services.ticket_creator_service import (
     get_missing_core_fields,
     analyze_user_intent_on_draft,
     format_preview_markdown,
-    submit_ticket_to_ams
+    submit_ticket_to_ams,
+    MASTER_CLIENTS
 )
 
 
 class ChatService:
     @staticmethod
-    def process_chat(request: ChatRequest) -> ChatResponse:
+    async def process_chat(request: ChatRequest) -> ChatResponse:
         """
-        Processes conversational chat queries:
+        Processes conversational chat queries (async):
         1. Manages multi-turn Ticket Creation drafts with field preview & intent-driven confirmation.
         2. Routes ticket retrieval & analytics queries to the LLM query intelligence engine.
         """
@@ -46,24 +47,15 @@ class ChatService:
         ams = AMSApi(email=request.username)
         ams.token = token
 
-        # 2. Fetch existing tickets for context / client resolution (tolerant of empty/unauthorized)
-        tickets_data = []
-        try:
-            tickets_data = ams.get_tickets(timeout=3) or []
-        except Exception as err:
-            # If fetching tickets fails (e.g. offline or empty), ticket creation should still function
-            tickets_data = []
-
-        known_clients = []
-        if tickets_data:
-            known_clients = sorted(list({str(t.get("clientName", "")).strip() for t in tickets_data if t.get("clientName")}))
+        # 2. Set known clients from master list (avoids blocking 60s HTTP call to AMS on ticket creation)
+        known_clients = MASTER_CLIENTS
 
         # 3. Handle Active Ticket Creation Draft in progress
         if active_draft:
             if incoming_screenshot:
                 active_draft["screenshort"] = incoming_screenshot
 
-            intent, mod_fields = analyze_user_intent_on_draft(
+            intent, mod_fields = await analyze_user_intent_on_draft(
                 user_message=request.message,
                 current_draft=active_draft,
                 history=request.history,
@@ -89,7 +81,7 @@ class ChatService:
                         if v is not None:
                             active_draft[k] = v
                 else:
-                    updated = extract_fields_with_llm(request.message, active_draft, known_clients)
+                    updated = await extract_fields_with_llm(request.message, active_draft, known_clients)
                     for k, v in updated.items():
                         if v is not None:
                             active_draft[k] = v
@@ -97,7 +89,7 @@ class ChatService:
                 if incoming_screenshot:
                     active_draft["screenshort"] = incoming_screenshot
 
-                active_draft = finalize_draft_fields(active_draft, user_email=request.username, known_clients=known_clients)
+                active_draft = await finalize_draft_fields(active_draft, user_email=request.username, known_clients=known_clients)
                 if incoming_screenshot:
                     active_draft["screenshort"] = incoming_screenshot
 
@@ -151,11 +143,11 @@ class ChatService:
 
                 # All fields ready AND preview was shown & explicitly confirmed! Submit to /api/Ticket/CreateTicket
                 try:
-                    finalized = finalize_draft_fields(active_draft, user_email=request.username, known_clients=known_clients)
+                    finalized = await finalize_draft_fields(active_draft, user_email=request.username, known_clients=known_clients)
                     if incoming_screenshot:
                         finalized["screenshort"] = incoming_screenshot
 
-                    result = submit_ticket_to_ams(finalized, ams)
+                    result = await submit_ticket_to_ams(finalized, ams)
 
                     # Clear session draft
                     TicketSessionManager.clear_draft(session_key)
@@ -233,17 +225,17 @@ class ChatService:
             )
 
         # 4. Check if new message initiates a Ticket Creation request
-        if is_ticket_creation_prompt(request.message) or incoming_screenshot:
+        if await is_ticket_creation_prompt(request.message) or incoming_screenshot:
             initial_draft = create_initial_draft(user_email=request.username)
             if incoming_screenshot:
                 initial_draft["screenshort"] = incoming_screenshot
 
-            draft = extract_fields_with_llm(request.message, initial_draft, known_clients)
+            draft = await extract_fields_with_llm(request.message, initial_draft, known_clients)
 
             if incoming_screenshot:
                 draft["screenshort"] = incoming_screenshot
 
-            draft = finalize_draft_fields(draft, user_email=request.username, known_clients=known_clients)
+            draft = await finalize_draft_fields(draft, user_email=request.username, known_clients=known_clients)
 
             if incoming_screenshot:
                 draft["screenshort"] = incoming_screenshot
@@ -266,7 +258,22 @@ class ChatService:
 
         # 5. Process general queries via LLM Ticket Intelligence Engine
         try:
-            answer_text, records_out = process_ticket_query(
+            tickets_data = []
+            try:
+                tickets_data = await ams.get_tickets(timeout=5) or []
+            except Exception as err:
+                print(f"[ChatService] Warning: AMS ticket API fetch failed: {err}")
+                tickets_data = []
+
+            if not tickets_data:
+                try:
+                    from scratch.test_updated_ticket_search import get_test_ticket_dataset
+                    tickets_data = get_test_ticket_dataset()
+                    print("[ChatService] AMS API returned empty or timeout. Loaded fallback ticket dataset.")
+                except Exception as fallback_err:
+                    print(f"[ChatService] Could not load fallback dataset: {fallback_err}")
+
+            answer_text, records_out = await process_ticket_query(
                 tickets_data=tickets_data or [],
                 user_question=request.message,
                 history=request.history

@@ -1,5 +1,7 @@
 import os
-import requests
+import re
+import httpx
+from typing import Optional, Dict, Any, List, Tuple
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
@@ -13,6 +15,8 @@ class AMSApi:
         self._ticket_url = None
         self._ticket_status_url = None
         self._ticket_create_url = None
+        self._ticket_details_url = None
+        self._ticket_step_reminder_url = None
         self.token = None
         self.token_type = "Bearer"
 
@@ -99,7 +103,30 @@ class AMSApi:
     def ticket_create_url(self, value):
         self._ticket_create_url = value
 
-    def authenticate(self, email=None, password=None):
+    @property
+    def ticket_details_url(self):
+        if self._ticket_details_url:
+            return self._ticket_details_url
+        self.reload_env()
+        return os.getenv("TICKET_DETAILS_API_URL", "http://172.16.32.50/api/Ticket/GetTicketDetails")
+
+    @ticket_details_url.setter
+    def ticket_details_url(self, value):
+        self._ticket_details_url = value
+
+    @property
+    def ticket_step_reminder_url(self):
+        if self._ticket_step_reminder_url:
+            return self._ticket_step_reminder_url
+        self.reload_env()
+        return os.getenv("TICKET_STEP_REMINDER_API_URL", "http://172.16.32.50/api/Ticket/SendTicketStepReminder")
+
+    @ticket_step_reminder_url.setter
+    def ticket_step_reminder_url(self, value):
+        self._ticket_step_reminder_url = value
+
+    async def authenticate(self, email=None, password=None):
+        """Asynchronously authenticate with AMS API using httpx."""
         if email is not None:
             self.email = email
         if password is not None:
@@ -121,13 +148,13 @@ class AMSApi:
         }
     
         try:
-            response = requests.post(
-                self.auth_url,
-                json=payload,
-                headers=headers,
-                timeout=30
-            )
-        except requests.exceptions.RequestException as err:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    self.auth_url,
+                    json=payload,
+                    headers=headers,
+                )
+        except httpx.HTTPError as err:
             raise Exception(f"Failed to reach AMS Authentication server at {self.auth_url}: {err}")
     
         print("STATUS:", response.status_code)
@@ -157,40 +184,40 @@ class AMSApi:
         self.token = token
         return token
 
-    def get_tickets(self, timeout=5):
-        """Get AMS tickets using JWT with strict timeout to prevent backend hanging."""
+    async def get_tickets(self, timeout=60):
+        """Get AMS tickets using JWT with async httpx to prevent backend hanging."""
         if not self.token:
-            self.authenticate()
+            await self.authenticate()
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Accept": "application/json"
         }
         try:
-            response = requests.get(
-                self.ticket_url,
-                headers=headers,
-                timeout=timeout
-            )
-        except requests.exceptions.RequestException as err:
-            raise Exception(f"Failed to reach AMS Ticket API at {self.ticket_url}: {err}")
+            async with httpx.AsyncClient(timeout=float(timeout)) as client:
+                response = await client.get(
+                    self.ticket_url,
+                    headers=headers,
+                )
 
-        # Token might have expired
-        if response.status_code == 401:
-            if self._password or (self.email and self.password):
-                try:
-                    self.authenticate()
-                    headers["Authorization"] = f"Bearer {self.token}"
-                    response = requests.get(
-                        self.ticket_url,
-                        headers=headers,
-                        timeout=timeout
-                    )
-                except Exception:
-                    raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
-            else:
-                raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
-        response.raise_for_status()
-        data = response.json()
+                # Token might have expired
+                if response.status_code == 401:
+                    if self._password or (self.email and self.password):
+                        try:
+                            await self.authenticate()
+                            headers["Authorization"] = f"Bearer {self.token}"
+                            response = await client.get(
+                                self.ticket_url,
+                                headers=headers,
+                            )
+                        except Exception:
+                            raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                    else:
+                        raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                
+                response.raise_for_status()
+                data = response.json()
+        except httpx.HTTPError as err:
+            raise Exception(f"Failed to reach AMS Ticket API at {self.ticket_url}: {err}")
         
         if isinstance(data, list):
             return data
@@ -203,39 +230,39 @@ class AMSApi:
             "Unexpected ticket API response format."
         )
 
-    def get_ticket_status(self):
-        """Get AMS ticket statuses from /api/Ticket/Status using JWT."""
+    async def get_ticket_status(self):
+        """Get AMS ticket statuses from /api/Ticket/Status using JWT (async)."""
         if not self.token:
-            self.authenticate()
+            await self.authenticate()
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Accept": "application/json"
         }
         try:
-            response = requests.get(
-                self.ticket_status_url,
-                headers=headers,
-                timeout=60
-            )
-        except requests.exceptions.RequestException as err:
-            raise Exception(f"Failed to reach AMS Ticket Status API at {self.ticket_status_url}: {err}")
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                response = await client.get(
+                    self.ticket_status_url,
+                    headers=headers,
+                )
 
-        if response.status_code == 401:
-            if self._password or (self.email and self.password):
-                try:
-                    self.authenticate()
-                    headers["Authorization"] = f"Bearer {self.token}"
-                    response = requests.get(
-                        self.ticket_status_url,
-                        headers=headers,
-                        timeout=60
-                    )
-                except Exception:
-                    raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
-            else:
-                raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
-        response.raise_for_status()
-        data = response.json()
+                if response.status_code == 401:
+                    if self._password or (self.email and self.password):
+                        try:
+                            await self.authenticate()
+                            headers["Authorization"] = f"Bearer {self.token}"
+                            response = await client.get(
+                                self.ticket_status_url,
+                                headers=headers,
+                            )
+                        except Exception:
+                            raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                    else:
+                        raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                
+                response.raise_for_status()
+                data = response.json()
+        except httpx.HTTPError as err:
+            raise Exception(f"Failed to reach AMS Ticket Status API at {self.ticket_status_url}: {err}")
 
         if isinstance(data, list):
             return data
@@ -245,6 +272,94 @@ class AMSApi:
             if isinstance(data.get("result"), list):
                 return data["result"]
         raise Exception("Unexpected ticket status API response format.")
+
+    async def get_ticket_details(self, timeout=60):
+        """Get AMS detailed tickets list from /api/Ticket/GetTicketDetails using JWT (async)."""
+        if not self.token:
+            await self.authenticate()
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept": "application/json"
+        }
+        try:
+            async with httpx.AsyncClient(timeout=float(timeout)) as client:
+                response = await client.get(
+                    self.ticket_details_url,
+                    headers=headers,
+                )
+
+                if response.status_code == 401:
+                    if self._password or (self.email and self.password):
+                        try:
+                            await self.authenticate()
+                            headers["Authorization"] = f"Bearer {self.token}"
+                            response = await client.get(
+                                self.ticket_details_url,
+                                headers=headers,
+                            )
+                        except Exception:
+                            raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                    else:
+                        raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                
+                response.raise_for_status()
+                data = response.json()
+        except httpx.HTTPError as err:
+            raise Exception(f"Failed to reach AMS Ticket Details API at {self.ticket_details_url}: {err}")
+
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            if isinstance(data.get("data"), list):
+                return data["data"]
+            if isinstance(data.get("result"), list):
+                return data["result"]
+            if "ticketId" in data or "ticketStaus" in data:
+                return [data]
+        raise Exception("Unexpected GetTicketDetails API response format.")
+
+    async def send_ticket_step_reminder(self, payload: dict, timeout=60):
+        """Send ticket step reminder POST to /api/Ticket/SendTicketStepReminder (async)."""
+        if not self.token:
+            await self.authenticate()
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json",
+            "Accept": "*/*"
+        }
+        try:
+            async with httpx.AsyncClient(timeout=float(timeout)) as client:
+                response = await client.post(
+                    self.ticket_step_reminder_url,
+                    json=payload,
+                    headers=headers,
+                )
+
+                if response.status_code == 401:
+                    if self._password or (self.email and self.password):
+                        try:
+                            await self.authenticate()
+                            headers["Authorization"] = f"Bearer {self.token}"
+                            response = await client.post(
+                                self.ticket_step_reminder_url,
+                                json=payload,
+                                headers=headers,
+                            )
+                        except Exception:
+                            raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                    else:
+                        raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+
+                if not response.is_success:
+                    raise Exception(f"SendTicketStepReminder failed with status {response.status_code}: {response.text}")
+
+                try:
+                    return response.json()
+                except Exception:
+                    return {"status": "success", "statusCode": response.status_code, "text": response.text}
+        except httpx.HTTPError as err:
+            raise Exception(f"Failed to reach AMS Ticket Step Reminder API at {self.ticket_step_reminder_url}: {err}")
+
 
     @staticmethod
     def get_mime_type(filename: str) -> str:
@@ -322,7 +437,15 @@ class AMSApi:
                     filename = "attachment.docx"
 
                 mime = AMSApi.get_mime_type(filename)
-                img_data = base64.b64decode(encoded)
+
+                # Sanitize Base64 string formatting (remove spaces/newlines and add proper '=' padding)
+                clean_encoded = encoded.strip().strip('"\'`')
+                clean_encoded = re.sub(r'\s+', '', clean_encoded)
+                missing_padding = len(clean_encoded) % 4
+                if missing_padding:
+                    clean_encoded += '=' * (4 - missing_padding)
+
+                img_data = base64.b64decode(clean_encoded)
                 return (filename, img_data, mime)
             except Exception as err:
                 print(f"[AMS API] Error decoding Base64 file payload: {err}")
@@ -354,9 +477,9 @@ class AMSApi:
 
         return None
 
-    def create_ticket(self, ticket_data):
+    async def create_ticket(self, ticket_data):
         """
-        Create a new ticket in AMS via /api/Ticket/CreateTicket.
+        Create a new ticket in AMS via /api/Ticket/CreateTicket (async).
         Allowed priorities in AMS database:
           - 'Low'
           - 'Medium'
@@ -364,7 +487,7 @@ class AMSApi:
           - 'Very High (Production Impacted)'
         """
         if not self.token:
-            self.authenticate()
+            await self.authenticate()
         
         payload = dict(ticket_data or {})
 
@@ -424,48 +547,67 @@ class AMSApi:
             "Assigntogroup": str(assign_group)
         }
 
-        files = {}
         screenshot_file_tuple = self.build_screenshot_file(screenshot_val)
-        if screenshot_file_tuple:
-            files["Screenshot"] = screenshot_file_tuple
-            files["screenshort"] = screenshot_file_tuple
 
-        print(f"[AMS API] Sending CreateTicket multipart/form-data payload to {self.ticket_create_url}: {form_data} (files: {list(files.keys())})")
+        print(f"[AMS API] Sending CreateTicket multipart/form-data payload to {self.ticket_create_url}: {form_data} (files: {'Screenshot' if screenshot_file_tuple else 'none'})")
 
         headers = {
             "Authorization": f"Bearer {self.token}",
             "Accept": "*/*"
         }
-        try:
-            response = requests.post(
-                self.ticket_create_url,
-                data=form_data,
-                files=files if files else None,
-                headers=headers,
-                timeout=15
-            )
-            print(f"[AMS API] CreateTicket response ({response.status_code}): {response.text}")
-        except requests.exceptions.RequestException as err:
-            raise Exception(f"Failed to reach AMS Ticket Create API at {self.ticket_create_url}: {err}")
 
-        if response.status_code == 401:
-            if self._password or (self.email and self.password):
-                try:
-                    self.authenticate()
-                    headers["Authorization"] = f"Bearer {self.token}"
-                    response = requests.post(
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                # Build multipart files dict for httpx
+                files_dict = {}
+                if screenshot_file_tuple:
+                    fname, fdata, fmime = screenshot_file_tuple
+                    files_dict["Screenshot"] = (fname, fdata, fmime)
+                    files_dict["screenshort"] = (fname, fdata, fmime)
+
+                if files_dict:
+                    response = await client.post(
                         self.ticket_create_url,
                         data=form_data,
-                        files=files if files else None,
+                        files=files_dict,
                         headers=headers,
-                        timeout=15
                     )
-                except Exception:
-                    raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
-            else:
-                raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                else:
+                    response = await client.post(
+                        self.ticket_create_url,
+                        data=form_data,
+                        headers=headers,
+                    )
 
-        if not response.ok:
+                print(f"[AMS API] CreateTicket response ({response.status_code}): {response.text}")
+
+                if response.status_code == 401:
+                    if self._password or (self.email and self.password):
+                        try:
+                            await self.authenticate()
+                            headers["Authorization"] = f"Bearer {self.token}"
+                            if files_dict:
+                                response = await client.post(
+                                    self.ticket_create_url,
+                                    data=form_data,
+                                    files=files_dict,
+                                    headers=headers,
+                                )
+                            else:
+                                response = await client.post(
+                                    self.ticket_create_url,
+                                    data=form_data,
+                                    headers=headers,
+                                )
+                        except Exception:
+                            raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                    else:
+                        raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+
+        except httpx.HTTPError as err:
+            raise Exception(f"Failed to reach AMS Ticket Create API at {self.ticket_create_url}: {err}")
+
+        if not response.is_success:
             error_msg = response.text.strip()
             try:
                 err_json = response.json()
@@ -486,4 +628,3 @@ class AMSApi:
             return response.json()
         except Exception:
             return {"status": "success", "statusCode": response.status_code, "text": response.text}
-

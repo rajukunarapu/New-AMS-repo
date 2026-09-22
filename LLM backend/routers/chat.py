@@ -1,5 +1,5 @@
 """
-routers/chat.py - Chat & Natural Language Query endpoint (Updated).
+routers/chat.py - Chat & Natural Language Query endpoint (Async).
 """
 
 from typing import Optional
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api", tags=["Chat & LLM Intelligence"])
     summary="Process Chat Query with LLM",
     description="Accepts username, Bearer token, and message. Processes query via the LLM ticket intelligence engine."
 )
-def chat_endpoint(
+async def chat_endpoint(
     request: ChatRequest,
     authorization: Optional[str] = Header(None, description="Optional Bearer token header")
 ):
@@ -30,4 +30,4 @@ def chat_endpoint(
             detail="Bearer token is required."
         )
 
-    return ChatService.process_chat(request=request)
+    return await ChatService.process_chat(request=request)

@@ -1,5 +1,5 @@
 """
-routers/auth.py - Optional direct login helper.
+routers/auth.py - Optional direct login helper (Async).
 """
 
 from typing import Optional, Dict, Any
@@ -29,10 +29,10 @@ class LoginResponse(BaseModel):
     summary="Login to AMS and generate Bearer token (Optional utility)",
     description="Authenticates against the backend AMS server using email and password, returning the JWT Bearer token."
 )
-def login(request: LoginRequest):
+async def login(request: LoginRequest):
     try:
         ams = AMSApi(email=request.email, password=request.password)
-        token = ams.authenticate()
+        token = await ams.authenticate()
         return LoginResponse(
             success=True,
             message="Login successful.",

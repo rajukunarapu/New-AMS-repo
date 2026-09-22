@@ -3,7 +3,7 @@ import "../../Styles/NeoAIFullPage.css";
 import { CircularProgress } from "@mui/material";
 import { useNeoAI } from "../../Context/NeoAIContext";
 import FormattedMarkdown, { SingleTicketCard, MultiTicketTable, ImageThumbnail } from "./FormattedMessage";
- 
+
 const NeoAIFullPage = () => {
   const [query, setQuery] = useState("");
   const { messages, isThinking, askNeoAI, resetChat, loadConversation, defaultSuggestions } = useNeoAI();
@@ -22,9 +22,9 @@ const NeoAIFullPage = () => {
   // ── Attachment state ──
   const [attachedFile, setAttachedFile] = useState(null);
   const fileInputRef = useRef(null);
- 
+
   const chatEndRef = useRef(null);
- 
+
   useEffect(() => {
     if (chatEndRef.current) {
       chatEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -114,7 +114,7 @@ const NeoAIFullPage = () => {
   const handleRemoveAttachment = () => {
     setAttachedFile(null);
   };
- 
+
   const handleAsk = (questionText) => {
     const q = (questionText || query).trim();
     if (!q && !attachedFile) return;
@@ -124,7 +124,7 @@ const NeoAIFullPage = () => {
     setQuery("");
     setAttachedFile(null);
   };
- 
+
   return (
     <div className="neoai-fullpage-container">
       {/* Header Section */}
@@ -134,7 +134,7 @@ const NeoAIFullPage = () => {
           Ask about tickets, customers and past fixes in plain language. Answers cite where they came from, and an unsupported question gets "no answer" rather than a guess.
         </p>
       </div>
- 
+
       {/* Main 2-Column Layout */}
       <div className="neoai-fullpage-grid">
         {/* Left Column: Interactive Chat Area */}
@@ -222,13 +222,13 @@ const NeoAIFullPage = () => {
                     </div>
                   );
                 }
- 
+
                 return (
                   <div key={m.id} className="neoai-bot-response-wrap">
                     <span className="neoai-bubble-sender-lbl bot">NEOAI</span>
                     <div className="neoai-bot-card">
                       <FormattedMarkdown text={m.text || m.header} />
-                      
+
                       {/* Single Ticket Detail Card displaying ALL Labels */}
                       {m.data && Array.isArray(m.data) && m.data.length === 1 && (
                         <SingleTicketCard ticket={m.data[0]} />
@@ -249,7 +249,7 @@ const NeoAIFullPage = () => {
                         <p className="neoai-bot-action-text">{m.action}</p>
                       )}
                     </div>
- 
+
                     {/* Tag Pills */}
                     {m.tags && (
                       <div className="neoai-citation-tags-row">
@@ -260,7 +260,7 @@ const NeoAIFullPage = () => {
                         ))}
                       </div>
                     )}
- 
+
                     {/* Telemetry Subtext */}
                     {m.telemetry && (
                       <div className="neoai-telemetry-subtext">
@@ -270,7 +270,7 @@ const NeoAIFullPage = () => {
                   </div>
                 );
               })}
- 
+
               {isThinking && (
                 <div className="neoai-bot-response-wrap thinking">
                   <span className="neoai-bubble-sender-lbl bot">NEOAI</span>
@@ -280,7 +280,7 @@ const NeoAIFullPage = () => {
                   </div>
                 </div>
               )}
- 
+
               <div ref={chatEndRef} />
             </div>
 
@@ -306,7 +306,7 @@ const NeoAIFullPage = () => {
                 </button>
               </div>
             )}
- 
+
             {/* Input Row */}
             <div className="neoai-input-wrapper">
               {/* Hidden native file input */}
@@ -347,7 +347,7 @@ const NeoAIFullPage = () => {
                 Ask
               </button>
             </div>
- 
+
             {/* Suggested Prompt Pills */}
             <div className="neoai-suggestions-row">
               {(defaultSuggestions || []).map((suggestion) => (
@@ -445,5 +445,5 @@ const NeoAIFullPage = () => {
     </div>
   );
 };
- 
+
 export default NeoAIFullPage;

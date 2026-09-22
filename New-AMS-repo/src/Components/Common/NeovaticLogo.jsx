@@ -75,7 +75,7 @@ export const NeovaticLogo = ({ height = 48, className = "", style = {} }) => {
       <g className="neo-logo-main-group" fill="#0f172a" fontFamily="'Inter', 'Segoe UI', sans-serif" fontWeight="800" fontSize="52" letterSpacing="3">
         {/* N */}
         <text x="10" y="54" className="neo-logo-text" fill="url(#logoNavy)">N</text>
-        
+
         {/* Stylized E in emerald */}
         <g fill="url(#logoGreen)">
           <path d="M 68 18 L 100 18 L 100 24 L 75 24 L 75 33 L 96 33 L 96 39 L 75 39 L 75 48 L 100 48 L 100 54 L 68 54 Z" />
@@ -101,7 +101,7 @@ export const NeovaticLogo = ({ height = 48, className = "", style = {} }) => {
 
         {/* C */}
         <text x="336" y="54" className="neo-logo-text" fill="url(#logoNavy)">C</text>
-        
+
         {/* Registered symbol */}
         <circle cx="396" cy="22" r="7" className="neo-logo-r-circle" fill="none" stroke="#0f172a" strokeWidth="1.5" />
         <text x="396" y="25" className="neo-logo-r-text" fontSize="9" fontWeight="600" textAnchor="middle" fill="#0f172a">R</text>

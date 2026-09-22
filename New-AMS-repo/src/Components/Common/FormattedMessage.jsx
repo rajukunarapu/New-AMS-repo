@@ -33,16 +33,29 @@ export const ImageThumbnail = ({ src, alt = "Screenshot Preview" }) => {
 
   let dataUrl = src.trim();
   if (dataUrl.includes('src="')) {
-    const match = dataUrl.match(/src=["'](data:image\/[^"']+)["']/);
+    const match = dataUrl.match(/src=["'](data:image\/[^"']+)["']/i);
     if (match) dataUrl = match[1];
-  } else if (dataUrl.startsWith("`") && dataUrl.endsWith("`")) {
+  }
+  if (dataUrl.startsWith("`") && dataUrl.endsWith("`")) {
     dataUrl = dataUrl.slice(1, -1);
   }
-  
-  const imgMatch = dataUrl.match(/(data:image\/[a-zA-Z0-9+=\/;,._%-]+)/);
-  if (imgMatch) {
-    dataUrl = imgMatch[1];
+
+  // Extract full data:image payload up to quote, space, or angle bracket
+  const match = dataUrl.match(/data:image\/[^"'\s`<>]+/i);
+  if (match) {
+    dataUrl = match[0];
   }
+
+  // Remove any custom ;name=... parameter from Data URL for valid W3C browser HTML <img src="..."> rendering
+  dataUrl = dataUrl.replace(/;name=[^;]+;base64,/i, ";base64,");
+  dataUrl = dataUrl.replace(/;name=[^;]+;/i, ";");
+
+  // Remove internal whitespace/newlines from Base64 payload to ensure clean browser rendering
+  if (dataUrl.includes(";base64,")) {
+    const parts = dataUrl.split(";base64,");
+    dataUrl = `${parts[0]};base64,${parts[1].replace(/\s+/g, "")}`;
+  }
+
 
   return (
     <>
@@ -74,7 +87,7 @@ export const ImageThumbnail = ({ src, alt = "Screenshot Preview" }) => {
             textDecoration: "underline",
           }}
         >
-        View full size
+          View full size
         </span>
       </div>
 

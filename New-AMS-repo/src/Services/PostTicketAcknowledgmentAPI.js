@@ -7,10 +7,10 @@ export async function postTicketAcknowledgementAPI(ticketId, documentType, custo
         formData.append("DocumentType", documentType);
         formData.append("CustomerAcknowledgedOn", customerAck);
         formData.append("EndDateSLA", endSLA);
-        formData.append("WorkingDays", Number(workingdays) || 1);
+        formData.append("WorkingDays", (workingdays !== "" && workingdays !== null && workingdays !== undefined) ? workingdays : "");
         formData.append("ResponsibleBy", responsibleBy);
         formData.append("Status", status);
-        formData.append("Approvedhours", hours);
+        formData.append("Approvedhours", (hours !== "" && hours !== null && hours !== undefined) ? hours : "");
         formData.append("TicketStepstatus", TicketStepStatus || "Pending");
 
         // Append file if present (attachment should be a File/Blob object from <input type="file" />)

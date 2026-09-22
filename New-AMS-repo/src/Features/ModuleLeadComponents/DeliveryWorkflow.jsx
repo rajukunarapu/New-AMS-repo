@@ -746,7 +746,7 @@ const DeliveryWorkflow = ({
 
       customerAckFormatted = formatToMMDDYYYY(ackCustomerDate);
       endSlaFormatted = computeEndDate(selectedWorkflowTicket?.createddate || new Date(), ackWorkingDays, ackWorkingHours);
-      workingDaysVal = hasAckDays ? Number(ackWorkingDays) : (hasAckHours ? Math.ceil(Number(ackWorkingHours) / 8) : 0);
+      workingDaysVal = hasAckDays ? String(ackWorkingDays) : "";
       hoursVal = hasAckHours ? String(ackWorkingHours) : "";
       responsibleVal = ackResponsibleBy;
       statusVal = ackStatus;
@@ -773,7 +773,7 @@ const DeliveryWorkflow = ({
         return;
       }
 
-      workingDaysVal = hasDays ? Number(s.days) : (hasHours ? Math.ceil(Number(s.hours) / 8) : 0);
+      workingDaysVal = hasDays ? String(s.days) : "";
       hoursVal = hasHours ? String(s.hours) : "";
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = s.status;

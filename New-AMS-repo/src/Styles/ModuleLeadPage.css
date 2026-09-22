@@ -2742,10 +2742,10 @@
   margin: 0;
 }
 
-/* Step Form Row (5 fields in Row 1, remaining in Row 2) */
+/* Step Form Row (Auto-responsive grid for all fields) */
 .mlp-dw-form-row {
   display: grid;
-  grid-template-columns: minmax(85px, 0.85fr) minmax(90px, 0.85fr) minmax(110px, 1fr) minmax(110px, 1fr) minmax(180px, 1.4fr);
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 12px 14px;
   align-items: end;
   width: 100%;
@@ -2758,24 +2758,23 @@
 }
 
 .mlp-dw-field-group.mlp-dw-field-status {
-  grid-column: span 1;
+  min-width: 0;
+  width: 100%;
+}
+
+.mlp-dw-field-group.mlp-dw-field-step-status {
   min-width: 0;
   width: 100%;
 }
 
 .mlp-dw-field-group.mlp-dw-field-attachment {
-  grid-column: span 1;
   min-width: 0;
   width: 100%;
 }
 
 @media (max-width: 1200px) {
   .mlp-dw-form-row {
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  }
-  .mlp-dw-field-group.mlp-dw-field-status,
-  .mlp-dw-field-group.mlp-dw-field-attachment {
-    grid-column: auto;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   }
 }
 

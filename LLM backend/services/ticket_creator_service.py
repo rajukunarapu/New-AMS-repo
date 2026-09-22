@@ -42,6 +42,16 @@ CORE_REQUIRED_FIELDS = [
     "priority"
 ]
 
+MASTER_CLIENTS = [
+    "AAB", "ATG", "Karamtara Engineering Pvt Ltd", "BALAJI AMINES LIMITED",
+    "ACSEN HyVeg Pvt Ltd", "AJAX Engineering Pvt Ltd", "Ananth Technologies Pvt Ltd",
+    "Avon Cycles Limited", "Bajaj Sons", "Bharathi Cement", "CLOUD4C", "Casagrand Builder Private Limited",
+    "Chambal Fertilisers and Chemicals Ltd.", "DIMO Lanka", "Dixon", "Electrosteel Castings Limited",
+    "HFCL LTD", "Heritage", "Himedia Laboratories Pvt Ltd", "Jindal Steel & Power Ltd", "KIMS", "Phone Pe", "Pitti Engineering Limited",
+    "Premier Energies Limited", "Rockman", "Shree Renuka Sugars Ltd", "UML", "Wavin"
+]
+
+
 
 class TicketSessionManager:
     """Thread-safe in-memory session store for active ticket creation drafts."""
@@ -99,19 +109,77 @@ def is_capability_or_info_question(prompt: str) -> bool:
     return False
 
 
-def is_ticket_creation_prompt(prompt: str) -> bool:
+def classify_user_intent_with_llm(prompt: str, history: Optional[List[Dict[str, Any]]] = None) -> Dict[str, Any]:
     """
-    Checks whether a user message expresses an intention to create or raise a ticket,
-    or describes a system issue/problem/error even without explicitly mentioning the word 'ticket'.
+    Classifies user prompt intent using LLM zero-shot semantic understanding without keyword dependency.
+    
+    Returns a dict with:
+    - intent: "CREATE_TICKET" | "FETCH_TICKETS" | "CAPABILITY_QUERY" | "GENERAL_CHAT"
+    - confidence: float
+    - reasoning: str
     """
-    if is_capability_or_info_question(prompt):
-        return False
+    if not prompt or not str(prompt).strip():
+        return {"intent": "GENERAL_CHAT", "confidence": 1.0, "reasoning": "Empty input"}
 
+    clean_p = str(prompt).strip()
+
+    system_instruction = (
+        "You are an enterprise AI Intent Classifier for an Application Management System (AMS) helpdesk.\n"
+        "Analyze the user prompt's underlying semantic intent without relying on specific keywords or exact phrases.\n\n"
+        "INTENT CATEGORIES:\n"
+        "1. CREATE_TICKET:\n"
+        "   - The user is reporting a technical problem, system error, bug, failure, transaction issue, downtime, access request, or configuration change.\n"
+        "   - The user wants to create, raise, open, log, or submit a ticket, incident, change request, or service request.\n"
+        "   - IMPORTANT: Even if the prompt DOES NOT mention the word 'ticket', if it describes a problem or issue requiring IT/AMS resolution, classify as CREATE_TICKET.\n\n"
+        "2. FETCH_TICKETS:\n"
+        "   - The user wants to search, retrieve, list, filter, count, check status, or inspect details of existing tickets or ticket history.\n"
+        "   - Examples: 'What is the status of ticket #1042?', 'How many open tickets are in SAP-SD?', 'Show me incidents for Karamtara'.\n\n"
+        "3. CAPABILITY_QUERY:\n"
+        "   - The user asks what the bot can do or asks how ticket creation works in general without describing a specific problem.\n\n"
+        "4. GENERAL_CHAT:\n"
+        "   - Greetings, general conversation, or non-helpdesk queries.\n\n"
+        "OUTPUT FORMAT (STRICT JSON ONLY):\n"
+        "{\n"
+        '  "intent": "CREATE_TICKET" | "FETCH_TICKETS" | "CAPABILITY_QUERY" | "GENERAL_CHAT",\n'
+        '  "confidence": 0.95,\n'
+        '  "reasoning": "<short explanation>"\n'
+        "}"
+    )
+
+    user_payload = f'User Prompt: "{clean_p}"'
+    if history:
+        recent_h = history[-3:]
+        user_payload += f"\nRecent Context:\n{json.dumps(recent_h)}"
+
+    try:
+        raw_res = _call_llm(user_payload, system_instruction=system_instruction, json_response=True)
+        if raw_res:
+            res_clean = re.sub(r'```json\s*', '', raw_res)
+            res_clean = re.sub(r'```\s*$', '', res_clean).strip()
+            parsed = json.loads(res_clean)
+            if isinstance(parsed, dict) and "intent" in parsed:
+                return parsed
+    except Exception as err:
+        print(f"[LLM Intent Classification Error]: {err}")
+
+    # Fallback to rule-based evaluation if LLM service is offline
+    p_lower = clean_p.lower()
+    if is_capability_or_info_question(clean_p):
+        return {"intent": "CAPABILITY_QUERY", "confidence": 0.8, "reasoning": "Rule-based capability match"}
+    if is_explicit_query_prompt_keyword(clean_p):
+        return {"intent": "FETCH_TICKETS", "confidence": 0.7, "reasoning": "Rule-based query match"}
+    if is_ticket_creation_prompt_keyword(clean_p):
+        return {"intent": "CREATE_TICKET", "confidence": 0.7, "reasoning": "Rule-based creation match"}
+
+    return {"intent": "GENERAL_CHAT", "confidence": 0.5, "reasoning": "Fallback general chat"}
+
+
+def is_ticket_creation_prompt_keyword(prompt: str) -> bool:
+    """Keyword fallback for ticket creation detection."""
     p_lower = prompt.lower().strip()
     ticket_variations = r"(?:ticket|tickate|tikit|tickt|tikket|tikate)"
     verbs = r"(?:create|raise|open|log|make|generate|submit|post|file|register|new|want\s+to\s+create|need\s+a?)"
     
-    # 1. Explicit ticket verbs & variations
     if re.search(rf"\b{verbs}\b.*\b{ticket_variations}\b", p_lower):
         return True
     if re.search(rf"\b{ticket_variations}\b.*\b{verbs}\b", p_lower):
@@ -121,10 +189,6 @@ def is_ticket_creation_prompt(prompt: str) -> bool:
     if re.search(r"\bplease\s+(?:raise|create|open|log|file|submit)\b", p_lower):
         return True
 
-    # 2. Problem/issue reporting phrases combined with system context or ticket fields
-    if is_explicit_query_prompt(prompt):
-        return False
-
     problem_phrases = [
         r'\b(?:am\s+)?facing\b', r'\bexperiencing\b', r'\bencountering\b',
         r'\bhaving\s+(?:an?\s+)?(?:issue|problem|error|crash|dump|failure|bug)\b',
@@ -132,50 +196,61 @@ def is_ticket_creation_prompt(prompt: str) -> bool:
         r'\bnot\s+working\b', r'\bsystem\s+down\b', r'\bserver\s+down\b', r'\bfailed\b'
     ]
 
-    has_problem = any(re.search(pat, p_lower) for pat in problem_phrases)
-
-    meta_indicators = [
-        r'\b(?:priority|proirity|prio)\s*[:=]?\s*(?:is\s+)?(?:high|low|medium|very high|critical|p1|p2|p3|p4)\b',
-        r'\b(?:type|category|type\s*category)\s*[:=]?\s*(?:is\s+)?(?:incident|change request|service request|s po)\b',
-        r'\bfor\s+(?:client\s+)?[A-Za-z0-9_-]+\b',
-        r'\bplease\s+raise\b'
-    ]
-
-    has_meta = any(re.search(pat, p_lower) for pat in meta_indicators)
-
-    if has_problem or has_meta:
-        return True
-
-    return False
+    return any(re.search(pat, p_lower) for pat in problem_phrases)
 
 
-def is_explicit_query_prompt(prompt: str) -> bool:
-    """
-    Returns True ONLY if the user explicitly requests to search, filter, list, or query tickets.
-    Used to prevent treating standalone payload values as filter queries when a draft is awaiting input.
-    """
+def is_explicit_query_prompt_keyword(prompt: str) -> bool:
+    """Keyword fallback for ticket query detection."""
     p_clean = prompt.strip().lower()
-
     search_patterns = [
         r'\b(?:search|find|lookup)\b',
         r'\bshow\s+(?:me\s+)?(?:all\s+)?(?:the\s+)?(?:tickets?|issues?|records?|list)\b',
         r'\b(?:list|get|fetch|display)\s+(?:all\s+)?(?:the\s+)?(?:tickets?|issues?|records?)\b',
         r'\b(?:how\s+many|count\s+of)\s+tickets?\b',
         r'\bfilter\s+(?:all\s+)?(?:the\s+)?tickets?\b',
-        r'\bfilter\s+(?:through|by|with)?\s*(?:group\s*name|assigned\s*group|module|group)\b',
-        r'\b(?:group\s*name|assigned\s*group|module)\s*(?:is|:|=|\b)\b',
         r'\btickets?\s+(?:where|with|for|assigned|reported|having|status|created|in|under|by)\b',
         r'\bwhat\s+(?:is|are)\s+the\s+tickets?\b',
         r'\bopen\s+tickets?\b',
         r'\bclosed\s+tickets?\b',
         r'\bpending\s+tickets?\b'
     ]
+    return any(re.search(pat, p_clean) for pat in search_patterns)
 
-    for pat in search_patterns:
-        if re.search(pat, p_clean):
-            return True
 
-    return False
+def is_ticket_creation_prompt(prompt: str, history: Optional[List[Dict[str, Any]]] = None) -> bool:
+    """
+    Checks whether a user message expresses an intention to create or raise a ticket,
+    or describes a system issue/problem/error using LLM zero-shot semantic intent classification.
+    """
+    if is_capability_or_info_question(prompt):
+        return False
+
+    res = classify_user_intent_with_llm(prompt, history=history)
+    intent = res.get("intent")
+    
+    if intent == "CREATE_TICKET":
+        return True
+    if intent == "FETCH_TICKETS":
+        return False
+
+    # Fallback to keyword check if unclassified
+    return is_ticket_creation_prompt_keyword(prompt)
+
+
+def is_explicit_query_prompt(prompt: str, history: Optional[List[Dict[str, Any]]] = None) -> bool:
+    """
+    Returns True if the user prompt semantically intends to search, filter, list, or fetch ticket details.
+    """
+    res = classify_user_intent_with_llm(prompt, history=history)
+    intent = res.get("intent")
+
+    if intent == "FETCH_TICKETS":
+        return True
+    if intent == "CREATE_TICKET":
+        return False
+
+    # Fallback to keyword check if unclassified
+    return is_explicit_query_prompt_keyword(prompt)
 
 
 def infer_ticket_type_from_text(text: Optional[str]) -> Optional[str]:
@@ -195,10 +270,10 @@ def infer_ticket_type_from_text(text: Optional[str]) -> Optional[str]:
     ]):
         return "Change Request"
 
-    # 2. S PO (Purchase Order)
+    # 2. S PO (Purchase Order / Purchase Requisition)
     if any(re.search(pat, t_lower) for pat in [
         r'\b(?:s\s*po|spo|s-po)\b', r'\bpurchase\s*order\b', r'\bpo\s+creation\b',
-        r'\bprocurement\s+order\b', r'\bvendor\s+po\b'
+        r'\bprocurement\s+order\b', r'\bvendor\s+po\b', r'\bpr\b', r'\bpurchase\s*requisition\b'
     ]):
         return "S PO"
 
@@ -294,11 +369,11 @@ def clean_user_message_text(text: Optional[str], screenshot_val: Optional[str] =
 def clean_ticket_description(desc: Optional[str], client_name: Optional[str] = None, screenshot_val: Optional[str] = None) -> Optional[str]:
     """
     Cleans and rewrites description to contain ONLY the core problem reported,
-    stripping meta-instructions, priority tags, client names, and conversational phrasing.
+    stripping meta-instructions, priority tags (including typos), client names, and conversational phrasing.
     Formats the output as a short, neutral factual statement.
     Example:
-    Input: "create a ticket for client AAB, priority Low, am encountering issue with joule"
-    Output: "Encountering issue with Joule."
+    Input: "create a ticket for client AAB, prority is low and issue is purchase order not processing"
+    Output: "Purchase order not processing."
     """
     if not desc or not str(desc).strip():
         return None
@@ -311,10 +386,12 @@ def clean_ticket_description(desc: Optional[str], client_name: Optional[str] = N
 
     # Step 1: Remove leading/trailing ticket creation command verb phrases (e.g. "create a ticket", "raise ticket", "please raise")
     d = re.sub(
-        r'^(?:please\s+)?(?:i\s+want\s+to\s+|i\s+need\s+to\s+|can\s+you\s+)?(?:create|raise|open|log|make|file|generate|submit)\s+(?:an?\s+)?(?:(?:very\s+high|critical|high|medium|low|med|p1|p2|p3|p4|new|priority|prio)\s+)*(?:ticket|issue|request)\b\s*(?:for\s+me\s+)?',
+        r'^(?:please\s+)?(?:i\s+want\s+to\s+|i\s+need\s+to\s+|can\s+you\s+)?(?:create|raise|open|log|make|file|generate|submit)\s+(?:an?\s+)?(?:(?:very\s+high|critical|high|medium|low|med|p1|p2|p3|p4|new|priority|prio|proirity|prority)\s+)*(?:ticket|issue|request)\b\s*(?:for\s+me\s+)?',
         '', d, flags=re.IGNORECASE
     ).strip()
-    d = re.sub(r'[\s,;\.]+(?:please\s+)?(?:raise|create|open|log|make|file|submit|register|report|help|fix|resolve)\b.*$', '', d, flags=re.IGNORECASE).strip()
+    # Trailing ticket creation commands ONLY if followed by ticket/issue/request or meta phrases
+    d = re.sub(r'[\s,;\.]+(?:please\s+)?(?:raise|create|open|log|make|file|submit|register|report)\s+(?:an?\s+)?(?:ticket|issue|request)\b.*$', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'[\s,;\.]+(?:please\s+)?(?:help|fix|resolve|look\s+into)\s+(?:this|it)\b.*$', '', d, flags=re.IGNORECASE).strip()
 
     # Step 2: Remove client specifications
     if client_name:
@@ -324,35 +401,48 @@ def clean_ticket_description(desc: Optional[str], client_name: Optional[str] = N
         d = re.sub(r'\b' + re.escape(client_name) + r'\b', '', d, flags=re.IGNORECASE).strip()
         
         # Strip individual non-stop words of client_name (e.g. Karamtara, Balaji, ACSEN)
-        corporate_stopwords = {"pvt", "ltd", "private", "limited", "inc", "corp", "co", "company", "plc", "llp", "industries", "india", "services", "technologies", "engineering", "group"}
+        corporate_stopwords = {"and", "for", "the", "with", "co", "pvt", "ltd", "private", "limited", "inc", "corp", "company", "plc", "llp", "industries", "india", "services", "technologies", "engineering", "group", "client", "ticket", "issue", "request"}
         c_words = [w for w in re.findall(r'[A-Za-z0-9]+', str(client_name)) if len(w) >= 3 and w.lower() not in corporate_stopwords]
         for cw in c_words:
             d = re.sub(r'\bfor\s+' + re.escape(cw) + r'\b', '', d, flags=re.IGNORECASE).strip()
             d = re.sub(r'\b' + re.escape(cw) + r'\b', '', d, flags=re.IGNORECASE).strip()
 
     d = re.sub(r'\bfor\s+(?:client\s+)?(?:aab|karamtara|atg|balaji|kims|dixon|hfcl|wavin|casagrand|rockman|uml|phonepe|chambal|electrosteel|heritage|himedia|bajaj|avon|ajax|acsen|ananth)\b', '', d, flags=re.IGNORECASE).strip()
-    d = re.sub(r'\b(?:client|company|customer)\s*[:=]?\s*(?:[A-Za-z0-9_\-\.]+\s*)?', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\b(?:client|company|customer)\s*[:=]\s*(?:[A-Za-z0-9_\-\.]+\s*)?', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\b(?:client|company|customer)\b', '', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'\b(?:co\.|co|ltd|pvt|corp|inc)\b', '', d, flags=re.IGNORECASE).strip()
 
-    # Step 3: Remove priority specifications & keywords (including typos like proirity)
-    d = re.sub(r'\b(?:priority|prio|proirity|prioriti|prioity)\s*[:=]?\s*(?:is\s+)?(?:very\s+high|critical|high|medium|low|med|moderate|p1|p2|p3|p4)\b', '', d, flags=re.IGNORECASE).strip()
+    # Step 3: Remove priority specifications & trailing meta priority instructions
+    d = re.sub(r'[\s,;\.]*(?:so\s+)?(?:please\s+)?consider\s+(?:this|it)\s+as\b.*$', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\b(?:on|with|in|at)?\s*(?:very\s+high|critical|high|medium|low|med|moderate|p1|p2|p3|p4|minor|trivial)\s+(?:priority|prio|proirity|prority|prioriti|prioity|prioriy|proity)\b', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\b(?:priority|prio|proirity|prority|prioriti|prioity|prioriy|proity)\s*[:=]?\s*(?:is\s+)?(?:very\s+high|critical|high|medium|low|med|moderate|p1|p2|p3|p4|minor|trivial)\b', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\b(?:priority|prio|proirity|prority|prioriti|prioity)\b', '', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'\bkeep\s+it\s+(?:p1|p2|p3|p4|very\s+high|high|medium|low)\b', '', d, flags=re.IGNORECASE).strip()
 
     # Step 4: Remove ticket type & category specifications
     d = re.sub(r'\b(?:type\s*(?:category|of\s*ticket)?|category)\s*[:=]?\s*(?:is\s+)?(?:change\s+request|s\s*po|incident|service\s+request)\b', '', d, flags=re.IGNORECASE).strip()
 
-    # Step 5: Remove leading/dangling standalone keywords like "for", "regarding", "about", "issue is", "because", "and"
-    d = re.sub(r'^(?:for|regarding|about|because)\b\s*', '', d, flags=re.IGNORECASE).strip()
-    d = re.sub(r'^(?:the\s+)?(?:issue|problem)\s+(?:of|with|about|is)\s+', '', d, flags=re.IGNORECASE).strip()
-    d = re.sub(r'^(?:the\s+)?(?:issue|problem)\s+', '', d, flags=re.IGNORECASE).strip()
+    # Step 5: Remove leading/dangling standalone keywords & clauses
+    d = re.sub(r'^[\s,;\.\-]+', '', d).strip()
+    d = re.sub(r'^(?:and|or|with|for|regarding|about|because)\b\s*', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^(?:where\s+)?(?:i\s+)?(?:can\'t|cannot|am\s+not)\s+(?:able\s+to\s+)?', 'Unable to ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^(?:where\s+)?(?:i\s+)?unable\s+to\s+', 'Unable to ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^where\s+i\s+', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^(?:and\s+)?(?:the\s+)?(?:issue|problem)\s+(?:of|with|about|is)\s+', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^(?:and\s+)?(?:the\s+)?(?:issue|problem)\s+', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^(?:and\s+)?is\s+', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'\bfor\s+in\b', 'in', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'\b(?:and|or|with|for|co)\b(?=\s*[\.,;:]|$)', '', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^[\s,;\.\-]+', '', d).strip()
 
     # Step 6: Clean dangling punctuation & spaces
     d = re.sub(r'[,:\-\s]+', ' ', d).strip()
     d = re.sub(r'^[,:\-\s]+', '', d).strip()
     d = re.sub(r'[,:\-\s\.]+$', '', d).strip()
 
-    # Step 7: Normalize leading "am facing" / "am encountering" / "is "
+    # Step 7: Normalize leading phrases
+    d = re.sub(r'^can\'t able to\s+', 'Unable to ', d, flags=re.IGNORECASE).strip()
+    d = re.sub(r'^cannot able to\s+', 'Unable to ', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'^am facing severe\s+', 'Facing severe ', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'^am facing\s+', 'Facing ', d, flags=re.IGNORECASE).strip()
     d = re.sub(r'^facing severe\s+', 'Facing severe ', d, flags=re.IGNORECASE).strip()
@@ -365,7 +455,10 @@ def clean_ticket_description(desc: Optional[str], client_name: Optional[str] = N
 
     # Step 8: Proper casing for Joule & acronyms
     d = re.sub(r'\bjoule\b', 'Joule', d, flags=re.IGNORECASE)
+    d = re.sub(r'\bsap analytics cloud\b', 'SAP Analytics Cloud', d, flags=re.IGNORECASE)
     d = re.sub(r'\bsap\b', 'SAP', d, flags=re.IGNORECASE)
+    d = re.sub(r'\bkpis\b', 'KPIs', d, flags=re.IGNORECASE)
+    d = re.sub(r'\bmiro\b', 'MIRO', d, flags=re.IGNORECASE)
 
     # Step 9: Capitalize first letter and append period
     if d:
@@ -381,122 +474,99 @@ def clean_ticket_description(desc: Optional[str], client_name: Optional[str] = N
 
 def validate_and_refine_description(extracted_draft: Dict[str, Any], prompt: str) -> Dict[str, Any]:
     """
-    Validation / self-check step: Checks if descriptionofTicket contains forbidden terms,
-    conversational fillers, or leftover metadata/priority text.
-    If forbidden patterns or extracted priority/client terms are found in descriptionofTicket,
-    calls LLM to perform a 1-shot semantic distillation pass.
+    Validation / self-check step: Ensures descriptionofTicket is properly formatted with capital first letter and trailing period.
+    Only removes explicit leftover trailing meta priority instructions if found.
     """
     desc = extracted_draft.get("descriptionofTicket")
     scr_val = extracted_draft.get("screenshort")
 
-    # If description is a screenshot filename or empty, clean it or fallback
-    clean_d = clean_ticket_description(desc, extracted_draft.get("clientName"), scr_val)
-    if not clean_d:
+    if not desc or not str(desc).strip():
         if scr_val or (prompt and ("screenshot" in prompt.lower() or "attached" in prompt.lower())):
             extracted_draft["descriptionofTicket"] = "Screenshot attached"
         return extracted_draft
 
+    clean_d = str(desc).strip().strip('"\'`')
+
+    # Remove explicit leftover trailing meta priority terms if found
+    clean_d = re.sub(r'[\s,;\.]*(?:so\s+)?(?:please\s+)?consider\s+(?:this|it)\s+as\b.*$', '', clean_d, flags=re.IGNORECASE).strip()
+    clean_d = re.sub(r'[\s,;\.]*keep\s+it\s+p[1-4]\b.*$', '', clean_d, flags=re.IGNORECASE).strip()
+
+    # Basic formatting
+    if clean_d:
+        clean_d = clean_d[0].upper() + clean_d[1:]
+        if not clean_d.endswith('.'):
+            clean_d += '.'
+
     extracted_draft["descriptionofTicket"] = clean_d
-    desc = clean_d
-
-    desc_lower = desc.lower()
-    
-    # Check forbidden terms
-    forbidden_terms = [
-        "priority", "proirity", "prioriti", "prioity", "client", "ticket",
-        "issue is", "problem is", "the issue", "the problem", "keep it p", "p1", "p2", "p3", "p4"
-    ]
-    
-    prio_val = str(extracted_draft.get("priority") or "").lower()
-    client_val = str(extracted_draft.get("clientName") or "").lower()
-
-    needs_refinement = False
-    if any(ft in desc_lower for ft in forbidden_terms):
-        needs_refinement = True
-    elif prio_val and prio_val in desc_lower:
-        needs_refinement = True
-    elif client_val and len(client_val) > 2 and client_val in desc_lower:
-        needs_refinement = True
-
-    if needs_refinement:
-        clean_p = clean_user_message_text(prompt, scr_val)
-        refinement_system_prompt = (
-            "You are an NLP editor for an AMS ticket system. Your only job is to rewrite raw problem text "
-            "into a clean, short, neutral factual statement in proper English describing ONLY the issue reported. "
-            "STRICT CONSTRAINTS:\n"
-            "1. MUST NEVER include words like 'priority', 'proirity', 'client', 'ticket', 'issue is', 'problem is', 'because', or priority/client values.\n"
-            "2. MUST NEVER include screenshot filenames or attachment markers.\n"
-            "3. Output ONLY the rewritten factual issue string (e.g. 'Joule icon is missing.'). Do not include JSON or quotes."
-        )
-        refinement_prompt = f"""Rewrite the following problem text to remove all metadata, priority mentions, client names, and filler words:
-Raw text: "{desc}"
-Original message: "{clean_p or prompt}"
-
-Clean factual statement:"""
-
-        refined_res = _call_llm(refinement_prompt, system_instruction=refinement_system_prompt, json_response=False)
-        if refined_res and len(refined_res.strip()) > 3:
-            cleaned_refined = clean_ticket_description(refined_res.strip(), extracted_draft.get("clientName"), scr_val)
-            if cleaned_refined:
-                extracted_draft["descriptionofTicket"] = cleaned_refined
-
     return extracted_draft
+
 
 
 def extract_fields_with_llm(prompt: str, current_draft: Dict[str, Any], known_clients: List[str]) -> Dict[str, Any]:
     """
-    Extracts ticket fields using fast heuristic rules merged with LLM extraction.
+    Extracts ticket fields using LLM zero-shot/few-shot semantic intelligence as primary engine.
+    Understands complex natural language prompts, extracts metadata, and synthesizes clean factual descriptions.
     """
-    # 1. Run fast heuristic extractor first
-    heuristic_draft = heuristic_field_extractor(prompt, current_draft, known_clients)
+    all_clients = list(MASTER_CLIENTS)
+    if known_clients:
+        for kc in known_clients:
+            if kc and str(kc).strip() and str(kc).strip() not in all_clients:
+                all_clients.append(str(kc).strip())
 
-    # 2. Build clean draft state for LLM (do not pollute descriptionofTicket with raw unparsed input)
-    llm_draft_state = dict(heuristic_draft)
+    # Build clean draft state for LLM context
+    llm_draft_state = dict(current_draft)
     if current_draft.get("descriptionofTicket") is None:
         llm_draft_state["descriptionofTicket"] = None
 
     system_prompt = (
-        "You are an expert NLP data extractor for an AMS Ticket Management System. "
-        "Your task is to understand natural language user prompts and extract structured ticket fields into JSON.\n\n"
+        "You are an expert NLP data extractor for an Enterprise AMS Ticket Management System. "
+        "Your goal is to understand complex, novel, and natural language user prompts and extract structured ticket fields into JSON.\n\n"
         "EXTRACTION RULES:\n"
         "1. METADATA EXTRACTION:\n"
-        "   - priority: Extract priority/severity phrases (e.g. 'very high', 'p1', 'critical', 'proirity is high', 'p2', 'low', 'keep it p3') and map to one of ['Low', 'Medium', 'High', 'Very High'].\n"
-        "   - clientName: Extract client/company references (e.g. 'for AAB', 'at Karamtara', 'for ATG', 'client is Balaji'). Match against known clients.\n"
-        "   - typeofticket: Must strictly be one of ['Change Request', 'S PO', 'Incident', 'Service Request']. Defaults to 'Incident'.\n"
-        "   - assigntogroup: Infer module or team if mentioned (e.g. SAP-AI, SAP-FICO, RPA, Support).\n\n"
-        "2. DESCRIPTION REWRITING:\n"
-        "   - Identify the underlying core problem or failure being reported.\n"
-        "   - Strip away conversational framing ('create a ticket about', 'raise ticket', 'issue is', 'problem is', 'please note', 'keep it p3', 'because').\n"
-        "   - Strip away all extracted metadata (priority, client name, status, ticket instructions).\n"
-        "   - Rewrite the remaining core problem as a short, clean, neutral factual statement in proper English (e.g. 'Joule icon is missing.').\n\n"
+        "   - priority: Extract priority/severity phrases anywhere in prompt (e.g. 'low priority', 'consider it low priority', 'very high', 'p1', 'critical', 'p2', 'high') and map to strictly one of ['Low', 'Medium', 'High', 'Very High'].\n"
+        "   - clientName: Extract client or company name (e.g. 'AAB', 'Alekya homes', 'Balaji', 'Karamtara', 'ATG'). Match against known clients if possible or extract novel client names.\n"
+        "   - typeofticket: Must strictly be one of ['Change Request', 'S PO', 'Incident', 'Service Request']. Defaults to 'Incident'. (Infer 'S PO' for PO/MIRO/procurement, 'Service Request' for access/request/dashboard provisioning, 'Incident' for errors/bugs/down time).\n"
+        "   - assigntogroup: Infer module or team if mentioned (e.g. SAP-SAC, SAP-MM, SAP-AI, SAP-FICO, Support).\n\n"
+        "2. DESCRIPTION REWRITING & SYNTHESIS FROM WHOLE PROMPT:\n"
+        "   - Understand the entire prompt's intent to identify the underlying technical issue reported.\n"
+        "   - EXCLUDE ALL meta instructions ('create a ticket for client X', 'so please consider this as low priority', 'where i cannot able to').\n"
+        "   - EXCLUDE client names ('AAB', 'Alekya homes') and priority mentions.\n"
+        "   - REWRITE the remaining issue into a short, clean, neutral factual statement in proper English (e.g. 'Unable to create dashboards and KPIs in SAP Analytics Cloud.', 'Unable to process purchase order in MIRO.').\n\n"
         "3. STRICT CONSTRAINTS FOR descriptionofTicket:\n"
-        "   - MUST NEVER contain words like 'priority', 'proirity', 'client', 'ticket', 'issue is', 'problem is', or extracted priority/client values.\n"
+        "   - MUST NEVER contain meta priority instructions ('consider it low priority'), client names, or filler phrases.\n"
+        "   - If active draft already has a valid descriptionofTicket and user prompt is updating another field, PRESERVE descriptionofTicket.\n"
         "   - Only output valid JSON matching the schema. Do not output markdown code fences or conversational text."
     )
 
     extraction_prompt = f"""Extract fields from the user message into the TicketCreateRequest schema:
 Available fields in schema:
-- clientName: Registered client or company name (string or null). Match against known clients if possible: {json.dumps(known_clients[:25])}
+- clientName: Registered client or company name (string or null). Match against known clients if possible: {json.dumps(all_clients[:30])}
 - ams: System/instance name (defaults to "AMS" if not specified)
 - typeofticket: MUST strictly be one of: "Change Request", "S PO", "Incident", "Service Request". Defaults to "Incident". (string or null)
 - priority: "Low", "Medium", "High", or "Critical" / "Very High" (string or null)
 - reportedon: Date or timestamp in ISO format (YYYY-MM-DDTHH:MM:SS) if mentioned, else null
 - reportedontime: Time string (HH:MM:SS) if mentioned, else null
 - reportedby: Name or email of the person reporting the ticket (string or null)
-- descriptionofTicket: The actual core issue being reported (string or null). MUST contain ONLY the issue itself rewritten as a short factual statement — exclude instructions ('create a ticket'), priority ('keep it p2'), client name ('for aab'), filler words ('issue is', 'because').
+- descriptionofTicket: The actual core issue being reported (string or null). MUST contain ONLY the issue itself rewritten as a short factual statement — exclude instructions ('create a ticket'), priority ('consider it low priority'), client name ('for aab'), filler words.
 - screenshort: Screenshot path, filename, URL, or image reference (string or null)
 - remarks: Any notes, remarks, or extra context (string or null)
-- assigntogroup: Assigned module or team e.g. SAP-AI, SAP-FICO, SAP-MM, RPA, Support (string or null)
+- assigntogroup: Assigned module or team e.g. SAP-SAC, SAP-AI, SAP-FICO, SAP-MM, RPA, Support (string or null)
 
 FEW-SHOT EXAMPLES FOR NATURAL LANGUAGE PARSING:
+Input: "i can't able to create dashboards and kpis for client AAB in sap analytics cloud . so please consider this as low priority"
+Output: {{"clientName": "AAB", "priority": "Low", "typeofticket": "Service Request", "descriptionofTicket": "Unable to create dashboards and KPIs in SAP Analytics Cloud.", "assigntogroup": "SAP-SAC"}}
+
+Input: "create a ticket for client Alekya homes where i cannot able to process purchase order in MIRO. consider it as low priority."
+Output: {{"clientName": "Alekya homes", "priority": "Low", "typeofticket": "S PO", "descriptionofTicket": "Unable to process purchase order in MIRO.", "assigntogroup": "SAP-MM"}}
+
+Input: "create ticket for client AAB, prority is low and issue is purchase order not processing"
+Output: {{"clientName": "AAB", "priority": "Low", "typeofticket": "S PO", "descriptionofTicket": "Purchase order not processing.", "assigntogroup": "SAP-MM"}}
+
 Input: "issue is joule icon missing and proirity is very high"
-Output: {{"clientName": null, "priority": "Very High", "typeofticket": "Incident", "descriptionofTicket": "Joule icon is missing."}}
+Output: {{"clientName": null, "priority": "Very High", "typeofticket": "Incident", "descriptionofTicket": "Joule icon is missing.", "assigntogroup": "SAP-AI"}}
 
 Input: "create a ticket for Balaji issue is server down and priority is high"
-Output: {{"clientName": "Balaji", "priority": "High", "typeofticket": "Incident", "descriptionofTicket": "Server is down."}}
-
-Input: "create a ticket for atg because joule is not giving information and keep it p3"
-Output: {{"clientName": "ATG", "priority": "Medium", "typeofticket": "Incident", "descriptionofTicket": "Joule is not giving information."}}
+Output: {{"clientName": "BALAJI AMINES LIMITED", "priority": "High", "typeofticket": "Incident", "descriptionofTicket": "Server is down."}}
 
 Current active draft state:
 {json.dumps(llm_draft_state)}
@@ -508,7 +578,8 @@ Respond ONLY with a JSON object containing the 11 fields. If a field was not men
 """
 
     raw_response = _call_llm(extraction_prompt, system_instruction=system_prompt, json_response=True)
-    merged = dict(heuristic_draft)
+    merged = dict(current_draft)
+    llm_success = False
 
     if raw_response:
         try:
@@ -518,15 +589,27 @@ Respond ONLY with a JSON object containing the 11 fields. If a field was not men
                 cleaned = re.sub(r"\n?```$", "", cleaned)
             extracted = json.loads(cleaned)
             if isinstance(extracted, dict):
+                llm_success = True
                 if extracted.get("typeofticket"):
                     extracted["typeofticket"] = normalize_ticket_type(extracted["typeofticket"])
                 for k, v in extracted.items():
                     if v is not None:
+                        # Prevent LLM from overwriting an existing valid description when user is updating non-description fields
+                        if k == "descriptionofTicket" and current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
+                            if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', prompt, re.IGNORECASE) or "description" in prompt.lower()):
+                                continue
                         merged[k] = v
-        except Exception:
-            pass
+        except Exception as err:
+            print(f"[LLM Extraction Parse Exception]: {err}")
 
-    # Post-extraction self-check and refinement
+    # Fallback to heuristic extractor ONLY if LLM API failed or missed core fields
+    if not llm_success or not merged.get("descriptionofTicket") or not merged.get("clientName"):
+        heuristic_res = heuristic_field_extractor(prompt, merged, all_clients)
+        for k, v in heuristic_res.items():
+            if merged.get(k) is None and v is not None:
+                merged[k] = v
+
+    # Post-extraction self-check and formatting
     merged = validate_and_refine_description(merged, prompt)
     return merged
 
@@ -539,25 +622,32 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
     p_lower = p.lower()
     draft = dict(current_draft)
 
+    all_clients = list(MASTER_CLIENTS)
+    if known_clients:
+        for kc in known_clients:
+            if kc and str(kc).strip() and str(kc).strip() not in all_clients:
+                all_clients.append(str(kc).strip())
+
     # 1. Client Name Extraction & Entity Resolution
     explicit_client = re.search(
-        r'\b(?:for\s+client|client|for)\s*[:=]?\s*([A-Za-z0-9_\-\s]+?)(?:\s+(?:priority|prio|proirity|regarding|about|with|having|for|group|module|status|type|ticket|issue)|$)',
+        r'\b(?:for\s+client|client\s+is|client|for)\s*[:=]?\s*([A-Za-z0-9_\-\s]+?)(?=[,;.\n]|\s+(?:priority|prio|proirity|prority|prioriti|prioity|regarding|about|with|having|for|group|module|status|type|ticket|issue|and|is|where|that|which|when|unable|cannot|can\'t|so|please|consider|as|to)|$)',
         p,
         re.IGNORECASE
     )
     if explicit_client:
         c_cand = explicit_client.group(1).strip()
-        c_clean_cand = re.sub(r'\b(?:co\.|co|corp|inc|ltd|pvt|company)\b', '', c_cand, flags=re.IGNORECASE).strip()
+        c_cand = re.split(r'\b(?:where|that|which|when|where\s+i|that\s+i|cannot|can\'t|unable|so|please|consider|issue|problem|in)\b', c_cand, flags=re.IGNORECASE)[0].strip()
+        c_clean_cand = re.sub(r'\b(?:co\.|co|corp|inc|ltd|pvt|company|client)\b', '', c_cand, flags=re.IGNORECASE).strip()
         if c_clean_cand and c_clean_cand.lower() not in ["a", "an", "the", "me", "new", "ticket", "issue", "request", "is", "name"]:
-            resolved = resolve_client_name(c_clean_cand, known_clients)
+            resolved = resolve_client_name(c_clean_cand, all_clients)
             if resolved:
                 draft["clientName"] = resolved
             else:
                 draft["clientName"] = c_clean_cand
 
     if not draft.get("clientName"):
-        corporate_stopwords = {"pvt", "ltd", "private", "limited", "inc", "corp", "co", "plc", "llp", "industries", "india", "services", "technologies", "engineering", "group"}
-        for client in known_clients:
+        corporate_stopwords = {"and", "for", "the", "with", "co", "pvt", "ltd", "private", "limited", "inc", "corp", "company", "plc", "llp", "industries", "india", "services", "technologies", "engineering", "group", "client", "ticket", "issue", "request"}
+        for client in all_clients:
             c_clean = str(client).strip()
             if not c_clean or c_clean.lower() in ["none", "null", "n/a", "—", "-"]:
                 continue
@@ -578,15 +668,27 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
                     if draft.get("clientName"):
                         break
 
-    # 2. Priority
+    # 2. Priority (handling typos like prority, proirity, etc.)
     prio_patterns = [
-        (r'\b(?:very high|critical|p1)\b', "Very High"),
+        (r'\b(?:very\s+high|critical|p1)\b', "Very High"),
         (r'\b(?:high|p2)\b', "High"),
         (r'\b(?:medium|med|moderate|p3)\b', "Medium"),
         (r'\b(?:low|minor|trivial|p4)\b', "Low")
     ]
-    m_prio_label = re.search(r'\bpriority\s*[:=]\s*([A-Za-z0-9\s]+)', p, re.IGNORECASE)
-    if m_prio_label:
+    m_prio_before = re.search(r'\b(?:very\s+high|critical|high|medium|med|moderate|low|minor|trivial|p1|p2|p3|p4)\s+(?:priority|prio|proirity|prority|prioriti|prioity)\b', p, re.IGNORECASE)
+    m_prio_label = re.search(r'\b(?:priority|prio|proirity|prority|prioriti|prioity)\s*[:=]?\s*(?:is\s+)?([A-Za-z0-9\s]+)', p, re.IGNORECASE)
+    
+    if m_prio_before:
+        val = m_prio_before.group(0).lower()
+        if "crit" in val or "very high" in val or "p1" in val:
+            draft["priority"] = "Very High"
+        elif "high" in val or "p2" in val:
+            draft["priority"] = "High"
+        elif "med" in val or "p3" in val:
+            draft["priority"] = "Medium"
+        elif "low" in val or "p4" in val:
+            draft["priority"] = "Low"
+    elif m_prio_label:
         val = m_prio_label.group(1).strip().lower()
         if "crit" in val or "very high" in val or "p1" in val:
             draft["priority"] = "Very High"
@@ -596,48 +698,58 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
             draft["priority"] = "Medium"
         elif "low" in val or "p4" in val:
             draft["priority"] = "Low"
-    else:
+    
+    if not draft.get("priority"):
         for pat, norm in prio_patterns:
             if re.search(pat, p_lower):
                 draft["priority"] = norm
                 break
 
     # 3. Description
+    # Check if current draft already has a valid non-empty description
+    has_existing_desc = bool(current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached")
     m_desc = re.search(r'\b(?:issue|problem|description|error|summary)(?:\s+of\s+ticket)?\s*[:=]\s*([^;\n]+)', p, re.IGNORECASE)
+    is_explicit_desc_update = bool(m_desc or re.search(r'\bchange\s+description\b', p, re.IGNORECASE))
+
     if m_desc:
         cand_desc = clean_ticket_description(m_desc.group(1).strip(), draft.get("clientName"), draft.get("screenshort"))
         if cand_desc:
             draft["descriptionofTicket"] = cand_desc
     
     if not draft.get("descriptionofTicket"):
-        clean_prompt = clean_user_message_text(p, draft.get("screenshort"))
-        if ":" in clean_prompt:
-            parts = clean_prompt.split(":", 1)
-            candidate = parts[1].strip()
-            candidate = re.sub(r'\b(?:priority|prio|reported\s+by|type|category|remarks?)\s*[:=].*$', '', candidate, flags=re.IGNORECASE).strip()
-            cleaned_cand = clean_ticket_description(candidate, draft.get("clientName"), draft.get("screenshort"))
-            if cleaned_cand:
-                draft["descriptionofTicket"] = cleaned_cand
-        elif len(clean_prompt) >= 4:
-            cleaned_p = re.sub(
-                r'^(?:please\s+)?(?:i\s+want\s+to\s+|i\s+need\s+to\s+|can\s+you\s+)?(?:create|raise|open|log|make|file|generate|submit)\s+(?:an?\s+)?(?:new\s+)?(?:ticket|issue|request)\s+(?:for\s+me\s+)?(?:for|client|on|about|regarding)?\s*',
-                '', clean_prompt, flags=re.IGNORECASE
-            ).strip()
+        if has_existing_desc and not is_explicit_desc_update:
+            # Preserve current draft's existing description and re-clean with active clientName
+            draft["descriptionofTicket"] = clean_ticket_description(current_draft["descriptionofTicket"], draft.get("clientName"), draft.get("screenshort")) or current_draft["descriptionofTicket"]
+        else:
+            clean_prompt = clean_user_message_text(p, draft.get("screenshort"))
+            if ":" in clean_prompt:
+                parts = clean_prompt.split(":", 1)
+                candidate = parts[1].strip()
+                candidate = re.sub(r'\b(?:priority|prio|proirity|prority|reported\s+by|type|category|remarks?)\s*[:=].*$', '', candidate, flags=re.IGNORECASE).strip()
+                cleaned_cand = clean_ticket_description(candidate, draft.get("clientName"), draft.get("screenshort"))
+                if cleaned_cand:
+                    draft["descriptionofTicket"] = cleaned_cand
+            elif len(clean_prompt) >= 4:
+                cleaned_p = re.sub(
+                    r'^(?:please\s+)?(?:i\s+want\s+to\s+|i\s+need\s+to\s+|can\s+you\s+)?(?:create|raise|open|log|make|file|generate|submit)\s+(?:an?\s+)?(?:new\s+)?(?:ticket|issue|request)\s+(?:for\s+me\s+)?(?:for|client|on|about|regarding)?\s*',
+                    '', clean_prompt, flags=re.IGNORECASE
+                ).strip()
 
-            if draft.get("clientName"):
-                cleaned_p = re.sub(re.escape(str(draft["clientName"])), '', cleaned_p, flags=re.IGNORECASE).strip()
-            for c in (known_clients or []):
-                if len(c) > 3 and c.lower() in cleaned_p.lower():
-                    cleaned_p = re.sub(re.escape(c), '', cleaned_p, flags=re.IGNORECASE).strip()
+                if draft.get("clientName"):
+                    cleaned_p = re.sub(re.escape(str(draft["clientName"])), '', cleaned_p, flags=re.IGNORECASE).strip()
+                for c in (all_clients or []):
+                    if len(c) > 3 and c.lower() in cleaned_p.lower():
+                        cleaned_p = re.sub(re.escape(c), '', cleaned_p, flags=re.IGNORECASE).strip()
 
-            cleaned_p = re.sub(r'\b(?:priority|prio)\s*[:=]?\s*(?:very\s+high|critical|high|medium|low|med|p1|p2|p3|p4)\b', '', cleaned_p, flags=re.IGNORECASE)
-            cleaned_p = re.sub(r'\b(?:type|category)\s*[:=]?\s*(?:change\s+request|s\s*po|incident|service\s+request)\b', '', cleaned_p, flags=re.IGNORECASE)
-            cleaned_p = re.sub(r'^[:\-\s,]+', '', cleaned_p).strip()
-            cleaned_p = re.sub(r'[:\-\s,]+$', '', cleaned_p).strip()
+                cleaned_p = re.sub(r'\b(?:on|with|in|at)?\s*(?:very\s+high|critical|high|medium|low|med|p1|p2|p3|p4)\s+(?:priority|prio|proirity|prority)\b', '', cleaned_p, flags=re.IGNORECASE)
+                cleaned_p = re.sub(r'\b(?:priority|prio|proirity|prority)\s*[:=]?\s*(?:very\s+high|critical|high|medium|low|med|p1|p2|p3|p4)\b', '', cleaned_p, flags=re.IGNORECASE)
+                cleaned_p = re.sub(r'\b(?:type|category)\s*[:=]?\s*(?:change\s+request|s\s*po|incident|service\s+request)\b', '', cleaned_p, flags=re.IGNORECASE)
+                cleaned_p = re.sub(r'^[:\-\s,]+', '', cleaned_p).strip()
+                cleaned_p = re.sub(r'[:\-\s,]+$', '', cleaned_p).strip()
 
-            cleaned_final = clean_ticket_description(cleaned_p, draft.get("clientName"), draft.get("screenshort"))
-            if cleaned_final:
-                draft["descriptionofTicket"] = cleaned_final
+                cleaned_final = clean_ticket_description(cleaned_p, draft.get("clientName"), draft.get("screenshort"))
+                if cleaned_final:
+                    draft["descriptionofTicket"] = cleaned_final
 
     # Fallback if still no description
     if not draft.get("descriptionofTicket"):
@@ -688,24 +800,22 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
 
 def resolve_client_name(candidate_client: Optional[str], known_clients: Optional[List[str]] = None) -> Optional[str]:
     """
-    Intelligently resolves informal or partial client references (e.g. 'Karamtara')
+    Intelligently resolves informal or partial client references (e.g. 'Karamtara', 'AAB')
     to official registered client names in AMS database (e.g. 'Karamtara Engineering Pvt Ltd').
+    Always merges master client list with dynamic known_clients.
     """
     if not candidate_client:
         return None
-    c_clean = str(candidate_client).strip()
+    c_clean = str(candidate_client).strip().strip(',;.`"\'')
+    if not c_clean:
+        return None
     c_lower = c_clean.lower()
     
-    clients = list(known_clients) if known_clients else []
-    if not clients:
-        clients = [
-            "Karamtara Engineering Pvt Ltd", "ATG", "BALAJI AMINES LIMITED",
-            "AAB", "ACSEN HyVeg Pvt Ltd", "AJAX Engineering Pvt Ltd", "Ananth Technologies Pvt Ltd",
-            "Avon Cycles Limited", "Bajaj Sons", "Bharathi Cement", "CLOUD4C", "Casagrand Builder Private Limited",
-            "Chambal Fertilisers and Chemicals Ltd.", "DIMO Lanka", "Dixon", "Electrosteel Castings Limited",
-            "HFCL LTD", "Heritage", "Himedia Laboratories Pvt Ltd", "KIMS", "Phone Pe", "Pitti Engineering Limited",
-            "Premier Energies Limited", "Rockman", "Shree Renuka Sugars Ltd", "UML", "Wavin"
-        ]
+    clients = list(MASTER_CLIENTS)
+    if known_clients:
+        for kc in known_clients:
+            if kc and str(kc).strip() and str(kc).strip() not in clients:
+                clients.append(str(kc).strip())
 
     # 1. Exact match
     for k in clients:
@@ -928,8 +1038,12 @@ Respond with a JSON object:
             if "typeofticket" in mod_fields and mod_fields["typeofticket"]:
                 mod_fields["typeofticket"] = normalize_ticket_type(mod_fields["typeofticket"])
             if "descriptionofTicket" in mod_fields and mod_fields["descriptionofTicket"]:
-                cleaned_desc = clean_ticket_description(mod_fields["descriptionofTicket"], mod_fields.get("clientName") or current_draft.get("clientName"), current_draft.get("screenshort"))
-                mod_fields["descriptionofTicket"] = cleaned_desc or current_draft.get("descriptionofTicket") or "Screenshot attached"
+                if current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
+                    if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', msg_clean, re.IGNORECASE) or "description" in msg_clean.lower()):
+                        mod_fields.pop("descriptionofTicket", None)
+                if "descriptionofTicket" in mod_fields:
+                    cleaned_desc = clean_ticket_description(mod_fields["descriptionofTicket"], mod_fields.get("clientName") or current_draft.get("clientName"), current_draft.get("screenshort"))
+                    mod_fields["descriptionofTicket"] = cleaned_desc or current_draft.get("descriptionofTicket") or "Screenshot attached"
 
             if intent == "modify" or (mod_fields and len(mod_fields) > 0):
                 if pending_field and not any(k in mod_fields for k in ["clientName", "descriptionofTicket", "priority", "assigntogroup", "typeofticket"]):
@@ -961,11 +1075,15 @@ Respond with a JSON object:
     if any(word in msg_lower for word in ["cancel", "nevermind", "abort", "discard", "stop"]):
         return "cancel", {}
 
-    # Check heuristic extractor first
-    mod_extracted = heuristic_field_extractor(msg_clean, {}, known_clients or [])
+    # Check heuristic extractor first with active current_draft
+    mod_extracted = heuristic_field_extractor(msg_clean, current_draft, known_clients or [])
     cleaned_mods = {k: v for k, v in mod_extracted.items() if v is not None}
     if "typeofticket" in cleaned_mods:
         cleaned_mods["typeofticket"] = normalize_ticket_type(cleaned_mods["typeofticket"])
+
+    if current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
+        if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', msg_clean, re.IGNORECASE) or "description" in msg_clean.lower()):
+            cleaned_mods.pop("descriptionofTicket", None)
 
     if cleaned_mods:
         return "modify", cleaned_mods
@@ -1039,7 +1157,9 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
                 val_str = str(val).strip()
                 if val_str.startswith("data:image/"):
                     status_str = "*Attached*"
-                    val_display = f'<img src="{val_str}" alt="Screenshot Preview" style="max-width:160px; max-height:120px; border-radius:6px; cursor:pointer;" />'
+                    clean_src = re.sub(r';name=[^;]+;base64,', ';base64,', val_str, flags=re.IGNORECASE)
+                    clean_src = re.sub(r';name=[^;]+;', ';', clean_src, flags=re.IGNORECASE)
+                    val_display = f'<img src="{clean_src}" alt="Screenshot Preview" style="max-width:160px; max-height:120px; border-radius:6px; cursor:pointer;" />'
                 elif val_str.lower() in ["none", "null", "*none*", "*not provided*"]:
                     status_str = "*Optional / None*"
                     val_display = "*None*"

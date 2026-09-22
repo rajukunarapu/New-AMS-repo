@@ -33,16 +33,23 @@ export const ImageThumbnail = ({ src, alt = "Screenshot Preview" }) => {
 
   let dataUrl = src.trim();
   if (dataUrl.includes('src="')) {
-    const match = dataUrl.match(/src=["'](data:image\/[^"']+)["']/);
+    const match = dataUrl.match(/src=["'](data:image\/[^"']+)["']/i);
     if (match) dataUrl = match[1];
-  } else if (dataUrl.startsWith("`") && dataUrl.endsWith("`")) {
+  }
+  if (dataUrl.startsWith("`") && dataUrl.endsWith("`")) {
     dataUrl = dataUrl.slice(1, -1);
   }
-  
-  const imgMatch = dataUrl.match(/(data:image\/[a-zA-Z0-9+=\/;,._%-]+)/);
+
+  // Remove any custom ;name=... parameter from Data URL for valid W3C browser HTML <img src="..."> rendering
+  dataUrl = dataUrl.replace(/;name=[^;]+;base64,/i, ";base64,");
+  dataUrl = dataUrl.replace(/;name=[^;]+;/i, ";");
+
+  // Extract clean data:image Base64 string payload
+  const imgMatch = dataUrl.match(/data:image\/[a-zA-Z0-9+\\.-]+;base64,[A-Za-z0-9+/=]+/i);
   if (imgMatch) {
-    dataUrl = imgMatch[1];
+    dataUrl = imgMatch[0];
   }
+
 
   return (
     <>

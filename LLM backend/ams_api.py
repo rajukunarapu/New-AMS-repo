@@ -1,4 +1,5 @@
 import os
+import re
 import requests
 from dotenv import load_dotenv
 
@@ -157,7 +158,7 @@ class AMSApi:
         self.token = token
         return token
 
-    def get_tickets(self, timeout=5):
+    def get_tickets(self, timeout=60):
         """Get AMS tickets using JWT with strict timeout to prevent backend hanging."""
         if not self.token:
             self.authenticate()
@@ -322,7 +323,15 @@ class AMSApi:
                     filename = "attachment.docx"
 
                 mime = AMSApi.get_mime_type(filename)
-                img_data = base64.b64decode(encoded)
+
+                # Sanitize Base64 string formatting (remove spaces/newlines and add proper '=' padding)
+                clean_encoded = encoded.strip().strip('"\'`')
+                clean_encoded = re.sub(r'\s+', '', clean_encoded)
+                missing_padding = len(clean_encoded) % 4
+                if missing_padding:
+                    clean_encoded += '=' * (4 - missing_padding)
+
+                img_data = base64.b64decode(clean_encoded)
                 return (filename, img_data, mime)
             except Exception as err:
                 print(f"[AMS API] Error decoding Base64 file payload: {err}")
@@ -442,7 +451,7 @@ class AMSApi:
                 data=form_data,
                 files=files if files else None,
                 headers=headers,
-                timeout=15
+                timeout=60
             )
             print(f"[AMS API] CreateTicket response ({response.status_code}): {response.text}")
         except requests.exceptions.RequestException as err:
@@ -458,7 +467,7 @@ class AMSApi:
                         data=form_data,
                         files=files if files else None,
                         headers=headers,
-                        timeout=15
+                        timeout=60
                     )
                 except Exception:
                     raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")

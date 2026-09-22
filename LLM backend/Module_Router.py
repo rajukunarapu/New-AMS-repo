@@ -1,3 +1,4 @@
+
 import os
 import re
 import time
@@ -63,7 +64,7 @@ GROUP_KEYWORDS = {
     "SAP-SD": [r"\bsd\b", r"\bsales\b", r"\bdistribution\b", r"\bbilling\b", r"\bshipping\b", r"\bdelivery\b", r"\bpricing\b", r"\bsales order\b"],
     "SAP ABAP": [r"\babap\b", r"\bdump\b", r"\bsyntax error\b", r"\bbapi\b", r"\bbadi\b", r"\bsmartform\b", r"\bsapscript\b", r"\bzprogram\b", r"\benhancement\b", r"\bse38\b", r"\bse80\b"],
     "SAP-BASIS": [r"\bbasis\b", r"\bauthorization\b", r"\btransport\b", r"\bst03\b", r"\bsm50\b", r"\bkernel\b", r"\buser lock\b", r"\brole\b", r"\btcode access\b", r"\bsystem lock\b", r"\blogin\b", r"\bauthenticat\w*\b"],
-    "SAP-MM": [r"\bmm\b", r"\bmaterial\b", r"\bpurchase\b", r"\bvendor\b", r"\binventory\b", r"\bgrn\b", r"\bpo\b", r"\brequisition\b", r"\bstock\b"],
+    "SAP-MM": [r"\bmm\b", r"\bmaterial\b", r"\bpurchase\b", r"\bvendor\b", r"\binventory\b", r"\bgrn\b", r"\bpo\b", r"\bpr\b", r"\brequisition\b", r"\bstock\b"],
     "SAP-PP": [r"\bpp\b", r"\bproduction\b", r"\bmrp\b", r"\bbom\b", r"\bwork center\b", r"\brouting\b"],
     "SAP-PM": [r"\bpm\b", r"\bplant maintenance\b", r"\bequipment\b", r"\bwork order\b", r"\bnotification\b"],
     "SAP-QM": [r"\bqm\b", r"\bquality\b", r"\binspection\b", r"\bbatch\b", r"\bcertificate\b"],

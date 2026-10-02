@@ -7,45 +7,45 @@ import "../Styles/HomePage.css";
 const consoles = [
   {
     title: "AMS Consultant",
-    description: "4 customers \u00b7 own queue \u00b7 Tier 0-1",
+    description: "Assigned queues · Incident resolution · Tier 0–1",
     path: "/consultant",
     consoleTitle: "AMS Consultant console",
-    scopeLabel: "Scope bound at sign-in: 4 customers \u00b7 SAP FICO queue \u00b7 Tier 0-1",
+    scopeLabel: "Assigned queues · Incident resolution · Tier 0–1",
   },
   {
     title: "Module Lead",
-    description: "4 customers \u00b7 all queues \u00b7 Tier 0-2",
+    description: "Cross-queue management · Escalations · Tier 0–2",
     path: "/moduleLead",
     consoleTitle: "Module Lead console",
-    scopeLabel: "Scope bound at sign-in: 4 customers \u00b7 all queues \u00b7 Tier 0-2",
+    scopeLabel: "Cross-queue management · Escalations · Tier 0–2",
   },
   {
     title: "Executive Sponsor",
-    description: "Portfolio read-only \u00b7 no ticket content",
+    description: "High-level reporting · SLA dashboards · Read-only",
     path: "/ExecutiveSponser",
     consoleTitle: "Executive Sponsor console",
-    scopeLabel: "Portfolio read-only \u00b7 no ticket content",
+    scopeLabel: "High-level reporting · SLA dashboards · Read-only",
   },
   {
     title: "Platform Administrator",
-    description: "Platform configuration \u00b7 no customer data by default",
+    description: "System security · Identity access · Core configurations",
     path: "/administrator",
     consoleTitle: "Platform Administrator console",
-    scopeLabel: "Platform configuration \u00b7 no customer data by default",
+    scopeLabel: "System security · Identity access · Core configurations",
   },
   {
     title: "SLA Framework",
-    description: "Framework owner \u00b7 all customers \u00b7 governance, KPIs and audit",
+    description: "KPI definitions · Governance rules · Compliance auditing",
     path: "/SLAFramework",
     consoleTitle: "SLA Framework console",
-    scopeLabel: "Framework owner \u00b7 all customers \u00b7 governance, KPIs and audit",
+    scopeLabel: "KPI definitions · Governance rules · Compliance auditing",
   },
   {
     title: "Customer",
-    description: "Own tickets only \u00b7 documents, timelines, UAT and sign-off",
+    description: "Ticket tracking · UAT approvals · Shared documentation",
     path: "/customer",
     consoleTitle: "Customer console",
-    scopeLabel: "Own tickets only \u00b7 documents, timelines, UAT and sign-off",
+    scopeLabel: "Ticket tracking · UAT approvals · Shared documentation",
   },
 ];
 
@@ -65,7 +65,7 @@ const footerInfo = [
   },
   {
     heading: "Classification",
-    body: "Internal draft \u2013 customer-identifiable data must stay in approved environments.",
+    body: "Internal draft - customer-identifiable data must stay in approved environments.",
   },
 ];
 

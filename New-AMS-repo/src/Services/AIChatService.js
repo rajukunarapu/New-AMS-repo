@@ -1,7 +1,7 @@
 import Axios from "axios";
  
 const getBaseUrl = () => {
-  return import.meta.env.VITE_AI_CHATBOT_API_URL || "http://localhost:8000/api";
+  return import.meta.env.VITE_AI_CHATBOT_API_URL 
 };
  
 /**

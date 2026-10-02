@@ -608,12 +608,28 @@ const ConsultantPage = () => {
             <NeoAIFullPage />
           ) : activeNav === "dashboard" ? (
             <>
-              <h1 className="mlp-page-title">My Dashboard</h1>
-              <p className="mlp-page-subtitle">
-                Your shift at a glance – assigned work, clocks about to warn, AI assistance used and the notifications that reached you.
-              </p>
+              <div className="mlp-page-header-row">
+                <div>
+                  <div className="mlp-page-badge-row">
+                    <span className="mlp-live-badge">
+                      <span className="mlp-pulse-dot" />
+                      Live Consultant Desk
+                    </span>
+                    <span className="mlp-shift-pill">Tier 0–1 Active Shift</span>
+                  </div>
+                  <h1 className="mlp-page-title">My Dashboard</h1>
+                  <p className="mlp-page-subtitle">
+                    Your shift at a glance – assigned work, clocks about to warn, AI assistance used and the notifications that reached you.
+                  </p>
+                </div>
+              </div>
               <div className="mlp-page-hint">
-                Click any figure, ageing bucket, module or timeline entry to open the tickets behind it.
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="16" x2="12" y2="12" />
+                  <line x1="12" y1="8" x2="12.01" y2="8" />
+                </svg>
+                <span>Click any figure, ageing bucket, module or timeline entry to open the tickets behind it.</span>
               </div>
 
               {/* Top 3 Stat Cards */}
@@ -621,28 +637,76 @@ const ConsultantPage = () => {
                 <div
                   className="mlp-stat-card blue"
                   onClick={() => handleNavClick("tickets")}
+                  role="button"
+                  tabIndex={0}
                 >
-                  <div className="mlp-stat-label">ASSIGNED TO ME</div>
-                  <div className="mlp-stat-value">2</div>
-                  <div className="mlp-stat-note">WIP limit 6 · opens my ticket details</div>
+                  <div className="mlp-stat-top-row">
+                    <div className="mlp-stat-label">ASSIGNED TO ME</div>
+                    <div className="mlp-stat-icon-wrap blue">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                        <polyline points="16 11 18 13 22 9" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mlp-stat-value-row">
+                    <span className="mlp-stat-value">{consultantAssignedTickets.length || 2}</span>
+                    <span className="mlp-stat-badge blue">Active Queue</span>
+                  </div>
+                  <div className="mlp-stat-footer">
+                    <span className="mlp-stat-note">WIP limit 6 · opens my ticket details</span>
+                    <span className="mlp-stat-arrow">→</span>
+                  </div>
                 </div>
 
                 <div
                   className="mlp-stat-card green"
                   onClick={() => handleNavClick("tickets")}
+                  role="button"
+                  tabIndex={0}
                 >
-                  <div className="mlp-stat-label">AI ACTIONS USED</div>
-                  <div className="mlp-stat-value">0</div>
-                  <div className="mlp-stat-note">summary, triage, similar, draft</div>
+                  <div className="mlp-stat-top-row">
+                    <div className="mlp-stat-label">AI ACTIONS USED</div>
+                    <div className="mlp-stat-icon-wrap green">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mlp-stat-value-row">
+                    <span className="mlp-stat-value">0</span>
+                    <span className="mlp-stat-badge green">AI Powered</span>
+                  </div>
+                  <div className="mlp-stat-footer">
+                    <span className="mlp-stat-note">summary, triage, similar, draft</span>
+                    <span className="mlp-stat-arrow">→</span>
+                  </div>
                 </div>
 
                 <div
                   className="mlp-stat-card gold"
                   onClick={() => handleNavClick("tickets")}
+                  role="button"
+                  tabIndex={0}
                 >
-                  <div className="mlp-stat-label">ACCEPTANCE RATE</div>
-                  <div className="mlp-stat-value">78%</div>
-                  <div className="mlp-stat-note">your feedback last 30 days</div>
+                  <div className="mlp-stat-top-row">
+                    <div className="mlp-stat-label">ACCEPTANCE RATE</div>
+                    <div className="mlp-stat-icon-wrap gold">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="mlp-stat-value-row">
+                    <span className="mlp-stat-value">78%</span>
+                    <span className="mlp-stat-badge gold">Above SLA</span>
+                  </div>
+                  <div className="mlp-stat-footer">
+                    <span className="mlp-stat-note">your feedback last 30 days</span>
+                    <span className="mlp-stat-arrow">→</span>
+                  </div>
                 </div>
               </div>
 

@@ -15,6 +15,20 @@ import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import { GetScreenshotAPI } from "../../Services/GetScreenshotAPI";
+import { getDeliveryWorkflowAPI } from "../../Services/GetDeliveryWorkflowAPI";
+
+const STEP_DOC_TYPES = [
+  "Ticket ACK",
+  "BRD",
+  "BUD",
+  "FS",
+  "TS",
+  "CONFIG",
+  "TEST INTERNAL",
+  "U. MANUAL",
+  "SUBMISSION",
+  "VA",
+];
 
 const TicketDetailsPage = ({
   filteredTickets,
@@ -58,6 +72,8 @@ const TicketDetailsPage = ({
   const [screenshotData, setScreenshotData] = useState(null);
   const [loadingScreenshot, setLoadingScreenshot] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
+  const [workflowCompletedCount, setWorkflowCompletedCount] = useState(0);
+  const [loadingWorkflowSteps, setLoadingWorkflowSteps] = useState(false);
 
   const fetchScreenshot = useCallback(async (ticketId) => {
     if (!ticketId) {
@@ -84,20 +100,67 @@ const TicketDetailsPage = ({
     }
   }, []);
 
+  const fetchWorkflowSteps = useCallback(async (ticketId) => {
+    if (!ticketId) {
+      setWorkflowCompletedCount(0);
+      return;
+    }
+    setLoadingWorkflowSteps(true);
+    try {
+      const res = await getDeliveryWorkflowAPI(ticketId);
+      if (res && res.data) {
+        let stepsData = [];
+        if (Array.isArray(res.data)) {
+          stepsData = res.data;
+        } else if (res.data.steps && Array.isArray(res.data.steps)) {
+          stepsData = res.data.steps;
+        } else if (res.data.data && Array.isArray(res.data.data)) {
+          stepsData = res.data.data;
+        }
+
+        let count = 0;
+        STEP_DOC_TYPES.forEach((docType) => {
+          const matching = stepsData.some(
+            (s) =>
+              s &&
+              s.documentType &&
+              String(s.documentType).trim().toLowerCase() === docType.trim().toLowerCase()
+          );
+          if (matching) {
+            count++;
+          }
+        });
+        setWorkflowCompletedCount(count);
+      } else {
+        setWorkflowCompletedCount(0);
+      }
+    } catch (err) {
+      console.error("Error fetching workflow steps in TicketDetailsPage:", err);
+      setWorkflowCompletedCount(0);
+    } finally {
+      setLoadingWorkflowSteps(false);
+    }
+  }, []);
+
   useEffect(() => {
-    if (selectedTicket?.ticketNo) {
-      fetchScreenshot(selectedTicket.ticketNo);
+    const tId = selectedTicket?.ticketNo || selectedTicket?.txnId;
+    if (tId) {
+      fetchScreenshot(tId);
+      fetchWorkflowSteps(tId);
     } else {
       setScreenshotData(null);
+      setWorkflowCompletedCount(0);
     }
-  }, [selectedTicket?.ticketNo, fetchScreenshot]);
+  }, [selectedTicket?.ticketNo, selectedTicket?.txnId, fetchScreenshot, fetchWorkflowSteps]);
 
   const handleCardClick = (idx, ticket) => {
     if (handleSelectTicket) {
       handleSelectTicket(idx, ticket);
     }
-    if (ticket && ticket.ticketNo) {
-      fetchScreenshot(ticket.ticketNo);
+    const tId = ticket?.ticketNo || ticket?.txnId;
+    if (tId) {
+      fetchScreenshot(tId);
+      fetchWorkflowSteps(tId);
     }
   };
 
@@ -216,7 +279,7 @@ const TicketDetailsPage = ({
               {selectedTicket.clientName || "-"}
             </span>
             <span className="mlp-subbar-delivery">
-              {/* Delivery 1 of 10 · TICKET ACK */}
+              Delivery {workflowCompletedCount} of 10
             </span>
           </div>
 
@@ -309,9 +372,19 @@ const TicketDetailsPage = ({
                 <div className="mlp-td-sla-row">
                   <span className="mlp-td-sla-title">SLA</span>
                   <div className="mlp-td-sla-track">
-                    <div className="mlp-td-sla-fill" style={{ width: "35%" }} />
+                    <div
+                      className="mlp-td-sla-fill"
+                      style={{
+                        width: `${(workflowCompletedCount / 10) * 100}%`,
+                        transition: "width 0.4s ease",
+                      }}
+                    />
                   </div>
-                  <span className="mlp-td-sla-text">Delivery 1 of 10 completed</span>
+                  <span className="mlp-td-sla-text">
+                    {loadingWorkflowSteps
+                      ? "Loading steps..."
+                      : `Delivery ${workflowCompletedCount} of 10 completed`}
+                  </span>
                 </div>
 
                 <p className="mlp-td-policy-text">

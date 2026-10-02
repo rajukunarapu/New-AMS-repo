@@ -8,19 +8,33 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from fastapi.staticfiles import StaticFiles
-from routers import auth_router, chat_router, tickets_router
+from contextlib import asynccontextmanager
+from routers import auth_router, chat_router, tickets_router, sla_router
+from services.sla_scheduler import sla_scheduler_instance
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: start SLA Background Scheduler non-blockingly on the event loop
+    await sla_scheduler_instance.start()
+    yield
+    # Shutdown: stop SLA Background Scheduler non-blockingly
+    await sla_scheduler_instance.stop()
+
 
 app = FastAPI(
     title="AMS AI Ticket Intelligence API",
     description=(
         "Production-ready FastAPI backend for Neovatic AMS Ticket Intelligence System. "
         "Allows frontend applications to query tickets using natural language LLM intelligence, "
-        "manage tickets, and route assignment groups using Bearer token authentication."
+        "manage tickets, route assignment groups using Bearer token authentication, "
+        "and monitor SLAs with automated reminders."
     ),
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    lifespan=lifespan
 )
 
 # Enable CORS for all frontend integrations (React, Vue, Next.js, Mobile, etc.)
@@ -40,6 +54,8 @@ if os.path.isdir("frontend"):
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.include_router(tickets_router)
+app.include_router(sla_router)
+
 
 
 @app.get("/health", tags=["System"], summary="API Health Check")

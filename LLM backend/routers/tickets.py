@@ -1,5 +1,5 @@
 """
-routers/tickets.py - Direct AMS Ticket management and Routing endpoints.
+routers/tickets.py - Direct AMS Ticket management and Routing endpoints (Async).
 """
 
 from typing import Optional, List, Dict, Any
@@ -24,13 +24,13 @@ def _get_ams_client(authorization: Optional[str] = None, email: Optional[str] = 
     summary="List all AMS Tickets",
     description="Retrieves tickets from AMS using the Bearer token provided in the Authorization header."
 )
-def get_tickets(
+async def get_tickets(
     authorization: str = Header(..., description="Bearer <token>"),
     email: Optional[str] = Query(None, description="User email (optional)")
 ):
     try:
         ams = _get_ams_client(authorization=authorization, email=email)
-        tickets = ams.get_tickets()
+        tickets = await ams.get_tickets()
         return {
             "success": True,
             "count": len(tickets) if isinstance(tickets, list) else 0,
@@ -48,13 +48,13 @@ def get_tickets(
     summary="List AMS Ticket Statuses",
     description="Retrieves status list from AMS /api/Ticket/Status."
 )
-def get_ticket_status(
+async def get_ticket_status(
     authorization: str = Header(..., description="Bearer <token>"),
     email: Optional[str] = Query(None, description="User email (optional)")
 ):
     try:
         ams = _get_ams_client(authorization=authorization, email=email)
-        statuses = ams.get_ticket_status()
+        statuses = await ams.get_ticket_status()
         return {
             "success": True,
             "data": statuses
@@ -71,7 +71,7 @@ def get_ticket_status(
     summary="Create a new Ticket in AMS",
     description="Creates a ticket directly in AMS /api/Ticket/CreateTicket. If assigntogroup is not supplied, it will be auto-classified using AI."
 )
-def create_ticket(
+async def create_ticket(
     ticket: TicketCreateRequest,
     authorization: str = Header(..., description="Bearer <token>")
 ):
@@ -82,7 +82,7 @@ def create_ticket(
         
         # Auto-classify group if not provided
         if not payload.get("assigntogroup") and payload.get("descriptionofTicket"):
-            payload["assigntogroup"] = assign_group(payload.get("descriptionofTicket", ""))
+            payload["assigntogroup"] = await assign_group(payload.get("descriptionofTicket", ""))
             
         from datetime import datetime
         if not payload.get("reportedon"):
@@ -91,7 +91,7 @@ def create_ticket(
             payload["reportedontime"] = datetime.now().strftime("%H:%M:%S")
         payload["typeofticket"] = normalize_ticket_type(payload.get("typeofticket"))
 
-        result = ams.create_ticket(payload)
+        result = await ams.create_ticket(payload)
         return {
             "success": True,
             "message": "Ticket created successfully in AMS.",
@@ -123,8 +123,8 @@ def get_groups():
     summary="Auto-classify Assignment Group",
     description="Uses NVIDIA / Gemini LLM routing agent to classify ticket description into the correct AMS Assignment Group."
 )
-def route_module(request: RouteModuleRequest):
-    assigned = assign_group(request.description)
+async def route_module(request: RouteModuleRequest):
+    assigned = await assign_group(request.description)
     return RouteModuleResponse(
         description=request.description,
         assigned_group=assigned

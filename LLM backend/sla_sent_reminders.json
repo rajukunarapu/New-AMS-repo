@@ -1,0 +1,92 @@
+{
+  "ATG2609251__ticket ack__2026-09-22T11:58:21.007000": {
+    "sent_at": "2026-09-22T11:29:02.556165",
+    "ticketId": "ATG2609251",
+    "stepName": "Ticket ACK",
+    "sla_deadline": "2026-09-22T11:58:21.007000",
+    "priority_source": "approvedHours",
+    "payload": {
+      "consultantName": "Rahuldhar Gouru",
+      "consultantEmail": "rahuldhar.gouru@neovatic.com",
+      "ticketNo": "ATG2609251",
+      "timeRemaining": "29 Mins",
+      "stepName": "Ticket ACK"
+    },
+    "response": "{'success': True, 'message': 'Reminder email sent successfully.'}"
+  },
+  "ATG2609251__ticket ack__2026-09-22T11:49:49.590000": {
+    "sent_at": "2026-09-22T11:30:03.709164",
+    "ticketId": "ATG2609251",
+    "stepName": "Ticket ACK",
+    "sla_deadline": "2026-09-22T11:49:49.590000",
+    "priority_source": "approvedHours",
+    "payload": {
+      "consultantName": "Rahuldhar Gouru",
+      "consultantEmail": "rahuldhar.gouru@neovatic.com",
+      "ticketNo": "ATG2609251",
+      "timeRemaining": "20 Mins",
+      "stepName": "Ticket ACK"
+    },
+    "response": "{'success': True, 'message': 'Reminder email sent successfully.'}"
+  },
+  "ATG2609251__brd__2026-09-22T11:52:17.220000": {
+    "sent_at": "2026-09-22T11:33:04.901320",
+    "ticketId": "ATG2609251",
+    "stepName": "BRD",
+    "sla_deadline": "2026-09-22T11:52:17.220000",
+    "priority_source": "approvedHours",
+    "payload": {
+      "consultantName": "Satish Kumar Boddu",
+      "consultantEmail": "satish.boddu@neovatic.com",
+      "ticketNo": "ATG2609251",
+      "timeRemaining": "19 Mins",
+      "stepName": "BRD"
+    },
+    "response": "{'success': True, 'message': 'Reminder email sent successfully.'}"
+  },
+  "ATG2609251__bud__2026-09-22T12:05:51.110000": {
+    "sent_at": "2026-09-22T11:36:06.526123",
+    "ticketId": "ATG2609251",
+    "stepName": "BUD",
+    "sla_deadline": "2026-09-22T12:05:51.110000",
+    "priority_source": "approvedHours",
+    "payload": {
+      "consultantName": "Satish Kumar Boddu",
+      "consultantEmail": "satish.boddu@neovatic.com",
+      "ticketNo": "ATG2609251",
+      "timeRemaining": "30 Mins",
+      "stepName": "BUD"
+    },
+    "response": "{'success': True, 'message': 'Reminder email sent successfully.'}"
+  },
+  "ATG2609251__config__2026-09-22T12:34:42.223000": {
+    "sent_at": "2026-09-22T12:27:48.405042",
+    "ticketId": "ATG2609251",
+    "stepName": "CONFIG",
+    "sla_deadline": "2026-09-22T12:34:42.223000",
+    "priority_source": "approvedHours",
+    "payload": {
+      "consultantName": "Thirupathi Galipelly",
+      "consultantEmail": "thirupathi.galipelly@neovatic.com",
+      "ticketNo": "ATG2609251",
+      "timeRemaining": "7 Mins",
+      "stepName": "CONFIG"
+    },
+    "response": "{'success': True, 'message': 'Reminder email sent successfully.'}"
+  },
+  "ATG2609253__ticket ack__2026-09-22T16:38:52.437000": {
+    "sent_at": "2026-09-22T16:42:53.938365",
+    "ticketId": "ATG2609253",
+    "stepName": "Ticket ACK",
+    "sla_deadline": "2026-09-22T16:38:52.437000",
+    "priority_source": "approvedHours",
+    "payload": {
+      "consultantName": "Rahuldhar Gouru",
+      "consultantEmail": "rahuldhar.gouru@neovatic.com",
+      "ticketNo": "ATG2609253",
+      "timeRemaining": "24 Mins",
+      "stepName": "Ticket ACK"
+    },
+    "response": "{'success': True, 'message': 'Reminder email sent successfully.'}"
+  }
+}

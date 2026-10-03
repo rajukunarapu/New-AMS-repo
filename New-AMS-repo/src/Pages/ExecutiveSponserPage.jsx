@@ -55,27 +55,6 @@ const ExecutiveSponsorPage = () => {
       <div className="esp-body-layout">
         {/* Sidebar */}
         <aside className="esp-sidebar">
-          {/* Top Identity Block with Interactive Exit Button */}
-          <div className="esp-identity-row">
-            <div className="esp-identity-user">
-              <div className="esp-sidebar-avatar">{userInitial}</div>
-              <span className="esp-sidebar-name">{userName}</span>
-            </div>
-            <button
-              type="button"
-              className="esp-exit-btn"
-              onClick={handleExit}
-              title="Exit to Home"
-              aria-label="Exit to Home"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-
           {/* 1. PORTFOLIO */}
           <div className="esp-nav-group">
             <div className="esp-nav-group-title">PORTFOLIO</div>
@@ -188,6 +167,12 @@ const ExecutiveSponsorPage = () => {
         <main className="esp-content">
           {activeNav === "dashboard" ? (
             <>
+              {/* Breadcrumb */}
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">EXECUTIVE SPONSOR</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">EXECUTIVE DASHBOARD</span>
+              </div>
               {/* Header */}
               <div style={{ maxWidth: "60%" }}>
                 <h1 className="esp-page-title">Executive Dashboard</h1>
@@ -737,10 +722,15 @@ const ExecutiveSponsorPage = () => {
               </div>
             </>
           ) : activeNav === "neoai" ? (
-            <NeoAIFullPage />
+            <NeoAIFullPage roleName="EXECUTIVE SPONSOR" />
           ) : (
             /* Other Option Placeholder (Screenshot 3) */
             <div className="esp-other-section">
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">EXECUTIVE SPONSOR</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">{(currentNav.label || "SECTION").toUpperCase()}</span>
+              </div>
               <h1 className="esp-page-title">{currentNav.label}</h1>
               <p className="esp-page-subtitle">This option is clicked</p>
               <div className="esp-placeholder-card">

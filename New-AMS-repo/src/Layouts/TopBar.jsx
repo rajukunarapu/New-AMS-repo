@@ -295,8 +295,8 @@ const TopBar = ({ setSearchText, searchText, onNotificationClick }) => {
                             <div className="mlp-profile-card" onClick={(e) => e.stopPropagation()}>
                                 <div className="mlp-profile-header">
                                     <h4 className="mlp-profile-name">{displayName}</h4>
-                                    <span className="mlp-profile-role">{consoleInfo.role}</span>
-                                    <span className="mlp-profile-email">{emailParam || "user@neovatic.com"}</span>
+                                    <span className="mlp-profile-role">{}</span>
+                                    <span className="mlp-profile-email">{emailParam}</span>
                                 </div>
 
                                 <div className="mlp-profile-divider" />

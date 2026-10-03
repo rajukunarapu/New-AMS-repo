@@ -46,6 +46,12 @@ const backlogFlowPairs = [
 const Analytics = () => {
   return (
     <div className="mlp-analytics-container">
+      {/* Breadcrumb */}
+      <div className="cons-breadcrumb-row">
+        <span className="cons-breadcrumb-muted">MODULE LEAD</span>
+        <span className="cons-breadcrumb-sep">›</span>
+        <span className="cons-breadcrumb-curr">ANALYTICS</span>
+      </div>
       {/* Page Header */}
       <div className="mlp-analytics-header">
         <h1 className="mlp-analytics-title">Analytics</h1>

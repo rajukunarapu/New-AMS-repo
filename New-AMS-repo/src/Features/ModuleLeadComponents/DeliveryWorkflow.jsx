@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Alert,
   Skeleton,
@@ -24,6 +25,19 @@ const STEP_DOC_TYPES = {
   step9: "SUBMISSION",
   step10: "VA",
 };
+
+const WORKFLOW_10_STEPS = [
+  { num: 1, key: "step1", name: "Ticket Acknowledgement", short: "Ticket ACK" },
+  { num: 2, key: "step2", name: "BRD", short: "BRD" },
+  { num: 3, key: "step3", name: "BUD", short: "BUD" },
+  { num: 4, key: "step4", name: "Functional Specification", short: "FS" },
+  { num: 5, key: "step5", name: "Technical Specification", short: "TS" },
+  { num: 6, key: "step6", name: "Configuration", short: "CONFIG" },
+  { num: 7, key: "step7", name: "Internal Testing", short: "TEST INTERNAL" },
+  { num: 8, key: "step8", name: "User Manual", short: "U. MANUAL" },
+  { num: 9, key: "step9", name: "Submission", short: "SUBMISSION" },
+  { num: 10, key: "step10", name: "Validation & Acceptance", short: "VA" },
+];
 
 const parseDateTimestamp = (dateStr) => {
   if (!dateStr) return 0;
@@ -197,7 +211,11 @@ const DeliveryWorkflow = ({
   loadingTickets,
   formatPriorityCode,
   getPriorityClass,
+  roleName,
 }) => {
+  const location = useLocation();
+  const isModuleLead = (roleName && roleName.includes("MODULE LEAD")) || (location?.pathname || "").toLowerCase().includes("modulelead");
+  const currentRoleLabel = roleName || (isModuleLead ? "MODULE LEAD" : "CONSULTANT");
   // Helper to format date for input[type="date"] (YYYY-MM-DD)
   const formatDateForInput = (val) => {
     if (!val) return "";
@@ -346,8 +364,19 @@ const DeliveryWorkflow = ({
   const [ackAttachment, setAckAttachment] = useState(null);
   const [ackAttachmentName, setAckAttachmentName] = useState("");
   const [ackCompleted, setAckCompleted] = useState(false);
+  const [brdExpanded, setBrdExpanded] = useState(true);
   const ackFileInputRef = useRef(null);
   const prevTicketIdRef = useRef(null);
+  const pillsContainerRef = useRef(null);
+
+  const handleScrollPills = (direction) => {
+    if (pillsContainerRef.current) {
+      pillsContainerRef.current.scrollBy({
+        left: direction === "left" ? -240 : 240,
+        behavior: "smooth",
+      });
+    }
+  };
 
   // Tracking for records from GetDeliveryWorkflow API
   const [hasStepRecord, setHasStepRecord] = useState({
@@ -1029,49 +1058,105 @@ const DeliveryWorkflow = ({
     ));
   };
 
-  // Helper renderer for step header badges: only Completed or Pending
+  // Helper renderer for step status badge (Completed / On Time)
   const renderStepBadge = (stepKey) => {
-    const isDone = hasStepRecord[stepKey] || completedSteps[stepKey];
+    const isDone = Boolean(hasStepRecord[stepKey] || completedSteps[stepKey]);
     if (isDone) {
-      return <span className="mlp-dw-step-badge-completed">Completed</span>;
+      return (
+        <span className="mlp-dw-step-badge-completed">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+          Completed
+        </span>
+      );
     }
-    return <span className="mlp-dw-step-badge-ontime">Pending</span>;
+    return <span className="mlp-dw-step-badge-ontime">On Time</span>;
   };
+
+  // Calculate completed stages and current active stage for the workflow timeline
+  const completedStagesCount = useMemo(() => {
+    let count = 0;
+    for (let i = 1; i <= 10; i++) {
+      if (hasStepRecord[`step${i}`] || completedSteps[`step${i}`]) {
+        count++;
+      }
+    }
+    return count;
+  }, [hasStepRecord, completedSteps]);
+
+  const currentActiveStepIndex = useMemo(() => {
+    for (let i = 0; i < 10; i++) {
+      const stepKey = WORKFLOW_10_STEPS[i].key;
+      if (!hasStepRecord[stepKey] && !completedSteps[stepKey]) {
+        return i;
+      }
+    }
+    return 9;
+  }, [hasStepRecord, completedSteps]);
+
+  const currentActiveStepObj = WORKFLOW_10_STEPS[currentActiveStepIndex] || WORKFLOW_10_STEPS[0];
+  const progressPercent = Math.round((completedStagesCount / 10) * 100);
+  const isCurrentStepDone = Boolean(hasStepRecord[currentActiveStepObj.key] || completedSteps[currentActiveStepObj.key]);
 
   return (
     <div className="mlp-dw-container">
       <div>
+        <div className="cons-breadcrumb-row">
+          <span className="cons-breadcrumb-muted">{currentRoleLabel}</span>
+          <span className="cons-breadcrumb-sep">›</span>
+          <span className="cons-breadcrumb-curr">DELIVERY WORKFLOW</span>
+        </div>
         <h1 className="mlp-page-title">Delivery Workflow</h1>
         <p className="mlp-page-subtitle">
-          Ten governed steps from acceptance to closure, each with a planned duration and the time actually logged against it. Consultant steps advance here; customer steps complete in the customer portal; every transition is audited.
+          Move through each stage with less friction. Your progress is saved automatically as you work
         </p>
       </div>
 
-      {/* ── Top Horizontal Ticket Selector (with Show More button) ── */}
+      {/* ── Top Horizontal Ticket Selector ── */}
       <div className="mlp-dw-tickets-bar">
-        <div className="mlp-dw-tickets-left">
-          <div className="mlp-dw-ticket-pills">
-            {loadingTickets ? (
-              <Skeleton variant="text" width={280} height={32} />
-            ) : workflowTickets.length === 0 ? (
-              <span style={{ fontSize: "12px", color: "#64748b" }}>No tickets available</span>
-            ) : (
-              workflowTickets.map((t, idx) => {
-                const tNo = t.ticketNo || `T-${idx + 1}`;
-                const isActive = workflowTicketIdx === idx;
-                return (
-                  <button
-                    key={t.ticketNo || t.txnId || t.id || `ticket-${idx}`}
-                    type="button"
-                    className={`mlp-dw-ticket-pill ${isActive ? "active" : ""}`}
-                    onClick={() => setWorkflowTicketIdx(idx)}
-                  >
-                    {tNo}
-                  </button>
-                );
-              })
-            )}
-          </div>
+        <button
+          type="button"
+          className="mlp-dw-nav-arrow"
+          onClick={() => handleScrollPills("left")}
+          aria-label="Scroll left"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="15 18 9 12 15 6" />
+          </svg>
+        </button>
+
+        <div className="mlp-dw-tickets-scroll" ref={pillsContainerRef}>
+          {loadingTickets ? (
+            <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Skeleton
+                  key={i}
+                  variant="rectangular"
+                  width={110}
+                  height={36}
+                  sx={{ borderRadius: "12px" }}
+                />
+              ))}
+            </div>
+          ) : workflowTickets.length === 0 ? (
+            <span style={{ fontSize: "12px", color: "#64748b" }}>No tickets available</span>
+          ) : (
+            workflowTickets.map((t, idx) => {
+              const tNo = t.ticketNo || `T-${idx + 1}`;
+              const isActive = workflowTicketIdx === idx;
+              return (
+                <button
+                  key={t.ticketNo || t.txnId || t.id || `ticket-${idx}`}
+                  type="button"
+                  className={`mlp-dw-ticket-pill ${isActive ? "active" : ""}`}
+                  onClick={() => setWorkflowTicketIdx(idx)}
+                >
+                  {tNo}
+                </button>
+              );
+            })
+          )}
 
           {!loadingTickets && workflowVisibleCount < filteredTickets.length && (
             <button
@@ -1084,33 +1169,158 @@ const DeliveryWorkflow = ({
           )}
         </div>
 
-        <span className="mlp-dw-step-indicator">
-          Step {Math.min(workflowTicketIdx + 1, workflowTickets.length || 1)} of {workflowTickets.length || 10}
-        </span>
+        <button
+          type="button"
+          className="mlp-dw-nav-arrow"
+          onClick={() => handleScrollPills("right")}
+          aria-label="Scroll right"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
       </div>
 
       {/* ── 100% Full-Width Governed Steps ── */}
       <div className="mlp-dw-steps-col">
-        {/* Header Card for Selected Ticket */}
-        <div className="mlp-dw-header-card">
-          <span className="mlp-dw-header-title">
-            {selectedWorkflowTicket?.ticketNo } — {selectedWorkflowTicket?.description || "NA"}
-          </span>
-          {selectedWorkflowTicket && (
-            <span
-              className={`mlp-tc-priority ${
-                getPriorityClass ? getPriorityClass(selectedWorkflowTicket.priority) : "NA"
-              }`}
-            >
-              {formatPriorityCode
-                ? formatPriorityCode(selectedWorkflowTicket.priority)
-                : selectedWorkflowTicket.priority || "NA"}
-            </span>
+        {/* ── Card 1: Ticket Header & Current Stage Summary ── */}
+        <div className="mlp-dw-ticket-summary-card">
+          {loadingTickets ? (
+            <>
+              <div className="mlp-dw-tsc-top">
+                <div style={{ width: "100%" }}>
+                  <Skeleton variant="text" width="55%" height={28} sx={{ borderRadius: "4px" }} />
+                  <Skeleton variant="text" width="28%" height={18} sx={{ marginTop: "4px", borderRadius: "4px" }} />
+                </div>
+                <Skeleton variant="rectangular" width={48} height={24} sx={{ borderRadius: "6px" }} />
+              </div>
+              <div className="mlp-dw-tsc-footer">
+                <Skeleton variant="text" width="22%" height={16} sx={{ borderRadius: "4px" }} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mlp-dw-tsc-top">
+                <div>
+                  <h2 className="mlp-dw-tsc-title">
+                    {selectedWorkflowTicket?.ticketNo || "Ticket"} — {selectedWorkflowTicket?.description || selectedWorkflowTicket?.remarks || "No description provided"}
+                  </h2>
+                  <p className="mlp-dw-tsc-subtitle">
+                    Current ticket · {currentActiveStepObj.name}
+                  </p>
+                </div>
+                {selectedWorkflowTicket && (
+                  <span
+                    className={`mlp-tc-priority ${
+                      getPriorityClass ? getPriorityClass(selectedWorkflowTicket.priority) : "p4"
+                    }`}
+                    style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px" }}
+                  >
+                    {formatPriorityCode
+                      ? formatPriorityCode(selectedWorkflowTicket.priority)
+                      : selectedWorkflowTicket.priority || "P4"}
+                  </span>
+                )}
+              </div>
+              <div className="mlp-dw-tsc-footer">
+                Stage {currentActiveStepObj.num} of 10 · {isCurrentStepDone ? "Complete" : "In Progress"}
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* ── Card 2: Delivery Workflow Timeline Stepper ── */}
+        <div className="mlp-dw-progress-card">
+          {loadingTickets ? (
+            <>
+              <div className="mlp-dw-pc-header">
+                <div>
+                  <Skeleton variant="text" width={220} height={22} sx={{ borderRadius: "4px" }} />
+                  <Skeleton variant="text" width={140} height={16} sx={{ marginTop: "4px", borderRadius: "4px" }} />
+                </div>
+                <div className="mlp-dw-pc-metrics">
+                  <Skeleton variant="text" width={50} height={32} sx={{ borderRadius: "4px" }} />
+                  <Skeleton variant="rectangular" width={70} height={24} sx={{ borderRadius: "9999px" }} />
+                </div>
+              </div>
+              <div className="mlp-dw-stepper-track">
+                {WORKFLOW_10_STEPS.map((s, idx) => (
+                  <div key={s.key} className="mlp-dw-step-node-wrap">
+                    {idx > 0 && <div className="mlp-dw-step-connector" />}
+                    <Skeleton variant="circular" width={26} height={26} />
+                    <Skeleton variant="text" width={40} height={14} sx={{ marginTop: "8px", borderRadius: "4px" }} />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="mlp-dw-pc-header">
+                <div className="mlp-dw-pc-title-block">
+                  <h3 className="mlp-dw-pc-title">
+                    {selectedWorkflowTicket?.ticketNo || "Ticket"} · Delivery workflow
+                  </h3>
+                  <p className="mlp-dw-pc-subtitle">
+                    {completedStagesCount} of 10 stages completed
+                  </p>
+                </div>
+                <div className="mlp-dw-pc-metrics">
+                  <span className="mlp-dw-pc-percent">{progressPercent}%</span>
+                  <span className="mlp-dw-pc-badge">
+                    {progressPercent === 100 ? "Completed" : "On track"}
+                  </span>
+                </div>
+              </div>
+
+              {/* 10-Step Stepper Track */}
+              <div className="mlp-dw-stepper-track">
+                {WORKFLOW_10_STEPS.map((step, idx) => {
+                  const isDone = Boolean(hasStepRecord[step.key] || completedSteps[step.key]);
+                  const isCurrent = idx === currentActiveStepIndex;
+                  const stepNumFormatted = String(step.num).padStart(2, "0");
+                  const labelText = idx === 0 && selectedWorkflowTicket?.ticketNo ? selectedWorkflowTicket.ticketNo : step.short;
+
+                  return (
+                    <div key={step.key} className="mlp-dw-step-node-wrap">
+                      {idx > 0 && (
+                        <div
+                          className={`mlp-dw-step-connector ${
+                            hasStepRecord[WORKFLOW_10_STEPS[idx - 1].key] || completedSteps[WORKFLOW_10_STEPS[idx - 1].key]
+                              ? "completed"
+                              : ""
+                          }`}
+                        />
+                      )}
+                      <div
+                        className={`mlp-dw-step-circle ${
+                          isDone ? "completed" : isCurrent ? "active" : "pending"
+                        }`}
+                      >
+                        {isDone ? (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        ) : (
+                          stepNumFormatted
+                        )}
+                      </div>
+                      <span
+                        className={`mlp-dw-step-lbl ${
+                          isDone ? "completed" : isCurrent ? "active" : "pending"
+                        }`}
+                      >
+                        {labelText}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
 
         {/* Columns guide */}
-        <div className="mlp-dw-columns-guide">
+        {/* <div className="mlp-dw-columns-guide">
           <span>NO</span>
           <span>ACTIVITY</span>
           <span style={{ marginLeft: 30 }}>WORKING DAYS</span>
@@ -1121,22 +1331,62 @@ const DeliveryWorkflow = ({
           <span>STATUS</span>
           <span>ATTACHMENT</span>
           <span>SLA STATUS</span>
-        </div>
+        </div> */}
 
-        {/* Step 01: TICKET ACK */}
-        <div className="mlp-dw-step-card">
-          <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">01</span>
-              <span className="mlp-dw-step-name">TICKET ACK</span>
-              <span className="mlp-dw-step-tag">Ticket acknowledgement to the customer</span>
-              <span className="mlp-dw-step-tag">consultant</span>
-            </div>
-            {renderStepBadge("step1")}
-          </div>
+        {loadingTickets ? (
+          <>
+            {[1, 2, 3, 4].map((idx) => (
+              <div key={`step-skel-${idx}`} className="mlp-dw-step-card">
+                <div className="mlp-dw-step-top">
+                  <div className="mlp-dw-step-title-row">
+                    <Skeleton variant="rectangular" width={28} height={24} sx={{ borderRadius: "4px" }} />
+                    <Skeleton variant="text" width={130} height={22} sx={{ borderRadius: "4px" }} />
+                    <Skeleton variant="rectangular" width={160} height={22} sx={{ borderRadius: "4px" }} />
+                    <Skeleton variant="rectangular" width={80} height={22} sx={{ borderRadius: "4px" }} />
+                  </div>
+                  <Skeleton variant="rectangular" width={75} height={24} sx={{ borderRadius: "9999px" }} />
+                </div>
+                <Skeleton variant="text" width="70%" height={16} sx={{ borderRadius: "4px", margin: "4px 0" }} />
+                <div className="mlp-dw-form-row">
+                  <div className="mlp-dw-field-group">
+                    <Skeleton variant="text" width={80} height={14} sx={{ borderRadius: "4px", marginBottom: "4px" }} />
+                    <Skeleton variant="rectangular" width="100%" height={38} sx={{ borderRadius: "4px" }} />
+                  </div>
+                  <div className="mlp-dw-field-group">
+                    <Skeleton variant="text" width={80} height={14} sx={{ borderRadius: "4px", marginBottom: "4px" }} />
+                    <Skeleton variant="rectangular" width="100%" height={38} sx={{ borderRadius: "4px" }} />
+                  </div>
+                  <div className="mlp-dw-field-group">
+                    <Skeleton variant="text" width={100} height={14} sx={{ borderRadius: "4px", marginBottom: "4px" }} />
+                    <Skeleton variant="rectangular" width="100%" height={38} sx={{ borderRadius: "4px" }} />
+                  </div>
+                  <div className="mlp-dw-field-group">
+                    <Skeleton variant="text" width={120} height={14} sx={{ borderRadius: "4px", marginBottom: "4px" }} />
+                    <Skeleton variant="rectangular" width="100%" height={38} sx={{ borderRadius: "4px" }} />
+                  </div>
+                </div>
+                <div className="mlp-dw-step-footer" style={{ display: "flex", justifyContent: "flex-end", paddingTop: "12px" }}>
+                  <Skeleton variant="rectangular" width={130} height={36} sx={{ borderRadius: "4px" }} />
+                </div>
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            {/* Step 01: TICKET ACK */}
+            <div className="mlp-dw-step-card">
+              <div className="mlp-dw-step-top">
+                <div className="mlp-dw-step-title-row">
+                  <span className="mlp-dw-step-num">01</span>
+                  <span className="mlp-dw-step-name">TICKET ACK</span>
+                  <span className="mlp-dw-step-tag">Ticket acknowledgement to the customer</span>
+                  <span className="mlp-dw-step-tag">consultant</span>
+                </div>
+                {renderStepBadge("step1")}
+              </div>
 
           <p className="mlp-dw-step-desc">
-            Consultant acknowledges the ticket and commits the number of working days for delivery. The customer acknowledgement starts the plan below.
+            Confirm the request details and capture the acknowledgement needed to begin the workflow.
           </p>
 
           {/* Blue-grey Tinted Inner Box */}
@@ -1452,169 +1702,206 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 02: BRD */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">02</span>
-              <span className="mlp-dw-step-name">BRD</span>
-              <span className="mlp-dw-step-tag">Business Requirement Document</span>
-              <span className="mlp-dw-step-tag">consultant</span>
-              <span className="mlp-dw-step-tag">BRD</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">02</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">BRD</span>
+                  <span className="mlp-dw-brd-tag">Define requirements</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => setBrdExpanded((prev) => !prev)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Business Requirements Document</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle BRD details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setBrdExpanded((prev) => !prev);
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: brdExpanded ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Capture the business requirements and align the delivery team on the expected outcome.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step2")}
           </div>
-          <p className="mlp-dw-step-desc">Requirement captured with the customer and issued for review</p>
-          <div className="mlp-dw-form-row">
-            {/* Start Date Field */}
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            {/* End Date Field */}
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step2.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            {/* Responsible By Field (Disabled) */}
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step2.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
 
-            {/* Attachment Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step2 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step2", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step2"] || submittingSteps["step2"]}
-                onClick={() => fileInputRefs.current.step2 && fileInputRefs.current.step2.click()}
-                style={{
-                  opacity: (uploadingFiles["step2"] || submittingSteps["step2"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step2"] || submittingSteps["step2"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step2.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step2"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step2.attachmentName
-                        ? stepsState.step2.attachmentName.length > 12
-                          ? stepsState.step2.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step2.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* BRD Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                BRD STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step2.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step2", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 02 */}
-          {stepsState.step2.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step2.attachmentName}>
-                  {stepsState.step2.attachmentName}
-                </span>
+          {brdExpanded && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                {/* 1. Start Date Field */}
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* 2. End Date Field */}
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step2.endDate || ""}
+                    placeholder="Select date"
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* 3. Responsible Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step2.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* 4. Attachment Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step2 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step2", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step2"] || submittingSteps["step2"]}
+                    onClick={() => fileInputRefs.current.step2 && fileInputRefs.current.step2.click()}
+                    title={stepsState.step2.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step2"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step2.attachmentName
+                            ? stepsState.step2.attachmentName.length > 14
+                              ? stepsState.step2.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step2.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* 5. BRD Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">BRD STATUS</label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step2.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step2")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">
-              {renderStepFooterSubtext(stepsState.step2.days, stepsState.step2.hours, stepsState.step2.responsible)}
-            </p> */}
-            <button
-              type="button"
-              className="mlp-dw-primary-btn"
-              onClick={() => handleSaveStep("step2", "BRD")}
-              disabled={submittingSteps["step2"]}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                opacity: submittingSteps["step2"] ? 0.8 : 1,
-                cursor: submittingSteps["step2"] ? "not-allowed" : "pointer",
-              }}
-            >
-              {submittingSteps["step2"] ? (
-                <>
-                  <CircularProgress size={14} color="inherit" thickness={5} />
-                  <span>Recording BRD...</span>
-                </>
-              ) : (
-                "Record BRD"
+
+              {/* Persistent Attached Document Box for Step 02 */}
+              {stepsState.step2.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step2.attachmentName}>
+                      {stepsState.step2.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step2")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
               )}
-            </button>
-          </div>
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step2", "BRD")}
+                  disabled={submittingSteps["step2"]}
+                >
+                  {submittingSteps["step2"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording BRD...</span>
+                    </>
+                  ) : (
+                    "Record BRD"
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+
           {submittingSteps["step2"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -3329,144 +3616,165 @@ const DeliveryWorkflow = ({
             </div>
           )}
         </div>
+        </>
+        )}
       </div>
 
       {/* ── Bottom AI & SLA Cards Grid (Moved below 10 steps for 100% full width) ── */}
       <div className="mlp-dw-bottom-cards-grid">
-        {/* Card 1: Documents attached to ticket */}
-        <div className="mlp-dw-side-card">
-          <div className="mlp-dw-side-header">
-            <h4 className="mlp-dw-side-title">Documents attached to {selectedWorkflowTicket?.ticketNo || ""}</h4>
-            <span className="mlp-dw-side-meta">reference & history</span>
-          </div>
-          <p className="mlp-dw-side-desc">
-            Only the acknowledgement email to the customer is attached so far. Accept or edit and save an FS, Technical Design or Test Script below and it is attached to the ticket as a version.
-          </p>
-        </div>
-
-        {/* Card 2: AI Document Studio */}
-        <div className="mlp-dw-side-card">
-          <div className="mlp-dw-side-header">
-            <h4 className="mlp-dw-side-title">AI Document Studio</h4>
-            <span className="mlp-dw-side-meta">drafts · human review</span>
-          </div>
-          <div className="mlp-dw-doc-tabs">
-            {["FS Document", "Technical Design", "Test Scripts"].map((tab) => (
-              <button
-                key={tab}
-                type="button"
-                className={`mlp-dw-doc-tab ${workflowDocTab === tab ? "active" : ""}`}
-                onClick={() => setWorkflowDocTab(tab)}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-          <p className="mlp-dw-side-desc">
-            Drafted from the ticket thread, the BU document and prior accepted documents on similar tickets.
-          </p>
-          <button
-            type="button"
-            className="mlp-dw-primary-btn"
-            style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "6px" }}
-            disabled={activeActions["docStudio"]}
-            onClick={() => handleTriggerAction("docStudio", `${workflowDocTab} generated with AI and attached to drafts.`)}
-          >
-            {activeActions["docStudio"] ? (
-              <>
-                <CircularProgress size={12} color="inherit" thickness={5} />
-                <span>Generating {workflowDocTab}...</span>
-              </>
-            ) : (
-              `Generate ${workflowDocTab} with AI`
-            )}
-          </button>
-        </div>
-
-        {/* Card 3: AI Configuration Assist */}
-        <div className="mlp-dw-side-card">
-          <div className="mlp-dw-side-header">
-            <h4 className="mlp-dw-side-title">AI Configuration Assist</h4>
-            <span className="mlp-dw-side-meta">advisory only</span>
-          </div>
-          <p className="mlp-dw-side-desc">
-            Grounded in the FS, Technical Design and Test Scripts on this ticket plus approved knowledge. Nothing executes — you configure, it guides.
-          </p>
-          <button
-            type="button"
-            className="mlp-dw-primary-btn"
-            style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "6px" }}
-            disabled={activeActions["configPlan"]}
-            onClick={() => handleTriggerAction("configPlan", "Configuration plan and recommendations generated.")}
-          >
-            {activeActions["configPlan"] ? (
-              <>
-                <CircularProgress size={12} color="inherit" thickness={5} />
-                <span>Generating Plan...</span>
-              </>
-            ) : (
-              "Generate configuration plan"
-            )}
-          </button>
-        </div>
-
-        {/* Card 4: SLA Monitor Agent */}
-        <div className="mlp-dw-side-card">
-          <div className="mlp-dw-side-header">
-            <h4 className="mlp-dw-side-title">SLA Monitor Agent</h4>
-            <span className="mlp-dw-side-meta">run every 15 min</span>
-          </div>
-          <p className="mlp-dw-side-desc">
-            Reads the start date, end date and status timestamp on every activity; then notifies the stakeholders when one is due, overdue or on hold. It notifies — it never changes a status.
-          </p>
-
-          <div className="mlp-dw-sla-list">
-            {[
-              { title: "TICKET ACK", desc: "Completed within the planned end date" },
-              { title: "BRD", desc: "Completed within the planned end date" },
-              { title: "BUD", desc: "Completed within the planned end date" },
-              { title: "FS", desc: "Completed within the planned end date" },
-              { title: "TS", desc: "Completed within the planned end date" },
-              { title: "CONFIG", desc: "Completed within the planned end date" },
-              { title: "TEST INTERNAL", desc: "Completed within the planned end date" },
-              { title: "U. MANUAL", desc: "Completed within the planned end date" },
-              { title: "SUBMISSION", desc: "Completed within the planned end date" },
-              { title: "VA", desc: "Completed within the planned end date" },
-            ].map((item) => (
-              <div className="mlp-dw-sla-item" key={item.title}>
-                <div className="mlp-dw-sla-item-left">
-                  <span className="mlp-dw-sla-item-title">{item.title}</span>
-                  <span className="mlp-dw-sla-item-desc">{item.desc}</span>
+        {loadingTickets ? (
+          <>
+            {[1, 2, 3, 4].map((i) => (
+              <div key={`bottom-skel-${i}`} className="mlp-dw-side-card">
+                <div className="mlp-dw-side-header">
+                  <Skeleton variant="text" width={180} height={20} sx={{ borderRadius: "4px" }} />
+                  <Skeleton variant="rectangular" width={90} height={18} sx={{ borderRadius: "4px" }} />
                 </div>
-                <span className="mlp-dw-step-badge-ontime">On time</span>
+                <Skeleton variant="text" width="90%" height={16} sx={{ borderRadius: "4px", margin: "8px 0 4px" }} />
+                <Skeleton variant="text" width="75%" height={16} sx={{ borderRadius: "4px" }} />
+                <Skeleton variant="rectangular" width={160} height={34} sx={{ borderRadius: "4px", marginTop: "12px" }} />
               </div>
             ))}
-          </div>
+          </>
+        ) : (
+          <>
+            {/* Card 1: Documents attached to ticket */}
+            <div className="mlp-dw-side-card">
+              <div className="mlp-dw-side-header">
+                <h4 className="mlp-dw-side-title">Documents attached to {selectedWorkflowTicket?.ticketNo || ""}</h4>
+                <span className="mlp-dw-side-meta">reference & history</span>
+              </div>
+              <p className="mlp-dw-side-desc">
+                Only the acknowledgement email to the customer is attached so far. Accept or edit and save an FS, Technical Design or Test Script below and it is attached to the ticket as a version.
+              </p>
+            </div>
 
-          <button
-            type="button"
-            className="mlp-dw-primary-btn"
-            style={{ alignSelf: "flex-start", marginTop: 4, display: "inline-flex", alignItems: "center", gap: "6px" }}
-            disabled={activeActions["slaMonitor"]}
-            onClick={() => handleTriggerAction("slaMonitor", "SLA monitor run completed. Stakeholders notified.")}
-          >
-            {activeActions["slaMonitor"] ? (
-              <>
-                <CircularProgress size={12} color="inherit" thickness={5} />
-                <span>Running Monitor...</span>
-              </>
-            ) : (
-              "Run SLA monitor now"
-            )}
-          </button>
+            {/* Card 2: AI Document Studio */}
+            <div className="mlp-dw-side-card">
+              <div className="mlp-dw-side-header">
+                <h4 className="mlp-dw-side-title">AI Document Studio</h4>
+                <span className="mlp-dw-side-meta">drafts · human review</span>
+              </div>
+              <div className="mlp-dw-doc-tabs">
+                {["FS Document", "Technical Design", "Test Scripts"].map((tab) => (
+                  <button
+                    key={tab}
+                    type="button"
+                    className={`mlp-dw-doc-tab ${workflowDocTab === tab ? "active" : ""}`}
+                    onClick={() => setWorkflowDocTab(tab)}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <p className="mlp-dw-side-desc">
+                Drafted from the ticket thread, the BU document and prior accepted documents on similar tickets.
+              </p>
+              <button
+                type="button"
+                className="mlp-dw-primary-btn"
+                style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                disabled={activeActions["docStudio"]}
+                onClick={() => handleTriggerAction("docStudio", `${workflowDocTab} generated with AI and attached to drafts.`)}
+              >
+                {activeActions["docStudio"] ? (
+                  <>
+                    <CircularProgress size={12} color="inherit" thickness={5} />
+                    <span>Generating {workflowDocTab}...</span>
+                  </>
+                ) : (
+                  `Generate ${workflowDocTab} with AI`
+                )}
+              </button>
+            </div>
 
-          <p className="mlp-dw-side-desc" style={{ fontSize: "10px", marginTop: 4 }}>
-            Recipients per flagged activity: customer contact, assigned consultant, module lead and the service delivery manager. Every send is written to the notification log with an idempotency key.
-          </p>
-        </div>
+            {/* Card 3: AI Configuration Assist */}
+            <div className="mlp-dw-side-card">
+              <div className="mlp-dw-side-header">
+                <h4 className="mlp-dw-side-title">AI Configuration Assist</h4>
+                <span className="mlp-dw-side-meta">advisory only</span>
+              </div>
+              <p className="mlp-dw-side-desc">
+                Grounded in the FS, Technical Design and Test Scripts on this ticket plus approved knowledge. Nothing executes — you configure, it guides.
+              </p>
+              <button
+                type="button"
+                className="mlp-dw-primary-btn"
+                style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                disabled={activeActions["configPlan"]}
+                onClick={() => handleTriggerAction("configPlan", "Configuration plan and recommendations generated.")}
+              >
+                {activeActions["configPlan"] ? (
+                  <>
+                    <CircularProgress size={12} color="inherit" thickness={5} />
+                    <span>Generating Plan...</span>
+                  </>
+                ) : (
+                  "Generate configuration plan"
+                )}
+              </button>
+            </div>
+
+            {/* Card 4: SLA Monitor Agent */}
+            <div className="mlp-dw-side-card">
+              <div className="mlp-dw-side-header">
+                <h4 className="mlp-dw-side-title">SLA Monitor Agent</h4>
+                <span className="mlp-dw-side-meta">run every 15 min</span>
+              </div>
+              <p className="mlp-dw-side-desc">
+                Reads the start date, end date and status timestamp on every activity; then notifies the stakeholders when one is due, overdue or on hold. It notifies — it never changes a status.
+              </p>
+
+              <div className="mlp-dw-sla-list">
+                {[
+                  { title: "TICKET ACK", desc: "Completed within the planned end date" },
+                  { title: "BRD", desc: "Completed within the planned end date" },
+                  { title: "BUD", desc: "Completed within the planned end date" },
+                  { title: "FS", desc: "Completed within the planned end date" },
+                  { title: "TS", desc: "Completed within the planned end date" },
+                  { title: "CONFIG", desc: "Completed within the planned end date" },
+                  { title: "TEST INTERNAL", desc: "Completed within the planned end date" },
+                  { title: "U. MANUAL", desc: "Completed within the planned end date" },
+                  { title: "SUBMISSION", desc: "Completed within the planned end date" },
+                  { title: "VA", desc: "Completed within the planned end date" },
+                ].map((item) => (
+                  <div className="mlp-dw-sla-item" key={item.title}>
+                    <div className="mlp-dw-sla-item-left">
+                      <span className="mlp-dw-sla-item-title">{item.title}</span>
+                      <span className="mlp-dw-sla-item-desc">{item.desc}</span>
+                    </div>
+                    <span className="mlp-dw-step-badge-ontime">On time</span>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                type="button"
+                className="mlp-dw-primary-btn"
+                style={{ alignSelf: "flex-start", marginTop: 4, display: "inline-flex", alignItems: "center", gap: "6px" }}
+                disabled={activeActions["slaMonitor"]}
+                onClick={() => handleTriggerAction("slaMonitor", "SLA monitor run completed. Stakeholders notified.")}
+              >
+                {activeActions["slaMonitor"] ? (
+                  <>
+                    <CircularProgress size={12} color="inherit" thickness={5} />
+                    <span>Running Monitor...</span>
+                  </>
+                ) : (
+                  "Run SLA monitor now"
+                )}
+              </button>
+
+              <p className="mlp-dw-side-desc" style={{ fontSize: "10px", marginTop: 4 }}>
+                Recipients per flagged activity: customer contact, assigned consultant, module lead and the service delivery manager. Every send is written to the notification log with an idempotency key.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
 
         {/* Card 5: Rules of the flow */}
-        <div className="mlp-dw-side-card">
+        {/* <div className="mlp-dw-side-card">
           <h4 className="mlp-dw-side-title">Rules of the flow</h4>
           <div className="mlp-dw-rules-list">
             <div>— Activity 1 is the acknowledgement: the consultant commits the number of working days and the customer acknowledges it before the plan starts.</div>
@@ -3474,8 +3782,7 @@ const DeliveryWorkflow = ({
             <div>— Documents are attached to the ticket; providing one is an audited activity, not a status flag.</div>
             <div>— Validation and acceptance is the customer's activity; acceptance closes the ticket and emits the KB candidate and CSAT survey.</div>
           </div>
-        </div>
-      </div>
+        </div> */}
     </div>
   );
 };

@@ -26,6 +26,11 @@ const TicketList = ({
   return (
     <div className="mlp-tl-container">
       <div>
+        <div className="cons-breadcrumb-row">
+          <span className="cons-breadcrumb-muted">MODULE LEAD</span>
+          <span className="cons-breadcrumb-sep">›</span>
+          <span className="cons-breadcrumb-curr">TICKET LIST</span>
+        </div>
         <h1 className="mlp-page-title">Ticket List</h1>
         <p className="mlp-page-subtitle">
           Every open ticket carries a live response and resolution clock. Confidence and model route are shown on each row.

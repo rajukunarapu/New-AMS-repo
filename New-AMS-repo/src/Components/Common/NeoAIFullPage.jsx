@@ -1,10 +1,33 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import "../../Styles/NeoAIFullPage.css";
 import { CircularProgress } from "@mui/material";
 import { useNeoAI } from "../../Context/NeoAIContext";
 import FormattedMarkdown, { SingleTicketCard, MultiTicketTable, ImageThumbnail } from "./FormattedMessage";
 
-const NeoAIFullPage = () => {
+const NeoAIFullPage = ({ roleName }) => {
+  const location = useLocation();
+  const p = (location?.pathname || "").toLowerCase();
+  const isModuleLead = (roleName && roleName.includes("MODULE LEAD")) || p.includes("modulelead");
+  const isCustomer = (roleName && roleName.includes("CUSTOMER")) || p.includes("customer");
+  const isAdmin = (roleName && roleName.includes("ADMIN")) || p.includes("admin");
+  const isExecutive = (roleName && roleName.includes("EXECUTIVE")) || p.includes("executive");
+  const isSLA = (roleName && roleName.includes("SLA")) || p.includes("sla");
+
+  const resolvedRole =
+    roleName ||
+    (isModuleLead
+      ? "MODULE LEAD"
+      : isCustomer
+      ? "CUSTOMER"
+      : isAdmin
+      ? "ADMINISTRATOR"
+      : isExecutive
+      ? "EXECUTIVE SPONSOR"
+      : isSLA
+      ? "SLA FRAMEWORK"
+      : "CONSULTANT");
+
   const [query, setQuery] = useState("");
   const { messages, isThinking, askNeoAI, resetChat, loadConversation, defaultSuggestions } = useNeoAI();
 
@@ -129,6 +152,11 @@ const NeoAIFullPage = () => {
     <div className="neoai-fullpage-container">
       {/* Header Section */}
       <div className="neoai-fullpage-header">
+        <div className="cons-breadcrumb-row">
+          <span className="cons-breadcrumb-muted">{resolvedRole}</span>
+          <span className="cons-breadcrumb-sep">›</span>
+          <span className="cons-breadcrumb-curr">NEOAI</span>
+        </div>
         <h1 className="neoai-fullpage-title">NeOAI</h1>
         <p className="neoai-fullpage-subtitle">
           Ask about tickets, customers and past fixes in plain language. Answers cite where they came from, and an unsupported question gets "no answer" rather than a guess.

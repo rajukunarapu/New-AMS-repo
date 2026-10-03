@@ -61,21 +61,6 @@ const SLAFrameworkPage = () => {
       <div className="sla-body-layout">
         {/* Sidebar */}
         <aside className="sla-sidebar">
-          {/* Top Identity Block */}
-          <div className="sla-identity-row">
-            <div className="sla-identity-user">
-              <div className="sla-sidebar-avatar">{userInitial}</div>
-              <span className="sla-sidebar-name">{userName}</span>
-            </div>
-            <button type="button" className="sla-exit-btn" onClick={handleExit} title="Exit to Home" aria-label="Exit to Home">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-
           {/* 1. THE FRAMEWORK */}
           <div className="sla-nav-group">
             <div className="sla-nav-group-title">THE FRAMEWORK</div>
@@ -300,6 +285,12 @@ const SLAFrameworkPage = () => {
         <main className="sla-content">
           {activeNav === "framework-overview" ? (
             <>
+              {/* Breadcrumb */}
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">SLA FRAMEWORK</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">FRAMEWORK OVERVIEW</span>
+              </div>
               {/* Header */}
               <div className="sla-header-section">
                 <h1 className="sla-page-title">Framework Overview</h1>
@@ -411,10 +402,15 @@ const SLAFrameworkPage = () => {
               </div>
             </>
           ) : activeNav === "neoai" ? (
-            <NeoAIFullPage />
+            <NeoAIFullPage roleName="SLA FRAMEWORK" />
           ) : (
             /* Other Option Placeholder (Screenshot 3) */
             <div className="sla-other-section">
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">SLA FRAMEWORK</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">{(currentNav.label || "SECTION").toUpperCase()}</span>
+              </div>
               <h1 className="sla-page-title">{currentNav.label}</h1>
               <p className="sla-page-subtitle">This option is clicked</p>
               <div className="sla-placeholder-card">

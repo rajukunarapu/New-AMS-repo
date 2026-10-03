@@ -76,6 +76,12 @@ const overrideGroundingData = [
 const Insights = () => {
   return (
     <div className="mlp-insights-container">
+      {/* Breadcrumb */}
+      <div className="cons-breadcrumb-row">
+        <span className="cons-breadcrumb-muted">MODULE LEAD</span>
+        <span className="cons-breadcrumb-sep">›</span>
+        <span className="cons-breadcrumb-curr">INSIGHTS</span>
+      </div>
       {/* Page Header */}
       <div className="mlp-insights-header">
         <h1 className="mlp-insights-title">Insights</h1>

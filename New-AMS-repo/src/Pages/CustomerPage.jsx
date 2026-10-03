@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import "../Styles/CustomerPage.css";
+import "../Styles/ConsultantPage.css";
 import { getUserInfo } from "../Utils/GetUserInfoHelper";
 import TopBar from "../Layouts/TopBar";
 import NeoAIChatWidget from "../Components/Common/NeoAIChatWidget";
@@ -367,27 +368,6 @@ const CustomerPage = () => {
       <div className="cp-body-layout">
         {/* Sidebar */}
         <aside className="cp-sidebar">
-          {/* Top Identity Block */}
-          <div className="cp-identity-row">
-            <div className="cp-identity-user">
-              <div className="cp-sidebar-avatar">{userInitial}</div>
-              <span className="cp-sidebar-name">{userName}</span>
-            </div>
-            <button
-              type="button"
-              className="cp-exit-btn"
-              onClick={handleExit}
-              title="Exit to Home"
-              aria-label="Exit to Home"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-
           {/* 1. PORTAL */}
           <div className="cp-nav-group">
             <div className="cp-nav-group-title">PORTAL</div>
@@ -438,42 +418,175 @@ const CustomerPage = () => {
         <main className="cp-content">
           {activeNav === "portal" ? (
             <div className="cp-portal-main">
+              {/* Breadcrumb */}
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">CUSTOMER</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">CUSTOMER PORTAL</span>
+              </div>
+
               {/* Header */}
               <div className="cp-header-wrap">
                 <h1 className="cp-page-title">Customer Portal</h1>
                 <p className="cp-page-subtitle">
                   Your tickets only, enforced at the data layer. Review documents, accept timelines, run UAT and sign off.
                 </p>
-                <div className="cp-page-meta">
+                {/* <div className="cp-page-meta">
                   Vantage Foods · signed in as {userName || "Customer"}
-                </div>
+                </div> */}
               </div>
 
               {/* 4 Stat Cards */}
-              <div className="cp-stat-grid-4">
-                <div className="cp-stat-card blue">
-                  <div className="cp-stat-label">OPEN TICKETS</div>
-                  <div className="cp-stat-value">{filteredTickets.length}</div>
-                  <div className="cp-stat-note">with Neovatic AMS</div>
+              <div className="cons-stat-grid-4" style={{ marginBottom: "20px" }}>
+                {/* Card 1: OPEN IN MY TEAM */}
+                <div className="cons-stat-card cons-card-emerald">
+                  <div className="cons-stat-watermark">
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <div className="cons-stat-header">
+                    <div className="cons-icon-bubble cons-bubble-emerald">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <span className="cons-stat-label">OPEN IN MY TEAM</span>
+                  </div>
+                  <div className="cons-stat-body">
+                    <span className="cons-stat-big-num">
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : (filteredTickets.length || 20)}
+                    </span>
+                    <span className="cons-pill-badge cons-pill-emerald">
+                      Active Queue <span className="cons-pill-chevron">›</span>
+                    </span>
+                  </div>
+                  <div className="cons-stat-footer">
+                    <span>SAP FICO · click to open the list</span>
+                  </div>
                 </div>
 
-                <div className="cp-stat-card green">
-                  <div className="cp-stat-label">AWAITING YOUR ACTION</div>
-                  <div className="cp-stat-value">0</div>
-                  <div className="cp-stat-note">timelines, UAT or sign-off</div>
+                {/* Card 2: AWAITING MY ALLOCATION */}
+                <div className="cons-stat-card cons-card-teal">
+                  <div className="cons-stat-watermark">
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                    </svg>
+                  </div>
+                  <div className="cons-stat-header">
+                    <div className="cons-icon-bubble cons-bubble-teal">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                        <line x1="19" y1="8" x2="19" y2="14" />
+                        <line x1="22" y1="11" x2="16" y2="11" />
+                      </svg>
+                    </div>
+                    <span className="cons-stat-label">AWAITING MY ALLOCATION</span>
+                  </div>
+                  <div className="cons-stat-body">
+                    <span className="cons-stat-big-num">
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : 331}
+                    </span>
+                    <span className="cons-pill-badge cons-pill-teal">
+                      Unassigned <span className="cons-pill-chevron">›</span>
+                    </span>
+                  </div>
+                  <div className="cons-stat-footer">
+                    <span>routed to my module by the agent</span>
+                  </div>
                 </div>
 
-                <div className="cp-stat-card gold">
-                  <div className="cp-stat-label">IN DELIVERY</div>
-                  <div className="cp-stat-value">{filteredTickets.length > 0 ? 1 : 0}</div>
-                  <div className="cp-stat-note">past acceptance</div>
+                {/* Card 3: SLA AT RISK */}
+                <div className="cons-stat-card cons-card-amber">
+                  <div className="cons-stat-watermark">
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                      <line x1="12" y1="9" x2="12" y2="13" />
+                      <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
+                  </div>
+                  <div className="cons-stat-header">
+                    <div className="cons-icon-bubble cons-bubble-amber">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <polyline points="12 6 12 12 16 14" />
+                      </svg>
+                    </div>
+                    <span className="cons-stat-label">SLA AT RISK</span>
+                  </div>
+                  <div className="cons-stat-body">
+                    <span className="cons-stat-big-num">
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : 3499}
+                    </span>
+                    <span className="cons-pill-badge cons-pill-amber">
+                      At Risk <span className="cons-pill-chevron">›</span>
+                    </span>
+                  </div>
+                  <div className="cons-stat-footer">
+                    <span>above 75% of the resolution target</span>
+                  </div>
                 </div>
 
-                <div className="cp-stat-card purple">
-                  <div className="cp-stat-label">CLOSED THIS QUARTER</div>
-                  <div className="cp-stat-value">12</div>
-                  <div className="cp-stat-note">CSAT 4.8 of 5</div>
+                {/* Card 4: WITH THE CUSTOMER */}
+                <div className="cons-stat-card cons-card-purple">
+                  <div className="cons-stat-watermark">
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                      <circle cx="12" cy="12" r="10" />
+                      <polyline points="12 6 12 12 14 14" />
+                    </svg>
+                  </div>
+                  <div className="cons-stat-header">
+                    <div className="cons-icon-bubble cons-bubble-purple">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="2" y="3" width="20" height="14" rx="2" />
+                        <line x1="8" y1="21" x2="16" y2="21" />
+                        <line x1="12" y1="17" x2="12" y2="21" />
+                      </svg>
+                    </div>
+                    <span className="cons-stat-label">WITH THE CUSTOMER</span>
+                  </div>
+                  <div className="cons-stat-body">
+                    <span className="cons-stat-big-num">
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : 2}
+                    </span>
+                    <span className="cons-pill-badge cons-pill-purple">
+                      Paused <span className="cons-pill-chevron">›</span>
+                    </span>
+                  </div>
+                  <div className="cons-stat-footer">
+                    <span>clock paused where the contract allows</span>
+                  </div>
                 </div>
+              </div>
+
+              {/* All Tickets Section Header Row with Show More at Beginning */}
+              <div className="cp-tickets-header-row" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+                  <span className="cp-tickets-section-label" style={{ fontSize: "12.5px", fontWeight: 700, color: "#0f172a", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    All Tickets
+                  </span>
+                  <span className="cp-tickets-count" style={{ fontSize: "11.5px", fontWeight: 600, color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "2px 8px", borderRadius: "9999px" }}>
+                    {loadingTickets
+                      ? "Loading tickets..."
+                      : `${Math.min(visibleCount, filteredTickets.length)} of ${filteredTickets.length || 0} tickets`}
+                  </span>
+                </div>
+
+                {!loadingTickets && visibleCount < filteredTickets.length && (
+                  <button
+                    type="button"
+                    className="cp-show-more-btn"
+                    onClick={() => setVisibleCount((prev) => prev + 10)}
+                  >
+                    <span>Show more tickets</span>
+                    <span className="cp-show-more-count">
+                      ({filteredTickets.length - visibleCount} remaining)
+                    </span>
+                  </button>
+                )}
               </div>
 
               {/* Ticket Cards List */}
@@ -847,22 +960,6 @@ const CustomerPage = () => {
                         </div>
                       );
                     })}
-
-                    {/* Show More Button */}
-                    {filteredTickets.length > visibleCount && (
-                      <div className="cp-show-more-row">
-                        <button
-                          type="button"
-                          className="cp-show-more-btn"
-                          onClick={() => setVisibleCount((prev) => prev + 10)}
-                        >
-                          <span>Show More Tickets</span>
-                          <span className="cp-show-more-count">
-                            ({visibleTickets.length} of {filteredTickets.length})
-                          </span>
-                        </button>
-                      </div>
-                    )}
                   </>
                 )}
               </div>
@@ -873,10 +970,15 @@ const CustomerPage = () => {
               </div>
             </div>
           ) : activeNav === "neoai" ? (
-            <NeoAIFullPage />
+            <NeoAIFullPage roleName="CUSTOMER" />
           ) : (
             /* Notifications / Other Placeholder (Screenshot 2) */
             <div className="cp-other-section">
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">CUSTOMER</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">{(currentNav.label || "NOTIFICATIONS").toUpperCase()}</span>
+              </div>
               <h1 className="cp-page-title">{currentNav.label}</h1>
               <p className="cp-page-subtitle">This option is clicked</p>
               <div className="cp-placeholder-card">

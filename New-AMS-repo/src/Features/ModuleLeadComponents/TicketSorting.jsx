@@ -77,6 +77,12 @@ const TicketSorting = ({
 
   return (
     <div className="mlp-ts-container">
+      {/* Breadcrumb */}
+      <div className="cons-breadcrumb-row">
+        <span className="cons-breadcrumb-muted">MODULE LEAD</span>
+        <span className="cons-breadcrumb-sep">›</span>
+        <span className="cons-breadcrumb-curr">TICKET SORTING</span>
+      </div>
       {/* Page Header */}
       <div className="mlp-ts-header">
         <h1 className="mlp-ts-title">Ticket Sorting</h1>

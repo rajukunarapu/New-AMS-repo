@@ -61,27 +61,6 @@ const AdministratorPage = () => {
       <div className="adp-body-layout">
         {/* Sidebar */}
         <aside className="adp-sidebar">
-          {/* Top Identity Block with Interactive Exit Button */}
-          <div className="adp-identity-row">
-            <div className="adp-identity-user">
-              <div className="adp-sidebar-avatar">{userInitial}</div>
-              <span className="adp-sidebar-name">{userName}</span>
-            </div>
-            <button
-              type="button"
-              className="adp-exit-btn"
-              onClick={handleExit}
-              title="Exit to Home"
-              aria-label="Exit to Home"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-
           {/* 1. PLATFORM */}
           <div className="adp-nav-group">
             <div className="adp-nav-group-title">PLATFORM</div>
@@ -357,6 +336,12 @@ const AdministratorPage = () => {
         <main className="adp-content">
           {activeNav === "agent-health" ? (
             <>
+              {/* Breadcrumb */}
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">ADMINISTRATOR</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">AGENT HEALTH</span>
+              </div>
               {/* Header */}
               <h1 className="adp-page-title">Agent Health</h1>
               <p className="adp-page-subtitle">
@@ -556,10 +541,15 @@ const AdministratorPage = () => {
               </div>
             </>
           ) : activeNav === "neoai" ? (
-            <NeoAIFullPage />
+            <NeoAIFullPage roleName="ADMINISTRATOR" />
           ) : (
             /* Other Option Placeholder */
             <div className="adp-other-section">
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">ADMINISTRATOR</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">{(currentNav.label || "SECTION").toUpperCase()}</span>
+              </div>
               <h1 className="adp-page-title">{currentNav.label}</h1>
               <p className="adp-page-subtitle">This option is clicked</p>
               <div className="adp-placeholder-card">

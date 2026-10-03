@@ -242,7 +242,7 @@ const LoginPage = () => {
 
           {/* Footer Copyright */}
           <div className="lp-hero-footer">
-            © 2026 Neovatic AI AMS · Built for clarity.
+            © 2026 Neovatic AI AMS
           </div>
         </div>
       </div>

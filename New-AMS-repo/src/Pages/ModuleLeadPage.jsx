@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import "../Styles/ModuleLeadPage.css";
+import "../Styles/ConsultantPage.css";
 import { ticketsAPI } from "../Services/TicketsAPI";
 import { getEmployeesAPI } from "../Services/GetEmployeesAPI";
 import { getPriorityAPI } from "../Services/GetPriority";
@@ -589,21 +590,6 @@ const ModuleLeadPage = () => {
       <div className="mlp-body-layout">
         {/* Sidebar */}
         <aside className="mlp-sidebar">
-          {/* Top Identity Block */}
-          <div className="mlp-identity-row">
-            <div className="mlp-identity-user">
-              <div className="mlp-sidebar-avatar">{userInitial}</div>
-              <span className="mlp-sidebar-name">{userName}</span>
-            </div>
-            <button type="button" className="mlp-exit-btn" onClick={handleExit} title="Exit to Home" aria-label="Exit to Home">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-
           {/* 1. MY WORK */}
           <div className="mlp-nav-group">
             <div className="mlp-nav-group-title">MY WORK</div>
@@ -786,6 +772,8 @@ const ModuleLeadPage = () => {
               toPriorityPayloadString={toPriorityPayloadString}
               searchText={searchText}
               showAssignUpdateCard={true}
+              roleName="MODULE LEAD"
+              tabName="TICKET DETAILS"
             />
           ) : activeNav === "ticket-list" ? (
             <TicketList

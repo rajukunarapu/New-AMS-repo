@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import "../../Styles/ConsultantPage.css";
 import "../../Styles/ModuleLeadPage.css";
 
@@ -12,7 +13,29 @@ const defaultSettings = {
   warnClock: true,
 };
 
-const AIConfiguration = () => {
+const AIConfiguration = ({ roleName }) => {
+  const location = useLocation();
+  const p = (location?.pathname || "").toLowerCase();
+  const isModuleLead = (roleName && roleName.includes("MODULE LEAD")) || p.includes("modulelead");
+  const isCustomer = (roleName && roleName.includes("CUSTOMER")) || p.includes("customer");
+  const isAdmin = (roleName && roleName.includes("ADMIN")) || p.includes("admin");
+  const isExecutive = (roleName && roleName.includes("EXECUTIVE")) || p.includes("executive");
+  const isSLA = (roleName && roleName.includes("SLA")) || p.includes("sla");
+
+  const resolvedRole =
+    roleName ||
+    (isModuleLead
+      ? "MODULE LEAD"
+      : isCustomer
+      ? "CUSTOMER"
+      : isAdmin
+      ? "ADMINISTRATOR"
+      : isExecutive
+      ? "EXECUTIVE SPONSOR"
+      : isSLA
+      ? "SLA FRAMEWORK"
+      : "CONSULTANT");
+
   const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem("neoai_config_settings");
@@ -45,6 +68,12 @@ const AIConfiguration = () => {
 
   return (
     <div className="mlp-aiconfig-container">
+      {/* Breadcrumb */}
+      <div className="cons-breadcrumb-row">
+        <span className="cons-breadcrumb-muted">{resolvedRole}</span>
+        <span className="cons-breadcrumb-sep">›</span>
+        <span className="cons-breadcrumb-curr">AI CONFIGURATION</span>
+      </div>
       {/* Page Header */}
       <div className="mlp-aiconfig-header">
         <h1 className="mlp-aiconfig-title">AI Configuration</h1>

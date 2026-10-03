@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useLocation } from "react-router-dom";
 import {
   Alert,
   Skeleton,
@@ -9,6 +10,7 @@ import {
   DialogActions,
   Button,
   IconButton,
+  Snackbar,
 } from "@mui/material";
 import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
@@ -68,12 +70,27 @@ const TicketDetailsPage = ({
   toPriorityPayloadString,
   searchText,
   showAssignUpdateCard = true,
+  roleName,
+  tabName,
 }) => {
+  const location = useLocation();
+  const isModuleLead = (roleName && roleName.includes("MODULE LEAD")) || (location?.pathname || "").toLowerCase().includes("modulelead");
+  const currentRoleLabel = roleName || (isModuleLead ? "MODULE LEAD" : "CONSULTANT");
+  const currentTabLabel = tabName || (isModuleLead ? "TICKET DETAILS" : "MY TICKET DETAILS");
   const [screenshotData, setScreenshotData] = useState(null);
   const [loadingScreenshot, setLoadingScreenshot] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [workflowCompletedCount, setWorkflowCompletedCount] = useState(0);
   const [loadingWorkflowSteps, setLoadingWorkflowSteps] = useState(false);
+
+  // Toast notification for upcoming/unimplemented features
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  const handleFeatureNotImplemented = () => {
+    setToastMessage("This feature is not implemented yet.");
+    setToastOpen(true);
+  };
 
   const fetchScreenshot = useCallback(async (ticketId) => {
     if (!ticketId) {
@@ -187,19 +204,40 @@ const TicketDetailsPage = ({
   return (
     <>
       {/* ── Ticket Details Page ── */}
-      <h1 className="mlp-page-title">Ticket Details</h1>
+      {/* Breadcrumb */}
+      <div className="cons-breadcrumb-row">
+        <span className="cons-breadcrumb-muted">{currentRoleLabel}</span>
+        <span className="cons-breadcrumb-sep">›</span>
+        <span className="cons-breadcrumb-curr">{currentTabLabel}</span>
+      </div>
+      <h1 className="mlp-page-title">{isModuleLead ? "Ticket Details" : "My Ticket Details"}</h1>
       <p className="mlp-page-subtitle">
         Four advisory actions. Every output is validated, carries a confidence score and its evidence — accept, edit or reject.
       </p>
 
-      {/* ALL TICKETS Section */}
-      <div className="mlp-tickets-header">
-        <span className="mlp-tickets-section-label">All tickets</span>
-        <span className="mlp-tickets-count">
-          {loadingTickets
-            ? "Loading tickets..."
-            : `${Math.min(visibleCount, filteredTickets.length)} of ${filteredTickets.length || 0} tickets`}
-        </span>
+      {/* ALL TICKETS Section with Show More Button at Beginning */}
+      <div className="mlp-tickets-header" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+        <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
+          <span className="mlp-tickets-section-label">All tickets</span>
+          <span className="mlp-tickets-count">
+            {loadingTickets
+              ? "Loading tickets..."
+              : `${Math.min(visibleCount, filteredTickets.length)} of ${filteredTickets.length || 0} tickets`}
+          </span>
+        </div>
+
+        {/* Show More Button at the beginning */}
+        {!loadingTickets && visibleCount < filteredTickets.length && (
+          <button
+            type="button"
+            className="mlp-show-more-btn"
+            onClick={() => setVisibleCount((prev) => prev + 20)}
+            style={{ padding: "5px 14px", fontSize: "11.5px" }}
+          >
+            <span>Show more</span>
+            <span>({filteredTickets.length - visibleCount} remaining)</span>
+          </button>
+        )}
       </div>
 
       {/* Horizontal Ticket Cards Scroll / Skeleton Loader */}
@@ -210,8 +248,9 @@ const TicketDetailsPage = ({
               key={sk}
               className="mlp-ticket-card"
               style={{
-                minWidth: 200,
-                height: 92,
+                minWidth: 215,
+                maxWidth: 230,
+                minHeight: 108,
                 cursor: "default",
                 opacity: 0.85,
                 display: "flex",
@@ -220,12 +259,19 @@ const TicketDetailsPage = ({
                 padding: "10px 14px",
               }}
             >
-              <div className="mlp-tc-row1" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <Skeleton variant="text" width={75} height={18} />
-                <Skeleton variant="rounded" width={26} height={16} sx={{ borderRadius: "4px" }} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <Skeleton variant="circular" width={18} height={18} />
+                  <Skeleton variant="text" width={60} height={14} />
+                </div>
+                <Skeleton variant="rounded" width={32} height={18} sx={{ borderRadius: "999px" }} />
               </div>
-              <Skeleton variant="text" width="90%" height={22} sx={{ my: 0.5 }} />
-              <Skeleton variant="text" width="55%" height={16} />
+              <Skeleton variant="text" width={100} height={22} sx={{ margin: "2px 0" }} />
+              <Skeleton variant="text" width="70%" height={14} />
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderTop: "1px solid #f1f5f9", paddingTop: "4px" }}>
+                <Skeleton variant="text" width={55} height={14} />
+                <Skeleton variant="text" width={45} height={14} />
+              </div>
             </div>
           ))}
         </div>
@@ -240,36 +286,64 @@ const TicketDetailsPage = ({
                 className={`mlp-ticket-card ${isCardSelected ? "selected" : ""}`}
                 onClick={() => handleCardClick(idx, ticket)}
               >
-                <div className="mlp-tc-row1">
-                  <span className="mlp-tc-no">{ticket.ticketNo || "-"}</span>
-                  <span className={`mlp-tc-priority ${getPriorityClass(ticket.priority)}`}>
-                    {pCode}
+                {/* Top Row: Icon bubble + Label on left, Priority Pill on right */}
+                <div className="mlp-tc-top-row">
+                  <div className="mlp-tc-top-left">
+                    <div className="mlp-tc-icon-bubble">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
+                      </svg>
+                    </div>
+                    <span className="mlp-tc-label">MY TICKET</span>
+                  </div>
+                  <span className={`mlp-tc-pill-badge ${getPriorityClass(ticket.priority)}`}>
+                    {pCode || "P4"}
                   </span>
                 </div>
-                <div className="mlp-tc-name">{ticket.description || "NA"}</div>
-                <div className="mlp-tc-status">{ticket.ticketStatus || "-"}</div>
+
+                {/* Middle Row: Big Ticket No */}
+                <div className="mlp-tc-body-row">
+                  <span className="mlp-tc-big-no">{ticket.ticketNo || ""}</span>
+                </div>
+
+                {/* Description Row */}
+                <div className="mlp-tc-desc-row" title={ticket.description || "—"}>
+                  {ticket.description || "—"}
+                </div>
+
+                {/* Footer Row: Status Pill on left, Module tag on right */}
+                <div className="mlp-tc-footer-row">
+                  <div className="mlp-tc-status-pill">
+                    <span className="mlp-tc-status-dot" />
+                    <span className="mlp-tc-status-text">{ticket.ticketStatus || "Assigned"}</span>
+                  </div>
+                  <span className="mlp-tc-module-tag" title={ticket.module || "SAP-AI"}>
+                    {ticket.module || "SAP-AI"}
+                  </span>
+                </div>
               </div>
             );
           })}
         </div>
       )}
 
-      {/* Show More Button */}
-      {!loadingTickets && visibleCount < filteredTickets.length && (
-        <div className="mlp-show-more-row">
-          <button
-            type="button"
-            className="mlp-show-more-btn"
-            onClick={() => setVisibleCount((prev) => prev + 20)}
-          >
-            <span>Show more</span>
-            <span>({filteredTickets.length - visibleCount} remaining)</span>
-          </button>
+      {/* Sub-bar Pills Row / Skeleton Loader */}
+      {loadingTickets ? (
+        <div className="mlp-ticket-subbar" style={{ opacity: 0.85 }}>
+          <div className="mlp-ticket-subbar-left" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <Skeleton variant="rounded" width={40} height={24} sx={{ borderRadius: "999px" }} />
+            <Skeleton variant="rounded" width={75} height={24} sx={{ borderRadius: "999px" }} />
+            <Skeleton variant="rounded" width={65} height={24} sx={{ borderRadius: "999px" }} />
+            <Skeleton variant="text" width={120} height={20} />
+            <Skeleton variant="text" width={110} height={20} />
+          </div>
+          <div className="mlp-ticket-subbar-right" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <Skeleton variant="text" width={80} height={20} />
+            <Skeleton variant="rounded" width={36} height={20} sx={{ borderRadius: "10px" }} />
+          </div>
         </div>
-      )}
-
-      {/* Sub-bar Pills Row */}
-      {selectedTicket && (
+      ) : selectedTicket ? (
         <div className="mlp-ticket-subbar">
           <div className="mlp-ticket-subbar-left">
             <span className="mlp-subbar-pill">{selectedPriorityCode}</span>
@@ -292,10 +366,116 @@ const TicketDetailsPage = ({
             <span style={{ fontWeight: 600 }}>{aiPanelOn ? "On" : "Off"}</span>
           </div>
         </div>
-      )}
+      ) : null}
 
-      {/* Main Grid: 2-column if aiPanelOn is ON, or full-width with bottom AI cards if OFF */}
-      {selectedTicket ? (
+      {/* Main Grid: Loading Skeleton vs Real Content vs Empty state */}
+      {loadingTickets ? (
+        <div className={`mlp-td-main-grid ${aiPanelOn ? "" : "full-width"}`}>
+          {/* Left Column Skeletons */}
+          <div className="mlp-td-left-col">
+            {/* Card 1: Overview Skeleton */}
+            <div className="mlp-td-card">
+              <Skeleton variant="text" width="50%" height={28} sx={{ marginBottom: 1 }} />
+              <div className="mlp-td-divider" />
+              <div className="mlp-td-overview-grid">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+                  <div key={i} className="mlp-td-field">
+                    <Skeleton variant="text" width="40%" height={14} />
+                    <Skeleton variant="text" width="75%" height={20} />
+                  </div>
+                ))}
+              </div>
+              <div className="mlp-td-sla-box" style={{ marginTop: 16 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <Skeleton variant="text" width={30} height={18} />
+                  <Skeleton variant="rounded" width="60%" height={12} sx={{ borderRadius: 2 }} />
+                  <Skeleton variant="text" width={140} height={16} />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 2: Documents Skeleton */}
+            <div className="mlp-td-card">
+              <div className="mlp-td-card-header">
+                <Skeleton variant="text" width="35%" height={22} />
+              </div>
+              <div style={{ border: "1px solid #e2e8f0", borderRadius: 4, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                <Skeleton variant="rectangular" width={44} height={44} sx={{ borderRadius: 1 }} />
+                <div style={{ flex: 1 }}>
+                  <Skeleton variant="text" width="40%" height={18} />
+                  <Skeleton variant="text" width="25%" height={14} />
+                </div>
+                <Skeleton variant="rounded" width={70} height={30} />
+              </div>
+            </div>
+
+            {/* Card 3: Evidence Skeleton */}
+            <div className="mlp-td-card">
+              <div className="mlp-td-card-header">
+                <Skeleton variant="text" width="40%" height={22} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 14 }}>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i}>
+                    <Skeleton variant="text" width="60%" height={14} />
+                    <Skeleton variant="text" width="80%" height={20} />
+                  </div>
+                ))}
+              </div>
+              <Skeleton variant="rounded" width="100%" height={80} sx={{ borderRadius: 1, marginBottom: 2 }} />
+            </div>
+
+            {/* Card 4: Conversation Skeleton */}
+            <div className="mlp-td-card">
+              <Skeleton variant="text" width="30%" height={22} sx={{ marginBottom: 2 }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <Skeleton variant="rounded" width="100%" height={56} sx={{ borderRadius: 1 }} />
+                <Skeleton variant="rounded" width="100%" height={56} sx={{ borderRadius: 1 }} />
+              </div>
+            </div>
+
+            {/* Card 5: Assign and Update Skeleton */}
+            {showAssignUpdateCard && (
+              <div className="mlp-td-card">
+                <Skeleton variant="text" width="45%" height={24} sx={{ marginBottom: 1 }} />
+                <Skeleton variant="text" width="80%" height={16} sx={{ marginBottom: 2 }} />
+                <div className="mlp-td-form-grid">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="mlp-td-form-field">
+                      <Skeleton variant="text" width="40%" height={14} />
+                      <Skeleton variant="rounded" width="100%" height={38} sx={{ borderRadius: 1 }} />
+                    </div>
+                  ))}
+                </div>
+                <Skeleton variant="rounded" width="100%" height={70} sx={{ borderRadius: 1, marginBottom: 2 }} />
+                <div style={{ display: "flex", gap: 10 }}>
+                  <Skeleton variant="rounded" width={120} height={34} sx={{ borderRadius: 1 }} />
+                  <Skeleton variant="rounded" width={160} height={34} sx={{ borderRadius: 1 }} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column Skeletons (if aiPanelOn) */}
+          {aiPanelOn && (
+            <div className="mlp-td-right-col">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="mlp-ai-card">
+                  <div className="mlp-ai-header">
+                    <Skeleton variant="text" width="50%" height={20} />
+                    <Skeleton variant="rounded" width={60} height={16} sx={{ borderRadius: 1 }} />
+                  </div>
+                  <Skeleton variant="text" width="90%" height={14} />
+                  <Skeleton variant="text" width="70%" height={14} sx={{ marginBottom: 1.5 }} />
+                  {i > 1 && (
+                    <Skeleton variant="rounded" width={140} height={30} sx={{ borderRadius: 1 }} />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : selectedTicket ? (
         <div className={`mlp-td-main-grid ${aiPanelOn ? "" : "full-width"}`}>
           {/* ── LEFT COLUMN (6 Cards) ── */}
           <div className="mlp-td-left-col">
@@ -576,7 +756,7 @@ const TicketDetailsPage = ({
               )}
 
               <div style={{ marginTop: "14px" }}>
-                <button
+                {/* <button
                   type="button"
                   style={{
                     backgroundColor: "#334155",
@@ -590,7 +770,7 @@ const TicketDetailsPage = ({
                   }}
                 >
                   All documents shared
-                </button>
+                </button> */}
                 <p style={{ fontSize: "11px", color: "#94a3b8", margin: "6px 0 0" }}>
                   Documents go out together with the customer reply and stay on the ticket as reference and history.
                 </p>
@@ -919,7 +1099,11 @@ const TicketDetailsPage = ({
                   >
                     Review change
                   </button>
-                  <button type="button" className="mlp-td-btn-recommend">
+                  <button
+                    type="button"
+                    className="mlp-td-btn-recommend"
+                    onClick={handleFeatureNotImplemented}
+                  >
                     Ask NeoAI to recommend
                   </button>
                   {/* <button type="button" className="mlp-td-link-btn">
@@ -1037,7 +1221,11 @@ const TicketDetailsPage = ({
                 <p className="mlp-ai-desc">
                   Condense the description, email thread and approved attachments into a reviewable summary.
                 </p>
-                <button type="button" className="mlp-ai-btn">
+                <button
+                  type="button"
+                  className="mlp-ai-btn"
+                  onClick={handleFeatureNotImplemented}
+                >
                   Generate AI Summary
                 </button>
               </div>
@@ -1051,7 +1239,11 @@ const TicketDetailsPage = ({
                 <p className="mlp-ai-desc">
                   Recommend category, priority, sentiment and resolver team with a confidence score.
                 </p>
-                <button type="button" className="mlp-ai-btn">
+                <button
+                  type="button"
+                  className="mlp-ai-btn"
+                  onClick={handleFeatureNotImplemented}
+                >
                   Suggest Category & Assignment
                 </button>
               </div>
@@ -1065,7 +1257,11 @@ const TicketDetailsPage = ({
                 <p className="mlp-ai-desc">
                   Retrieve authorised historical tickets and approved knowledge articles.
                 </p>
-                <button type="button" className="mlp-ai-btn">
+                <button
+                  type="button"
+                  className="mlp-ai-btn"
+                  onClick={handleFeatureNotImplemented}
+                >
                   Find Similar Tickets
                 </button>
               </div>
@@ -1079,7 +1275,11 @@ const TicketDetailsPage = ({
                 <p className="mlp-ai-desc">
                   Prepare a response for the consultant to review. Never sent automatically.
                 </p>
-                <button type="button" className="mlp-ai-btn">
+                <button
+                  type="button"
+                  className="mlp-ai-btn"
+                  onClick={handleFeatureNotImplemented}
+                >
                   Draft Customer Response
                 </button>
               </div>
@@ -1109,7 +1309,11 @@ const TicketDetailsPage = ({
                   <p className="mlp-ai-desc">
                     Condense the description, email thread and approved attachments into a reviewable summary.
                   </p>
-                  <button type="button" className="mlp-ai-btn">
+                  <button
+                    type="button"
+                    className="mlp-ai-btn"
+                    onClick={handleFeatureNotImplemented}
+                  >
                     Generate AI Summary
                   </button>
                 </div>
@@ -1123,7 +1327,11 @@ const TicketDetailsPage = ({
                   <p className="mlp-ai-desc">
                     Recommend category, priority, sentiment and resolver team with a confidence score.
                   </p>
-                  <button type="button" className="mlp-ai-btn">
+                  <button
+                    type="button"
+                    className="mlp-ai-btn"
+                    onClick={handleFeatureNotImplemented}
+                  >
                     Suggest Category & Assignment
                   </button>
                 </div>
@@ -1137,7 +1345,11 @@ const TicketDetailsPage = ({
                   <p className="mlp-ai-desc">
                     Retrieve authorised historical tickets and approved knowledge articles.
                   </p>
-                  <button type="button" className="mlp-ai-btn">
+                  <button
+                    type="button"
+                    className="mlp-ai-btn"
+                    onClick={handleFeatureNotImplemented}
+                  >
                     Find Similar Tickets
                   </button>
                 </div>
@@ -1151,7 +1363,11 @@ const TicketDetailsPage = ({
                   <p className="mlp-ai-desc">
                     Prepare a response for the consultant to review. Never sent automatically.
                   </p>
-                  <button type="button" className="mlp-ai-btn">
+                  <button
+                    type="button"
+                    className="mlp-ai-btn"
+                    onClick={handleFeatureNotImplemented}
+                  >
                     Draft Customer Response
                   </button>
                 </div>
@@ -1292,6 +1508,35 @@ const TicketDetailsPage = ({
           </div>
         </DialogActions>
       </Dialog>
+
+      {/* Feature Not Implemented Toast Notification */}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={4000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setToastOpen(false)}
+          severity="info"
+          sx={{
+            borderRadius: "8px",
+            fontSize: "12.5px",
+            fontWeight: 500,
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            backgroundColor: "#043329",
+            color: "#ffffff",
+            "& .MuiAlert-icon": {
+              color: "#34d399",
+            },
+            "& .MuiAlert-action": {
+              color: "#ffffff",
+            },
+          }}
+        >
+          {toastMessage}
+        </Alert>
+      </Snackbar>
     </>
   );
 };

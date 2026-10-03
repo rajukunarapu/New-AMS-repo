@@ -6,7 +6,7 @@
 .sla-container {
   height: 100vh;
   max-height: 100vh;
-  background-color: #f8fafc;
+  background-color: #f2f7f5;
   display: flex;
   flex-direction: column;
   font-family: "Segoe UI", "Inter", -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
@@ -25,10 +25,10 @@
 
 /* ── Sidebar (Fixed with independent scroll) ── */
 .sla-sidebar {
-  width: 220px;
+  width: 255px;
   background: #ffffff;
   border-right: 1px solid #e2e8f0;
-  padding: 16px 12px;
+  padding: 22px 14px;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -47,134 +47,66 @@
   border-radius: 4px;
 }
 
-.sla-identity-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  padding-bottom: 4px;
-}
-
-.sla-identity-user {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.sla-sidebar-avatar {
-  width: 28px;
-  height: 28px;
-  background: #15803d;
-  color: #ffffff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11.5px;
-  font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.sla-sidebar-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.sla-exit-btn {
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
-  color: #334155;
-  font-size: 11.5px;
-  font-weight: 600;
-  background: transparent;
-  border: 1px solid transparent;
-  color: #64748b;
-  cursor: pointer;
-  padding: 4px 10px;
-  border-radius: 4px;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  flex-shrink: 0;
-}
-
-.sla-exit-btn:hover {
-  background: #e2e8f0;
-  border-color: #94a3b8;
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-  color: #0f172a;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-}
-
-.sla-exit-btn:active {
-  background: #cbd5e1;
-  background: #e2e8f0;
-  transform: translateY(0);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
 .sla-nav-group {
   margin-bottom: 18px;
 }
 
 .sla-nav-group-title {
-  font-size: 10px;
-  font-weight: 700;
-  color: #94a3b8;
-  letter-spacing: 0.06em;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #8899a6;
   text-transform: uppercase;
-  margin-bottom: 6px;
-  padding-left: 4px;
+  margin-bottom: 8px;
+  padding-left: 10px;
 }
 
 .sla-nav-item {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   width: 100%;
-  padding: 10px 10px;
-  border-radius: 6px;
+  min-height: 34px;
+  padding: 7px 14px;
+  border-radius: 8px;
   border: none;
   background: transparent;
-  font-size: 12px;
-  color: #475569;
+  font-size: 13px;
+  font-weight: 500;
+  color: #0e4b5a;
   cursor: pointer;
   text-align: left;
-  transition: all 0.15s ease;
-  margin-bottom: 2px;
+  transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-bottom: 3px;
+  position: relative;
+  box-sizing: border-box;
 }
 
 .sla-nav-item:hover {
-  background: #f1f5f9;
-  color: #0f172a;
+  background: #e8f3f0;
+  color: #043329;
 }
 
 .sla-nav-item.active {
-  background: #355474;
+  background: #043329;
   color: #ffffff;
   font-weight: 600;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(4, 51, 41, 0.18);
 }
 
 .sla-nav-item.active svg,
 .sla-nav-item.active .sla-nav-icon {
-  color: #ffffff;
+  color: #34d399;
 }
 
 .sla-nav-icon {
   display: flex;
   align-items: center;
-  color: #64748b;
+  color: #0e4b5a;
   flex-shrink: 0;
+  font-size: 16px;
+  transition: color 0.18s ease;
 }
 
 /* ── Content Area ── */
@@ -185,6 +117,7 @@
   height: 100%;
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
+  background: #f2f7f5;
 }
 
 .sla-content::-webkit-scrollbar {

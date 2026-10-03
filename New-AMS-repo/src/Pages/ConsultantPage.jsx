@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { Skeleton } from "@mui/material";
 import "../Styles/ModuleLeadPage.css";
 import "../Styles/ConsultantPage.css";
 import { ticketsAPI } from "../Services/TicketsAPI";
@@ -494,42 +495,24 @@ const ConsultantPage = () => {
       <div className="mlp-body-layout">
         {/* Sidebar */}
         <aside className="mlp-sidebar">
-          {/* Top Identity Block */}
-          <div className="mlp-identity-row">
-            <div className="mlp-identity-user">
-              <div className="mlp-sidebar-avatar">{userInitial}</div>
-              <span className="mlp-sidebar-name">{userName}</span>
-            </div>
-            <button
-              type="button"
-              className="mlp-exit-btn"
-              onClick={handleExit}
-              title="Exit to Home"
-              aria-label="Exit to Home"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                <polyline points="16 17 21 12 16 7" />
-                <line x1="21" y1="12" x2="9" y2="12" />
-              </svg>
-            </button>
-          </div>
-
           {/* Navigation Sections */}
           <div className="mlp-nav-group">
             <div className="mlp-nav-group-title">MY WORK</div>
-            {/* dashboard */}
+            {/* Overview / Dashboard */}
             <button
               type="button"
               className={`mlp-nav-item ${activeNav === "dashboard" ? "active" : ""}`}
               onClick={() => handleNavClick("dashboard")}
             >
               <span className="mlp-nav-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                  <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                  <rect x="3" y="14" width="7" height="7" rx="1.5" />
                 </svg>
               </span>
-              <span>My Dashboard</span>
+              <span>Overview</span>
             </button>
 
             {/* Tickets */}
@@ -539,11 +522,12 @@ const ConsultantPage = () => {
               onClick={() => handleNavClick("tickets")}
             >
               <span className="mlp-nav-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2z" />
+                  <line x1="9" y1="9" x2="9" y2="9.01" />
+                  <line x1="15" y1="9" x2="15" y2="9.01" />
+                  <line x1="9" y1="15" x2="9" y2="15.01" />
+                  <line x1="15" y1="15" x2="15" y2="15.01" />
                 </svg>
               </span>
               <span>My Ticket Details</span>
@@ -556,13 +540,8 @@ const ConsultantPage = () => {
               onClick={() => handleNavClick("workflow")}
             >
               <span className="mlp-nav-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6" />
-                  <line x1="8" y1="12" x2="21" y2="12" />
-                  <line x1="8" y1="18" x2="21" y2="18" />
-                  <line x1="3" y1="6" x2="3.01" y2="6" />
-                  <line x1="3" y1="12" x2="3.01" y2="12" />
-                  <line x1="3" y1="18" x2="3.01" y2="18" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
                 </svg>
               </span>
               <span>Delivery Workflow</span>
@@ -575,7 +554,7 @@ const ConsultantPage = () => {
               onClick={() => handleNavClick("notifications")}
             >
               <span className="mlp-nav-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                   <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                 </svg>
@@ -593,8 +572,10 @@ const ConsultantPage = () => {
               onClick={() => handleNavClick("neoai")}
             >
               <span className="mlp-nav-icon">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                  <line x1="12" y1="17" x2="12.01" y2="17" />
                 </svg>
               </span>
               <span>NeoAI</span>
@@ -607,280 +588,389 @@ const ConsultantPage = () => {
           {activeNav === "neoai" ? (
             <NeoAIFullPage />
           ) : activeNav === "dashboard" ? (
-            <>
-              <div className="mlp-page-header-row">
-                <div>
-                  <div className="mlp-page-badge-row">
-                    <span className="mlp-live-badge">
-                      <span className="mlp-pulse-dot" />
-                      Live Consultant Desk
-                    </span>
-                    <span className="mlp-shift-pill">Tier 0–1 Active Shift</span>
-                  </div>
-                  <h1 className="mlp-page-title">My Dashboard</h1>
-                  <p className="mlp-page-subtitle">
-                    Your shift at a glance – assigned work, clocks about to warn, AI assistance used and the notifications that reached you.
-                  </p>
-                </div>
+            <div className="cons-dashboard-wrap">
+              {/* Breadcrumb */}
+              <div className="cons-breadcrumb-row">
+                <span className="cons-breadcrumb-muted">CONSULTANT</span>
+                <span className="cons-breadcrumb-sep">›</span>
+                <span className="cons-breadcrumb-curr">OVERVIEW</span>
               </div>
-              <div className="mlp-page-hint">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="12" y1="16" x2="12" y2="12" />
-                  <line x1="12" y1="8" x2="12.01" y2="8" />
-                </svg>
-                <span>Click any figure, ageing bucket, module or timeline entry to open the tickets behind it.</span>
+
+              {/* Title & Subtitle */}
+              <div className="cons-page-header-row">
+                <h1 className="cons-dashboard-title">My Dashboard</h1>
+                <p className="cons-dashboard-subtitle">
+                  Your shift at a glance – assigned work, clocks about to warn, AI assistance used and the notifications that reached you.
+                </p>
+              </div>
+
+              {/* Info Hint Banner */}
+              <div className="cons-info-banner">
+                <div className="cons-info-banner-left">
+                  <span className="cons-info-icon">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="16" x2="12" y2="12" />
+                      <line x1="12" y1="8" x2="12.01" y2="8" />
+                    </svg>
+                  </span>
+                  <span>Click any figure, ageing bucket, module or timeline entry to open the tickets behind it.</span>
+                </div>
+                <div className="cons-info-keybadge">⌘ K</div>
+              </div>
+
+              {/* Section Header */}
+              <div className="cons-section-header">
+                <div className="cons-section-eyebrow">ASSIGNED WORK</div>
+                <h2 className="cons-section-heading">My work, in motion</h2>
               </div>
 
               {/* Top 3 Stat Cards */}
-              <div className="mlp-stat-grid">
+              <div className="cons-stat-grid">
+                {/* Card 1: Assigned to Me */}
                 <div
-                  className="mlp-stat-card blue"
+                  className="cons-stat-card cons-card-emerald"
                   onClick={() => handleNavClick("tickets")}
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="mlp-stat-top-row">
-                    <div className="mlp-stat-label">ASSIGNED TO ME</div>
-                    <div className="mlp-stat-icon-wrap blue">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                        <circle cx="9" cy="7" r="4" />
-                        <polyline points="16 11 18 13 22 9" />
+                  <div className="cons-stat-watermark">
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                      <circle cx="9" cy="7" r="4" />
+                    </svg>
+                  </div>
+                  <div className="cons-stat-header">
+                    <div className="cons-icon-bubble cons-bubble-emerald">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                        <circle cx="12" cy="7" r="4" />
                       </svg>
                     </div>
+                    <span className="cons-stat-label">ASSIGNED TO ME</span>
                   </div>
-                  <div className="mlp-stat-value-row">
-                    <span className="mlp-stat-value">{consultantAssignedTickets.length || 2}</span>
-                    <span className="mlp-stat-badge blue">Active Queue</span>
+                  <div className="cons-stat-body">
+                    <span className="cons-stat-big-num">
+                      {loadingTickets ? (
+                        <Skeleton width={40} height={24} />
+                      ) : (
+                        consultantAssignedTickets.length
+                      )}
+                    </span>
+                    <span className="cons-pill-badge cons-pill-emerald">
+                      Active Queue <span className="cons-pill-chevron">›</span>
+                    </span>
                   </div>
-                  <div className="mlp-stat-footer">
-                    <span className="mlp-stat-note">WIP limit 6 · opens my ticket details</span>
-                    <span className="mlp-stat-arrow">→</span>
+                  <div className="cons-stat-footer">
+                    <span>WIP limit 6 · opens my ticket details</span>
                   </div>
                 </div>
 
+                {/* Card 2: AI Actions Used */}
                 <div
-                  className="mlp-stat-card green"
-                  onClick={() => handleNavClick("tickets")}
+                  className="cons-stat-card cons-card-teal"
+                  onClick={() => handleNavClick("neoai")}
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="mlp-stat-top-row">
-                    <div className="mlp-stat-label">AI ACTIONS USED</div>
-                    <div className="mlp-stat-icon-wrap green">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <div className="cons-stat-watermark">
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 2l2.4 7.2L22 12l-7.6 2.8L12 22l-2.4-7.2L2 12l7.6-2.8z" />
+                    </svg>
+                  </div>
+                  <div className="cons-stat-header">
+                    <div className="cons-icon-bubble cons-bubble-teal">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
                       </svg>
                     </div>
+                    <span className="cons-stat-label">AI ACTIONS USED</span>
                   </div>
-                  <div className="mlp-stat-value-row">
-                    <span className="mlp-stat-value">0</span>
-                    <span className="mlp-stat-badge green">AI Powered</span>
+                  <div className="cons-stat-body">
+                    <span className="cons-stat-big-num">
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : 0}
+                    </span>
+                    <span className="cons-pill-badge cons-pill-teal">
+                      AI Powered <span className="cons-pill-chevron">›</span>
+                    </span>
                   </div>
-                  <div className="mlp-stat-footer">
-                    <span className="mlp-stat-note">summary, triage, similar, draft</span>
-                    <span className="mlp-stat-arrow">→</span>
+                  <div className="cons-stat-footer">
+                    <span>summary, triage, similar, draft</span>
                   </div>
                 </div>
 
+                {/* Card 3: Acceptance Rate */}
                 <div
-                  className="mlp-stat-card gold"
-                  onClick={() => handleNavClick("tickets")}
+                  className="cons-stat-card cons-card-amber"
+                  onClick={() => handleNavClick("workflow")}
                   role="button"
                   tabIndex={0}
                 >
-                  <div className="mlp-stat-top-row">
-                    <div className="mlp-stat-label">ACCEPTANCE RATE</div>
-                    <div className="mlp-stat-icon-wrap gold">
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <div className="cons-stat-watermark">
+                    <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                      <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                  </div>
+                  <div className="cons-stat-header">
+                    <div className="cons-icon-bubble cons-bubble-amber">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                         <polyline points="22 4 12 14.01 9 11.01" />
                       </svg>
                     </div>
+                    <span className="cons-stat-label">ACCEPTANCE RATE</span>
                   </div>
-                  <div className="mlp-stat-value-row">
-                    <span className="mlp-stat-value">78%</span>
-                    <span className="mlp-stat-badge gold">Above SLA</span>
+                  <div className="cons-stat-body">
+                    <span className="cons-stat-big-num">
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : "78%"}
+                    </span>
+                    <span className="cons-pill-badge cons-pill-amber">
+                      Above SLA <span className="cons-pill-chevron">›</span>
+                    </span>
                   </div>
-                  <div className="mlp-stat-footer">
-                    <span className="mlp-stat-note">your feedback last 30 days</span>
-                    <span className="mlp-stat-arrow">→</span>
+                  <div className="cons-stat-footer">
+                    <span>your feedback last 30 days</span>
                   </div>
                 </div>
               </div>
 
-              {/* Bottom 3 Panels */}
-              <div className="mlp-panel-grid">
+              {/* Bottom 3 Panels Grid */}
+              <div className="cons-panel-grid">
                 {/* Panel 1: Ageing */}
-                <div className="mlp-panel">
-                  <div className="mlp-panel-header">
-                    <h3 className="mlp-panel-title">Ageing</h3>
-                    <span className="mlp-panel-meta">2 open</span>
+                <div className="cons-panel-card">
+                  <div className="cons-panel-header">
+                    <h3 className="cons-panel-title">Ageing</h3>
+                    <span className="cons-panel-badge-neutral">
+                      {loadingTickets ? <Skeleton width={40} height={16} /> : `${consultantAssignedTickets.length} open`}
+                    </span>
                   </div>
 
-                  <div className="mlp-ageing-row">
-                    <div className="mlp-ageing-labels">
-                      <span>Under 4 hours</span>
-                      <span>0</span>
+                  <div className="cons-ageing-list">
+                    <div className="cons-ageing-row">
+                      <div className="cons-ageing-top">
+                        <span className="cons-ageing-name">Under 4 hours</span>
+                        <span className="cons-ageing-count">0</span>
+                      </div>
+                      <div className="cons-ageing-track">
+                        <div className="cons-ageing-fill" style={{ width: "0%" }} />
+                      </div>
                     </div>
-                    <div className="mlp-progress-track">
-                      <div className="mlp-progress-fill" style={{ width: "0%" }} />
+
+                    <div className="cons-ageing-row">
+                      <div className="cons-ageing-top">
+                        <span className="cons-ageing-name">4 to 24 hours</span>
+                        <span className="cons-ageing-count">
+                          {loadingTickets ? <Skeleton width={16} height={14} /> : consultantAssignedTickets.length}
+                        </span>
+                      </div>
+                      <div className="cons-ageing-track">
+                        <div className="cons-ageing-fill cons-fill-amber" style={{ width: "100%" }} />
+                      </div>
+                    </div>
+
+                    <div className="cons-ageing-row">
+                      <div className="cons-ageing-top">
+                        <span className="cons-ageing-name">1 to 3 days</span>
+                        <span className="cons-ageing-count">0</span>
+                      </div>
+                      <div className="cons-ageing-track">
+                        <div className="cons-ageing-fill" style={{ width: "0%" }} />
+                      </div>
+                    </div>
+
+                    <div className="cons-ageing-row">
+                      <div className="cons-ageing-top">
+                        <span className="cons-ageing-name">Over 3 days</span>
+                        <span className="cons-ageing-count">0</span>
+                      </div>
+                      <div className="cons-ageing-track">
+                        <div className="cons-ageing-fill" style={{ width: "0%" }} />
+                      </div>
                     </div>
                   </div>
 
-                  <div className="mlp-ageing-row">
-                    <div className="mlp-ageing-labels">
-                      <span>4 to 24 hours</span>
-                      <span>2</span>
-                    </div>
-                    <div className="mlp-progress-track">
-                      <div className="mlp-progress-fill" style={{ width: "100%" }} />
-                    </div>
+                  <div className="cons-ageing-footer">
+                    <span className="cons-ageing-wip">WIP limit 6</span>
+                    <span className="cons-ageing-status">
+                      <span className="cons-dot-green">●</span> within target
+                    </span>
+                  </div>
+                </div>
+
+                {/* Panel 2: Opened and closed, last 7 days */}
+                <div className="cons-panel-card">
+                  <div className="cons-panel-header">
+                    <h3 className="cons-panel-title">Opened and closed, last 7 days</h3>
+                    <span className="cons-panel-badge-live">
+                      <span className="cons-pulse-dot" /> live
+                    </span>
                   </div>
 
-                  <div className="mlp-ageing-row">
-                    <div className="mlp-ageing-labels">
-                      <span>1 to 3 days</span>
-                      <span>0</span>
-                    </div>
-                    <div className="mlp-progress-track">
-                      <div className="mlp-progress-fill" style={{ width: "0%" }} />
-                    </div>
-                  </div>
+                  <div className="cons-chart-container">
+                    <div className="cons-bar-chart">
+                      {/* Mon */}
+                      <div className="cons-chart-col">
+                        <div className="cons-bar-pair">
+                          <div className="cons-bar cons-bar-opened" style={{ height: "45%" }} title="Opened: 3" />
+                          <div className="cons-bar cons-bar-closed" style={{ height: "55%" }} title="Closed: 4" />
+                        </div>
+                        <span className="cons-chart-label">Mon</span>
+                      </div>
 
-                  <div className="mlp-ageing-row">
-                    <div className="mlp-ageing-labels">
-                      <span>Over 3 days</span>
-                      <span>0</span>
+                      {/* Tue */}
+                      <div className="cons-chart-col">
+                        <div className="cons-bar-pair">
+                          <div className="cons-bar cons-bar-opened" style={{ height: "75%" }} title="Opened: 5" />
+                          <div className="cons-bar cons-bar-closed" style={{ height: "45%" }} title="Closed: 3" />
+                        </div>
+                        <span className="cons-chart-label">Tue</span>
+                      </div>
+
+                      {/* Wed */}
+                      <div className="cons-chart-col">
+                        <div className="cons-bar-pair">
+                          <div className="cons-bar cons-bar-opened" style={{ height: "60%" }} title="Opened: 4" />
+                          <div className="cons-bar cons-bar-closed" style={{ height: "80%" }} title="Closed: 6" />
+                        </div>
+                        <span className="cons-chart-label">Wed</span>
+                      </div>
+
+                      {/* Thu */}
+                      <div className="cons-chart-col">
+                        <div className="cons-bar-pair">
+                          <div className="cons-bar cons-bar-opened" style={{ height: "60%" }} title="Opened: 4" />
+                          <div className="cons-bar cons-bar-closed" style={{ height: "25%" }} title="Closed: 2" />
+                        </div>
+                        <span className="cons-chart-label">Thu</span>
+                      </div>
+
+                      {/* Fri */}
+                      <div className="cons-chart-col">
+                        <div className="cons-bar-pair">
+                          <div className="cons-bar cons-bar-opened" style={{ height: "75%" }} title="Opened: 5" />
+                          <div className="cons-bar cons-bar-closed" style={{ height: "90%" }} title="Closed: 7" />
+                        </div>
+                        <span className="cons-chart-label">Fri</span>
+                      </div>
+
+                      {/* Sat */}
+                      <div className="cons-chart-col">
+                        <div className="cons-bar-pair">
+                          <div className="cons-bar cons-bar-opened" style={{ height: "20%" }} title="Opened: 1" />
+                          <div className="cons-bar cons-bar-closed" style={{ height: "0%" }} title="Closed: 0" />
+                        </div>
+                        <span className="cons-chart-label">Sat</span>
+                      </div>
+
+                      {/* Sun */}
+                      <div className="cons-chart-col">
+                        <div className="cons-bar-pair">
+                          <div className="cons-bar cons-bar-opened" style={{ height: "0%" }} title="Opened: 0" />
+                          <div className="cons-bar cons-bar-closed" style={{ height: "20%" }} title="Closed: 1" />
+                        </div>
+                        <span className="cons-chart-label">Sun</span>
+                      </div>
                     </div>
-                    <div className="mlp-progress-track">
-                      <div className="mlp-progress-fill" style={{ width: "0%" }} />
+
+                    <div className="cons-chart-legend">
+                      <div className="cons-legend-item">
+                        <span className="cons-legend-swatch cons-swatch-opened" />
+                        <span>Opened</span>
+                      </div>
+                      <div className="cons-legend-item">
+                        <span className="cons-legend-swatch cons-swatch-closed" />
+                        <span>Closed</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Panel 2: My performance */}
-                <div className="mlp-panel">
-                  <div className="mlp-panel-header">
-                    <h3 className="mlp-panel-title">My performance</h3>
-                  </div>
-                  <div className="mlp-panel-sub">Your own tickets only, for the current period.</div>
-
-                  <div className="mlp-perf-row">
-                    <div className="mlp-perf-top">
-                      <span className="mlp-perf-label">First reply</span>
-                      <span className="mlp-perf-val">22 min</span>
-                    </div>
-                    <div className="mlp-perf-track">
-                      <div className="mlp-perf-fill" style={{ width: "36%" }} />
-                    </div>
-                    <div className="mlp-perf-target">target 60 min</div>
+                {/* Panel 3: Recent activity */}
+                <div className="cons-panel-card">
+                  <div className="cons-panel-header">
+                    <h3 className="cons-panel-title">Recent activity</h3>
+                    <span className="cons-panel-badge-live">
+                      <span className="cons-pulse-dot" /> live
+                    </span>
                   </div>
 
-                  <div className="mlp-perf-row">
-                    <div className="mlp-perf-top">
-                      <span className="mlp-perf-label">Time to fix</span>
-                      <span className="mlp-perf-val">6.1 h</span>
-                    </div>
-                    <div className="mlp-perf-track">
-                      <div className="mlp-perf-fill" style={{ width: "76%" }} />
-                    </div>
-                    <div className="mlp-perf-target">target 8 h</div>
-                  </div>
-
-                  <div className="mlp-perf-row" style={{ marginBottom: 0 }}>
-                    <div className="mlp-perf-top">
-                      <span className="mlp-perf-label">Reopened</span>
-                      <span className="mlp-perf-val">1 of 24</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel 3: Opened and closed, last 7 days */}
-                <div className="mlp-panel">
-                  <div className="mlp-panel-header">
-                    <h3 className="mlp-panel-title">Opened and closed, last 7 days</h3>
-                  </div>
-
-                  <div className="mlp-trend-chart">
-                    {/* Mon */}
-                    <div className="mlp-trend-col">
-                      <div className="mlp-trend-bars">
-                        <div className="mlp-bar-opened" style={{ height: "45%" }} />
-                        <div className="mlp-bar-closed" style={{ height: "55%" }} />
+                  <div className="cons-activity-list">
+                    <div
+                      className="cons-activity-item"
+                      onClick={() => handleNavClick("tickets")}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="cons-activity-left">
+                        <div className="cons-activity-meta">
+                          <span className="cons-activity-time">4m ago</span>
+                          <span className="cons-activity-dot cons-dot-green">●</span>
+                          <span className="cons-activity-status cons-status-green">In Progress</span>
+                        </div>
+                        <div className="cons-activity-title">
+                          {loadingTickets ? (
+                            <Skeleton width={140} height={16} />
+                          ) : (
+                            `${consultantAssignedTickets[0]?.ticketNo || "TKT-1082"} · Status updated`
+                          )}
+                        </div>
+                        <div className="cons-activity-sub">Assigned to you by Lead</div>
                       </div>
-                      <span className="mlp-day-label">Mon</span>
+                      <div className="cons-activity-chevron">›</div>
                     </div>
 
-                    {/* Tue */}
-                    <div className="mlp-trend-col">
-                      <div className="mlp-trend-bars">
-                        <div className="mlp-bar-opened" style={{ height: "75%" }} />
-                        <div className="mlp-bar-closed" style={{ height: "45%" }} />
+                    <div
+                      className="cons-activity-item"
+                      onClick={() => handleNavClick("workflow")}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="cons-activity-left">
+                        <div className="cons-activity-meta">
+                          <span className="cons-activity-time">1h ago</span>
+                          <span className="cons-activity-dot cons-dot-amber">●</span>
+                          <span className="cons-activity-status cons-status-amber">Pending BUD</span>
+                        </div>
+                        <div className="cons-activity-title">
+                          {loadingTickets ? (
+                            <Skeleton width={140} height={16} />
+                          ) : (
+                            `${consultantAssignedTickets[1]?.ticketNo || "TKT-1079"} · Customer approval`
+                          )}
+                        </div>
+                        <div className="cons-activity-sub">Estimated 16h submitted</div>
                       </div>
-                      <span className="mlp-day-label">Tue</span>
+                      <div className="cons-activity-chevron">›</div>
                     </div>
 
-                    {/* Wed */}
-                    <div className="mlp-trend-col">
-                      <div className="mlp-trend-bars">
-                        <div className="mlp-bar-opened" style={{ height: "60%" }} />
-                        <div className="mlp-bar-closed" style={{ height: "80%" }} />
+                    <div
+                      className="cons-activity-item"
+                      onClick={() => handleNavClick("workflow")}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div className="cons-activity-left">
+                        <div className="cons-activity-meta">
+                          <span className="cons-activity-time">3h ago</span>
+                          <span className="cons-activity-dot cons-dot-green">●</span>
+                          <span className="cons-activity-status cons-status-green">Completed</span>
+                        </div>
+                        <div className="cons-activity-title">
+                          {loadingTickets ? (
+                            <Skeleton width={140} height={16} />
+                          ) : (
+                            `${consultantAssignedTickets[2]?.ticketNo || "TKT-1075"} · Delivery step 10 done`
+                          )}
+                        </div>
+                        <div className="cons-activity-sub">Ticket closed successfully</div>
                       </div>
-                      <span className="mlp-day-label">Wed</span>
-                    </div>
-
-                    {/* Thu */}
-                    <div className="mlp-trend-col">
-                      <div className="mlp-trend-bars">
-                        <div className="mlp-bar-opened" style={{ height: "60%" }} />
-                        <div className="mlp-bar-closed" style={{ height: "25%" }} />
-                      </div>
-                      <span className="mlp-day-label">Thu</span>
-                    </div>
-
-                    {/* Fri */}
-                    <div className="mlp-trend-col">
-                      <div className="mlp-trend-bars">
-                        <div className="mlp-bar-opened" style={{ height: "75%" }} />
-                        <div className="mlp-bar-closed" style={{ height: "90%" }} />
-                      </div>
-                      <span className="mlp-day-label">Fri</span>
-                    </div>
-
-                    {/* Sat */}
-                    <div className="mlp-trend-col">
-                      <div className="mlp-trend-bars">
-                        <div className="mlp-bar-opened" style={{ height: "20%" }} />
-                        <div className="mlp-bar-closed" style={{ height: "0%" }} />
-                      </div>
-                      <span className="mlp-day-label">Sat</span>
-                    </div>
-
-                    {/* Sun */}
-                    <div className="mlp-trend-col">
-                      <div className="mlp-trend-bars">
-                        <div className="mlp-bar-opened" style={{ height: "0%" }} />
-                        <div className="mlp-bar-closed" style={{ height: "20%" }} />
-                      </div>
-                      <span className="mlp-day-label">Sun</span>
-                    </div>
-                  </div>
-
-                  <div className="mlp-trend-legend">
-                    <div className="mlp-legend-item">
-                      <span className="mlp-legend-sq opened" />
-                      <span>Opened</span>
-                    </div>
-                    <div className="mlp-legend-item">
-                      <span className="mlp-legend-sq closed" />
-                      <span>Closed</span>
+                      <div className="cons-activity-chevron">›</div>
                     </div>
                   </div>
                 </div>
               </div>
-            </>
+            </div>
           ) : activeNav === "tickets" ? (
             <TicketDetailsPage
               filteredTickets={filteredTickets}

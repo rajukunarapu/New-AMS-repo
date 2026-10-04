@@ -10,6 +10,7 @@ import { ticketsAPI } from "../Services/TicketsAPI";
 import { getDeliveryWorkflowAPI } from "../Services/GetDeliveryWorkflowAPI";
 import { postCustomerApprovedHours } from "../Services/PostCustomerApprovedHours";
 import { CircularProgress, Alert, Skeleton } from "@mui/material";
+import Notification from "../Features/ModuleLeadComponents/Notification";
 
 const navItemsList = [
   { id: "portal", label: "Customer Portal" },
@@ -936,10 +937,10 @@ const CustomerPage = () => {
                                               </>
                                             ) : (
                                               <>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                {/* <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                                   <polyline points="20 6 9 17 4 12" />
-                                                </svg>
-                                                <span>Submit Customer Approved Hours</span>
+                                                </svg> */}
+                                                <span>Submit</span>
                                               </>
                                             )}
                                           </button>
@@ -972,21 +973,7 @@ const CustomerPage = () => {
           ) : activeNav === "neoai" ? (
             <NeoAIFullPage roleName="CUSTOMER" />
           ) : (
-            /* Notifications / Other Placeholder (Screenshot 2) */
-            <div className="cp-other-section">
-              <div className="cons-breadcrumb-row">
-                <span className="cons-breadcrumb-muted">CUSTOMER</span>
-                <span className="cons-breadcrumb-sep">›</span>
-                <span className="cons-breadcrumb-curr">{(currentNav.label || "NOTIFICATIONS").toUpperCase()}</span>
-              </div>
-              <h1 className="cp-page-title">{currentNav.label}</h1>
-              <p className="cp-page-subtitle">This option is clicked</p>
-              <div className="cp-placeholder-card">
-                <p style={{ color: "#64748b", margin: 0 }}>
-                  Showing content for <strong>{currentNav.label}</strong>. You can navigate to other options from the left sidebar or return to <strong>Customer Portal</strong>.
-                </p>
-              </div>
-            </div>
+            <Notification currentNav={currentNav} roleName="CUSTOMER" />
           )}
         </main>
       </div>

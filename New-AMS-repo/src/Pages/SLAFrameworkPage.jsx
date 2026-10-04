@@ -5,6 +5,7 @@ import { getUserInfo } from "../Utils/GetUserInfoHelper";
 import TopBar from "../Layouts/TopBar";
 import NeoAIChatWidget from "../Components/Common/NeoAIChatWidget";
 import NeoAIFullPage from "../Components/Common/NeoAIFullPage";
+import Notification from "../Features/ModuleLeadComponents/Notification";
 
 const navItemsList = [
   // THE FRAMEWORK
@@ -404,21 +405,7 @@ const SLAFrameworkPage = () => {
           ) : activeNav === "neoai" ? (
             <NeoAIFullPage roleName="SLA FRAMEWORK" />
           ) : (
-            /* Other Option Placeholder (Screenshot 3) */
-            <div className="sla-other-section">
-              <div className="cons-breadcrumb-row">
-                <span className="cons-breadcrumb-muted">SLA FRAMEWORK</span>
-                <span className="cons-breadcrumb-sep">›</span>
-                <span className="cons-breadcrumb-curr">{(currentNav.label || "SECTION").toUpperCase()}</span>
-              </div>
-              <h1 className="sla-page-title">{currentNav.label}</h1>
-              <p className="sla-page-subtitle">This option is clicked</p>
-              <div className="sla-placeholder-card">
-                <p style={{ color: "#64748b", margin: 0 }}>
-                  Showing content for <strong>{currentNav.label}</strong>. You can navigate to other options from the left sidebar or return to <strong>Framework Overview</strong>.
-                </p>
-              </div>
-            </div>
+            <Notification currentNav={currentNav} roleName="SLA FRAMEWORK" />
           )}
         </main>
       </div>

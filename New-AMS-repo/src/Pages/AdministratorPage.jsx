@@ -5,6 +5,7 @@ import TopBar from "../Layouts/TopBar";
 import { getUserInfo } from "../Utils/GetUserInfoHelper";
 import NeoAIChatWidget from "../Components/Common/NeoAIChatWidget";
 import NeoAIFullPage from "../Components/Common/NeoAIFullPage";
+import Notification from "../Features/ModuleLeadComponents/Notification";
 
 
 
@@ -543,21 +544,7 @@ const AdministratorPage = () => {
           ) : activeNav === "neoai" ? (
             <NeoAIFullPage roleName="ADMINISTRATOR" />
           ) : (
-            /* Other Option Placeholder */
-            <div className="adp-other-section">
-              <div className="cons-breadcrumb-row">
-                <span className="cons-breadcrumb-muted">ADMINISTRATOR</span>
-                <span className="cons-breadcrumb-sep">›</span>
-                <span className="cons-breadcrumb-curr">{(currentNav.label || "SECTION").toUpperCase()}</span>
-              </div>
-              <h1 className="adp-page-title">{currentNav.label}</h1>
-              <p className="adp-page-subtitle">This option is clicked</p>
-              <div className="adp-placeholder-card">
-                <p style={{ color: "#64748b", margin: 0 }}>
-                  Showing content for <strong>{currentNav.label}</strong>. You can navigate to other options from the left sidebar or return to <strong>Agent Health</strong>.
-                </p>
-              </div>
-            </div>
+            <Notification currentNav={currentNav} roleName="ADMINISTRATOR" />
           )}
         </main>
       </div>

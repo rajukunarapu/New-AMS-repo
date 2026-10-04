@@ -9,6 +9,7 @@ import {
   Select,
   MenuItem,
   FormControl,
+  Snackbar,
 } from "@mui/material";
 import { postTicketAcknowledgement } from "../../Services/PostTicketAcknowledgmentAPI";
 import { getDeliveryWorkflowAPI } from "../../Services/GetDeliveryWorkflowAPI";
@@ -365,6 +366,25 @@ const DeliveryWorkflow = ({
   const [ackAttachmentName, setAckAttachmentName] = useState("");
   const [ackCompleted, setAckCompleted] = useState(false);
   const [brdExpanded, setBrdExpanded] = useState(true);
+  const [expandedSteps, setExpandedSteps] = useState({
+    step1: true,
+    step2: true,
+    step3: true,
+    step4: true,
+    step5: true,
+    step6: true,
+    step7: true,
+    step8: true,
+    step9: true,
+    step10: true,
+  });
+
+  const toggleStepExpand = (stepKey) => {
+    setExpandedSteps((prev) => ({
+      ...prev,
+      [stepKey]: !prev[stepKey],
+    }));
+  };
   const ackFileInputRef = useRef(null);
   const prevTicketIdRef = useRef(null);
   const pillsContainerRef = useRef(null);
@@ -412,6 +432,15 @@ const DeliveryWorkflow = ({
   const [missingFields, setMissingFields] = useState([]);
   const [activeActions, setActiveActions] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState({});
+
+  // Toast notification for upcoming/unimplemented features
+  const [toastOpen, setToastOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState("");
+
+  const handleFeatureNotImplemented = () => {
+    setToastMessage("This feature is not implemented yet.");
+    setToastOpen(true);
+  };
 
   const showStepAlert = (stepKey, type, message) => {
     setStepAlerts((prev) => ({
@@ -1064,9 +1093,9 @@ const DeliveryWorkflow = ({
     if (isDone) {
       return (
         <span className="mlp-dw-step-badge-completed">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          {/* <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <polyline points="20 6 9 17 4 12" />
-          </svg>
+          </svg> */}
           Completed
         </span>
       );
@@ -1373,309 +1402,290 @@ const DeliveryWorkflow = ({
           </>
         ) : (
           <>
-            {/* Step 01: TICKET ACK */}
-            <div className="mlp-dw-step-card">
-              <div className="mlp-dw-step-top">
-                <div className="mlp-dw-step-title-row">
-                  <span className="mlp-dw-step-num">01</span>
-                  <span className="mlp-dw-step-name">TICKET ACK</span>
-                  <span className="mlp-dw-step-tag">Ticket acknowledgement to the customer</span>
-                  <span className="mlp-dw-step-tag">consultant</span>
+        {/* Step 01: TICKET ACK */}
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
+          <div className="mlp-dw-step-top">
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">01</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">TICKET ACK</span>
+                  <span className="mlp-dw-brd-tag">Acknowledge request</span>
                 </div>
-                {renderStepBadge("step1")}
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step1")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Ticket Acknowledgement</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle Ticket ACK details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step1");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step1 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Confirm the request details and capture the acknowledgement needed to begin the workflow.
+                </p>
               </div>
-
-          <p className="mlp-dw-step-desc">
-            Confirm the request details and capture the acknowledgement needed to begin the workflow.
-          </p>
-
-          {/* Blue-grey Tinted Inner Box */}
-          <div className="mlp-dw-ack-box">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <p className="mlp-dw-ack-box-text">
-                Acknowledgement committing {ackWorkingDays || "-"} working days · Waiting on the customer to acknowledge
-              </p>
             </div>
+            {renderStepBadge("step1")}
+          </div>
 
-            <div className="mlp-dw-ack-fields-grid">
-              {/* 1. Acknowledgement sent on field in TICKET ACK Step */}
-              <div className="mlp-dw-field-group">
-                <label className="mlp-dw-field-lbl">
-                  ACKNOWLEDGEMENT SENT ON <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-                </label>
-                <TextField
-                  size="small"
-                  variant="outlined"
-                  value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
-                  disabled
-                  sx={muiInputSx}
-                  title="Start date taken from API createddate (fixed)"
-                />
+          {expandedSteps.step1 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row mlp-dw-ack-form-grid">
+                {/* 1. Acknowledgement sent on */}
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    ACKNOWLEDGEMENT SENT ON <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    title="Start date taken from API createddate (fixed)"
+                  />
+                </div>
+
+                {/* 2. Customer Acknowledged On */}
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    CUSTOMER ACKNOWLEDGED ON <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    type="date"
+                    size="small"
+                    variant="outlined"
+                    value={ackCustomerDate}
+                    error={missingFields.includes("Customer Acknowledged On")}
+                    onChange={(e) => {
+                      setAckCustomerDate(e.target.value);
+                      if (missingFields.includes("Customer Acknowledged On")) {
+                        setMissingFields((prev) => prev.filter((f) => f !== "Customer Acknowledged On"));
+                      }
+                    }}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
+                    sx={{
+                      ...muiInputSx,
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "#ffffff !important",
+                        color: "#0f172a !important",
+                        borderRadius: "12px",
+                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+                        "& fieldset": {
+                          borderColor: "#cbd5e1 !important",
+                        },
+                        "&:hover fieldset": {
+                          borderColor: "#94a3b8 !important",
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: "#33557a !important",
+                        },
+                      },
+                      "& input": {
+                        color: "#0f172a !important",
+                        WebkitTextFillColor: "#0f172a !important",
+                      },
+                      "& input::-webkit-calendar-picker-indicator": {
+                        cursor: "pointer",
+                        filter: "none !important",
+                        opacity: "1 !important",
+                        display: "block !important",
+                      },
+                      "& .MuiInputBase-input::-webkit-calendar-picker-indicator": {
+                        cursor: "pointer",
+                        filter: "none !important",
+                        opacity: "1 !important",
+                        display: "block !important",
+                      },
+                    }}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
+                  />
+                </div>
+
+                {/* 3. Acknowledgement Attachment */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ACKNOWLEDGEMENT ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={ackFileInputRef}
+                    style={{ display: "none" }}
+                    onChange={handleAckFileChange}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step1"] || submittingSteps["step1"]}
+                    onClick={() => ackFileInputRef.current && ackFileInputRef.current.click()}
+                    title={ackAttachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step1"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {ackAttachmentName
+                            ? ackAttachmentName.length > 14
+                              ? ackAttachmentName.slice(0, 14) + "..."
+                              : ackAttachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* 4. Start Date */}
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* 5. End Date */}
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={ackEndDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* 6. Responsible By */}
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={ackResponsibleBy || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* 7. Ticket Acknowledgment Status */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET ACK STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={ackStepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
 
-              {/* 2.Customer Acknowledged On field in TICKET ACK Step */}
-              <div className="mlp-dw-field-group">
-                <label className="mlp-dw-field-lbl">
-                  CUSTOMER ACKNOWLEDGED ON <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-                </label>
-                <TextField
-                  type="date"
-                  size="small"
-                  variant="outlined"
-                  value={ackCustomerDate}
-                  error={missingFields.includes("Customer Acknowledged On")}
-                  onChange={(e) => {
-                    setAckCustomerDate(e.target.value);
-                    if (missingFields.includes("Customer Acknowledged On")) {
-                      setMissingFields((prev) => prev.filter((f) => f !== "Customer Acknowledged On"));
-                    }
-                  }}
-                  onClick={(e) => {
-                    if (e.target.showPicker) {
-                      try {
-                        e.target.showPicker();
-                      } catch (err) {}
-                    }
-                  }}
-                  sx={{
-                    ...muiInputSx,
-                    "& input::-webkit-calendar-picker-indicator": {
-                      cursor: "pointer",
-                      filter: "var(--calendar-filter, none)",
-                      opacity: 1,
-                      display: "block",
-                    },
-                    "& .MuiInputBase-input::-webkit-calendar-picker-indicator": {
-                      cursor: "pointer",
-                      filter: "var(--calendar-filter, none)",
-                      opacity: 1,
-                      display: "block",
-                    },
-                  }}
-                  slotProps={{
-                    inputLabel: { shrink: true },
-                    htmlInput: {
-                      min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                    },
-                  }}
-                />
-              </div>
+              {/* Persistent Attached Document Box for Step 01 */}
+              {ackAttachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={ackAttachmentName}>
+                      {ackAttachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={handleRemoveAckFile}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
 
-              {/* 3. Acknowledgement attachment upload button in TICKET ACK Step */}
-              <div className="mlp-dw-field-group">
-                <label className="mlp-dw-field-lbl">ACKNOWLEDGEMENT ATTACHMENT</label>
-                <input
-                  type="file"
-                  ref={ackFileInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleAckFileChange}
-                />
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
                 <button
                   type="button"
-                  className="mlp-dw-upload-btn"
-                  disabled={uploadingFiles["step1"] || submittingSteps["step1"]}
-                  onClick={() => ackFileInputRef.current && ackFileInputRef.current.click()}
-                  style={{
-                    opacity: (uploadingFiles["step1"] || submittingSteps["step1"]) ? 0.75 : 1,
-                    cursor: (uploadingFiles["step1"] || submittingSteps["step1"]) ? "not-allowed" : "pointer",
-                  }}
-                  title={ackAttachmentName || "Upload Attachment"}
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step1", "Ticket ACK")}
+                  disabled={submittingSteps["step1"]}
                 >
-                  {uploadingFiles["step1"] ? (
+                  {submittingSteps["step1"] ? (
                     <>
-                      <CircularProgress size={13} color="inherit" thickness={5} />
-                      <span>Uploading...</span>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording ticket ACK...</span>
                     </>
                   ) : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
-                      <span>{ackAttachmentName ? (ackAttachmentName.length > 15 ? ackAttachmentName.slice(0, 15) + "..." : ackAttachmentName) : "Upload Attachment"}</span>
-                    </>
+                    "Record Ticket ACK"
                   )}
                 </button>
               </div>
-            </div>
-
-            <p className="mlp-dw-ack-note">
-              {ackAttachmentName
-                ? `Attached file: ${ackAttachmentName}`
-                : "No acknowledgement evidence attached yet. Attach the customer's reply so the committed dates are auditable."}
-            </p>
-          </div>
-
-          {/* Form Row for Step 01 */}
-          <div className="mlp-dw-form-row">
-            {/* <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING DAYS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={ackWorkingDays}
-                onChange={(e) => setAckWorkingDays(e.target.value)}
-                disabled={Boolean(ackWorkingHours && String(ackWorkingHours).trim() !== "" && Number(ackWorkingHours) > 0)}
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 1, max: 90 } }}
-              />
-            </div> */}
-
-            {/* <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={ackWorkingHours}
-                onChange={(e) => setAckWorkingHours(e.target.value)}
-                disabled={Boolean(ackWorkingDays && String(ackWorkingDays).trim() !== "" && Number(ackWorkingDays) > 0)}
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div> */}
-
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE<span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={ackEndDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={ackResponsibleBy || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-
-            {/* <div className="mlp-dw-field-group mlp-dw-field-status">
-              <label className="mlp-dw-field-lbl">
-                TICKET STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth error={missingFields.includes("Status")}>
-                <Select
-                  value={ackStatus || ""}
-                  onChange={(e) => {
-                    setAckStatus(e.target.value);
-                    if (missingFields.includes("Status")) {
-                      setMissingFields((prev) => prev.filter((f) => f !== "Status"));
-                    }
-                  }}
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                  displayEmpty
-                >
-                  <MenuItem value="">
-                    <span style={{ color: "#94a3b8" }}>Select Status</span>
-                  </MenuItem>
-                  {renderStatusOptions(ackStatus)}
-                </Select>
-              </FormControl>
-            </div> */}
-
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                TICKET ACKNOWLEDGMENT STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={ackStepStatus || "Pending"}
-                  onChange={(e) => setAckStepStatus(e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-
-          {/* Persistent Attached Document Box for Step 01 */}
-          {ackAttachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={ackAttachmentName}>
-                  {ackAttachmentName}
-                </span>
-              </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={handleRemoveAckFile}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
+            </>
           )}
-
-          {/* Step 01 Action footer with Record customer acknowledgement button */}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">
-              {renderStepFooterSubtext(ackWorkingDays, ackWorkingHours, ackResponsibleBy)}
-            </p> */}
-            <button
-              type="button"
-              className="mlp-dw-primary-btn"
-              onClick={() => handleSaveStep("step1", "Ticket ACK")}
-              disabled={submittingSteps["step1"]}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                opacity: submittingSteps["step1"] ? 0.8 : 1,
-                cursor: submittingSteps["step1"] ? "not-allowed" : "pointer",
-              }}
-            >
-              {submittingSteps["step1"] ? (
-                <>
-                  <CircularProgress size={14} color="inherit" thickness={5} />
-                  <span>Recording acknowledgement...</span>
-                </>
-              ) : (
-                "Record customer acknowledgement"
-              )}
-            </button>
-          </div>
 
           {submittingSteps["step1"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
@@ -1921,255 +1931,310 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 03: BUD */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">03</span>
-              <span className="mlp-dw-step-name">BUD</span>
-              <span className="mlp-dw-step-tag">Business Understanding Document</span>
-              <span className="mlp-dw-step-tag">consultant</span>
-              <span className="mlp-dw-step-tag">BU Document</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">03</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">BUD</span>
+                  <span className="mlp-dw-brd-tag">Estimate investment</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step3")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Budget & Effort Estimate</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle BUD details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step3");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step3 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Document the planned hours, budget, and delivery assumptions for this engagement.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step3")}
           </div>
-          <p className="mlp-dw-step-desc">Business Understanding confirmed against the BRD.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">ESTD TECH.HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step3.estimatedTechnicalHours || ""}
-                onChange={(e) => handleStepChange("step3", "estimatedTechnicalHours", e.target.value)}
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0, step: "any" } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">ESTD FUNC.HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step3.estimatedFunctionalHours || ""}
-                onChange={(e) => handleStepChange("step3", "estimatedFunctionalHours", e.target.value)}
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0, step: "any" } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">ESTD TOTAL HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={
-                  stepsState.step3.estimatedTotalHours ||
-                  (Number(stepsState.step3.estimatedTechnicalHours || 0) + Number(stepsState.step3.estimatedFunctionalHours || 0) > 0
-                    ? String(Number(stepsState.step3.estimatedTechnicalHours || 0) + Number(stepsState.step3.estimatedFunctionalHours || 0))
-                    : "")
-                }
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">CUST.APPROVED HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step3.customerApprovedHours || ""}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step3.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step3.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
 
-            {/* Attachment Field for Step 03 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step3 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step3", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step3"] || submittingSteps["step3"]}
-                onClick={() => fileInputRefs.current.step3 && fileInputRefs.current.step3.click()}
-                style={{
-                  opacity: (uploadingFiles["step3"] || submittingSteps["step3"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step3"] || submittingSteps["step3"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step3.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step3"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step3.attachmentName
-                        ? stepsState.step3.attachmentName.length > 12
-                          ? stepsState.step3.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step3.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
+          {expandedSteps.step3 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">ESTD TECH.HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step3.estimatedTechnicalHours || ""}
+                    onChange={(e) => handleStepChange("step3", "estimatedTechnicalHours", e.target.value)}
+                    sx={{
+                      ...muiInputSx,
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "#ffffff !important",
+                        color: "#0f172a !important",
+                        borderRadius: "12px",
+                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+                        "& fieldset": {
+                          borderColor: "#cbd5e1 !important",
+                        },
+                        "&:hover fieldset": {
+                          borderColor: "#94a3b8 !important",
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: "#33557a !important",
+                        },
+                      },
+                      "& input": {
+                        color: "#0f172a !important",
+                        WebkitTextFillColor: "#0f172a !important",
+                      },
+                    }}
+                    slotProps={{ htmlInput: { min: 0, step: "any" } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">ESTD FUNC.HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step3.estimatedFunctionalHours || ""}
+                    onChange={(e) => handleStepChange("step3", "estimatedFunctionalHours", e.target.value)}
+                    sx={{
+                      ...muiInputSx,
+                      "& .MuiOutlinedInput-root": {
+                        backgroundColor: "#ffffff !important",
+                        color: "#0f172a !important",
+                        borderRadius: "12px",
+                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+                        "& fieldset": {
+                          borderColor: "#cbd5e1 !important",
+                        },
+                        "&:hover fieldset": {
+                          borderColor: "#94a3b8 !important",
+                        },
+                        "&.Mui-focused fieldset": {
+                          borderColor: "#33557a !important",
+                        },
+                      },
+                      "& input": {
+                        color: "#0f172a !important",
+                        WebkitTextFillColor: "#0f172a !important",
+                      },
+                    }}
+                    slotProps={{ htmlInput: { min: 0, step: "any" } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">ESTD TOTAL HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={
+                      stepsState.step3.estimatedTotalHours ||
+                      (Number(stepsState.step3.estimatedTechnicalHours || 0) + Number(stepsState.step3.estimatedFunctionalHours || 0) > 0
+                        ? String(Number(stepsState.step3.estimatedTechnicalHours || 0) + Number(stepsState.step3.estimatedFunctionalHours || 0))
+                        : "")
+                    }
+                    disabled
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">CUST.APPROVED HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step3.customerApprovedHours || ""}
+                    disabled
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step3.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step3.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
 
-            {/* Document status of BUD */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                DOCUMENT STATUS
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={(stepsState.step3.attachment || stepsState.step3.attachmentName) ? "Yes" : (stepsState.step3.documentStatus || "No")}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Yes">Yes</MenuItem>
-                  <MenuItem value="No">No</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-            {/* BUD Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                BUD STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step3.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step3", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 03 */}
-          {stepsState.step3.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step3.attachmentName}>
-                  {stepsState.step3.attachmentName}
-                </span>
+                {/* Attachment Field for Step 03 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step3 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step3", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step3"] || submittingSteps["step3"]}
+                    onClick={() => fileInputRefs.current.step3 && fileInputRefs.current.step3.click()}
+                    title={stepsState.step3.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step3"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step3.attachmentName
+                            ? stepsState.step3.attachmentName.length > 14
+                              ? stepsState.step3.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step3.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Document status of BUD */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">DOCUMENT STATUS</label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={(stepsState.step3.attachment || stepsState.step3.attachmentName) ? "Yes" : (stepsState.step3.documentStatus || "No")}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* BUD Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    BUD STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step3.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step3")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
+
+              {/* Persistent Attached Document Box for Step 03 */}
+              {stepsState.step3.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step3.attachmentName}>
+                      {stepsState.step3.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step3")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step3", "BUD")}
+                  disabled={submittingSteps["step3"]}
+                >
+                  {submittingSteps["step3"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording BUD...</span>
+                    </>
+                  ) : (
+                    "Record BUD"
+                  )}
+                </button>
+              </div>
+            </>
           )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step3.days, stepsState.step3.hours, stepsState.step3.responsible)}</p> */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                type="button"
-                className="mlp-dw-action-btn"
-                disabled={activeActions["step3"]}
-                onClick={() => handleTriggerAction("step3", "Business Understanding Document marked as provided.")}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                {activeActions["step3"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Marking provided...</span>
-                  </>
-                ) : activeActions["step3_done"] ? (
-                  "✓ BU Document Provided"
-                ) : (
-                  "Mark BU Document provided"
-                )}
-              </button>
-              <button
-                type="button"
-                className="mlp-dw-primary-btn"
-                onClick={() => handleSaveStep("step3", "BUD")}
-                disabled={submittingSteps["step3"]}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  opacity: submittingSteps["step3"] ? 0.8 : 1,
-                  cursor: submittingSteps["step3"] ? "not-allowed" : "pointer",
-                }}
-              >
-                {submittingSteps["step3"] ? (
-                  <>
-                    <CircularProgress size={14} color="inherit" thickness={5} />
-                    <span>Recording BUD...</span>
-                  </>
-                ) : (
-                  "Record BUD"
-                )}
-              </button>
-            </div>
-          </div>
+
           {submittingSteps["step3"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -2189,197 +2254,216 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 04: FS */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">04</span>
-              <span className="mlp-dw-step-name">FS</span>
-              <span className="mlp-dw-step-tag">Functional Specification</span>
-              <span className="mlp-dw-step-tag">consultant</span>
-              <span className="mlp-dw-step-tag">Functional Specification</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">04</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">FS</span>
+                  <span className="mlp-dw-brd-tag">Describe solution</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step4")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Functional Specification</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle FS details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step4");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step4 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Translate approved requirements into a clear, reviewable functional specification.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step4")}
           </div>
-          <p className="mlp-dw-step-desc">Functional specification prepared and attached to the ticket.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step4.hours ?? ""}
-                onChange={(e) => handleStepChange("step4", "hours", e.target.value)}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step4.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step4.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            
-            {/* Attachment Field for Step 04 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step4 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step4", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step4"] || submittingSteps["step4"]}
-                onClick={() => fileInputRefs.current.step4 && fileInputRefs.current.step4.click()}
-                style={{
-                  opacity: (uploadingFiles["step4"] || submittingSteps["step4"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step4"] || submittingSteps["step4"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step4.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step4"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step4.attachmentName
-                        ? stepsState.step4.attachmentName.length > 12
-                          ? stepsState.step4.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step4.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* FS Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                FS STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step4.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step4", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 04 */}
-          {stepsState.step4.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step4.attachmentName}>
-                  {stepsState.step4.attachmentName}
-                </span>
+
+          {expandedSteps.step4 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step4.hours ?? ""}
+                    onChange={(e) => handleStepChange("step4", "hours", e.target.value)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step4.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step4.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Attachment Field for Step 04 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step4 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step4", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step4"] || submittingSteps["step4"]}
+                    onClick={() => fileInputRefs.current.step4 && fileInputRefs.current.step4.click()}
+                    title={stepsState.step4.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step4"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step4.attachmentName
+                            ? stepsState.step4.attachmentName.length > 14
+                              ? stepsState.step4.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step4.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* FS Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    FS STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step4.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step4")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
+
+              {/* Persistent Attached Document Box for Step 04 */}
+              {stepsState.step4.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step4.attachmentName}>
+                      {stepsState.step4.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step4")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step4", "FS")}
+                  disabled={submittingSteps["step4"]}
+                >
+                  {submittingSteps["step4"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording FS...</span>
+                    </>
+                  ) : (
+                    "Record FS"
+                  )}
+                </button>
+              </div>
+            </>
           )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step4.days, stepsState.step4.hours, stepsState.step4.responsible)}</p> */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                type="button"
-                className="mlp-dw-action-btn"
-                disabled={activeActions["step4"]}
-                onClick={() => handleTriggerAction("step4", "Functional Specification draft generated with AI.")}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                {activeActions["step4"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Generating with AI...</span>
-                  </>
-                ) : activeActions["step4_done"] ? (
-                  "FS Generated"
-                ) : (
-                  "Generate with AI"
-                )}
-              </button>
-              <button
-                type="button"
-                className="mlp-dw-primary-btn"
-                onClick={() => handleSaveStep("step4", "FS")}
-                disabled={submittingSteps["step4"]}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  opacity: submittingSteps["step4"] ? 0.8 : 1,
-                  cursor: submittingSteps["step4"] ? "not-allowed" : "pointer",
-                }}
-              >
-                {submittingSteps["step4"] ? (
-                  <>
-                    <CircularProgress size={14} color="inherit" thickness={5} />
-                    <span>Recording FS...</span>
-                  </>
-                ) : (
-                  "Record FS"
-                )}
-              </button>
-            </div>
-          </div>
+
           {submittingSteps["step4"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -2399,199 +2483,216 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 05: TS */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">05</span>
-              <span className="mlp-dw-step-name">TS</span>
-              <span className="mlp-dw-step-tag">Technical Specification</span>
-              <span className="mlp-dw-step-tag">consultant</span>
-              <span className="mlp-dw-step-tag">Technical Design</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">05</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">TS</span>
+                  <span className="mlp-dw-brd-tag">Plan implementation</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step5")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Technical Specification</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle TS details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step5");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step5 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Define the technical approach, dependencies, and implementation details.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step5")}
           </div>
-          <p className="mlp-dw-step-desc">Technical specification prepared and reviewed by the module lead.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step5.hours ?? ""}
-                onChange={(e) => handleStepChange("step5", "hours", e.target.value)}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step5.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step5.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            
-            {/* Attachment Field for Step 05 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step5 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step5", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step5"] || submittingSteps["step5"]}
-                onClick={() => fileInputRefs.current.step5 && fileInputRefs.current.step5.click()}
-                style={{
-                  opacity: (uploadingFiles["step5"] || submittingSteps["step5"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step5"] || submittingSteps["step5"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step5.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step5"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step5.attachmentName
-                        ? stepsState.step5.attachmentName.length > 12
-                          ? stepsState.step5.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step5.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* TS Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                TS STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step5.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step5", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 05 */}
-          {stepsState.step5.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step5.attachmentName}>
-                  {stepsState.step5.attachmentName}
-                </span>
+
+          {expandedSteps.step5 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step5.hours ?? ""}
+                    onChange={(e) => handleStepChange("step5", "hours", e.target.value)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step5.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step5.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Attachment Field for Step 05 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step5 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step5", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step5"] || submittingSteps["step5"]}
+                    onClick={() => fileInputRefs.current.step5 && fileInputRefs.current.step5.click()}
+                    title={stepsState.step5.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step5"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step5.attachmentName
+                            ? stepsState.step5.attachmentName.length > 14
+                              ? stepsState.step5.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step5.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* TS Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    TS STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step5.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step5")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
+
+              {/* Persistent Attached Document Box for Step 05 */}
+              {stepsState.step5.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step5.attachmentName}>
+                      {stepsState.step5.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step5")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step5", "TS")}
+                  disabled={submittingSteps["step5"]}
+                >
+                  {submittingSteps["step5"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording TS...</span>
+                    </>
+                  ) : (
+                    "Record TS"
+                  )}
+                </button>
+              </div>
+            </>
           )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step5.days, stepsState.step5.hours, stepsState.step5.responsible)}</p> */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                type="button"
-                className="mlp-dw-action-btn"
-                disabled={activeActions["step5"]}
-                onClick={() => handleTriggerAction("step5", "Technical Design draft generated with AI.")}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                {activeActions["step5"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Generating with AI...</span>
-                  </>
-                ) : activeActions["step5_done"] ? (
-                  " TS Generated"
-                ) : (
-                  " Generate with AI"
-                )}
-              </button>
-              <button
-                type="button"
-                className="mlp-dw-primary-btn"
-                onClick={() => handleSaveStep("step5", "TS")}
-                disabled={submittingSteps["step5"]}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  opacity: submittingSteps["step5"] ? 0.8 : 1,
-                  cursor: submittingSteps["step5"] ? "not-allowed" : "pointer",
-                }}
-              >
-                {submittingSteps["step5"] ? (
-                  <>
-                    <CircularProgress size={14} color="inherit" thickness={5} />
-                    <span>Recording TS...</span>
-                  </>
-                ) : completedSteps.step5 ? (
-                  "Record TS"
-                ) : (
-                  "Record TS"
-                )}
-              </button>
-            </div>
-          </div>
+
           {submittingSteps["step5"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -2611,196 +2712,216 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 06: CONFIG */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">06</span>
-              <span className="mlp-dw-step-name">CONFIG</span>
-              <span className="mlp-dw-step-tag">Configuration / development</span>
-              <span className="mlp-dw-step-tag">consultant</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">06</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">CONFIG</span>
+                  <span className="mlp-dw-brd-tag">Configure workspace</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step6")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Configuration</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle CONFIG details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step6");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step6 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Set up configuration values and confirm the environment is ready for delivery.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step6")}
           </div>
-          <p className="mlp-dw-step-desc">Configuration executed in DEV with AI assistance; unit tested.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step6.hours ?? ""}
-                onChange={(e) => handleStepChange("step6", "hours", e.target.value)}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step6.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step6.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            
-            {/* Attachment Field for Step 06 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step6 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step6", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step6"] || submittingSteps["step6"]}
-                onClick={() => fileInputRefs.current.step6 && fileInputRefs.current.step6.click()}
-                style={{
-                  opacity: (uploadingFiles["step6"] || submittingSteps["step6"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step6"] || submittingSteps["step6"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step6.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step6"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step6.attachmentName
-                        ? stepsState.step6.attachmentName.length > 12
-                          ? stepsState.step6.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step6.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* CONFIG Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                CONFIG STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step6.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step6", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 06 */}
-          {stepsState.step6.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step6.attachmentName}>
-                  {stepsState.step6.attachmentName}
-                </span>
+
+          {expandedSteps.step6 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step6.hours ?? ""}
+                    onChange={(e) => handleStepChange("step6", "hours", e.target.value)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step6.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step6.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Attachment Field for Step 06 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step6 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step6", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step6"] || submittingSteps["step6"]}
+                    onClick={() => fileInputRefs.current.step6 && fileInputRefs.current.step6.click()}
+                    title={stepsState.step6.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step6"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step6.attachmentName
+                            ? stepsState.step6.attachmentName.length > 14
+                              ? stepsState.step6.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step6.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* CONFIG Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    CONFIG STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step6.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step6")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
+
+              {/* Persistent Attached Document Box for Step 06 */}
+              {stepsState.step6.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step6.attachmentName}>
+                      {stepsState.step6.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step6")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step6", "CONFIG")}
+                  disabled={submittingSteps["step6"]}
+                >
+                  {submittingSteps["step6"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording CONFIG...</span>
+                    </>
+                  ) : (
+                    "Record CONFIG"
+                  )}
+                </button>
+              </div>
+            </>
           )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step6.days, stepsState.step6.hours, stepsState.step6.responsible)}</p> */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                type="button"
-                className="mlp-dw-action-btn"
-                disabled={activeActions["step6"]}
-                onClick={() => handleTriggerAction("step6", "AI configuration guidance and unit test suggestions ready.")}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                {activeActions["step6"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Loading AI Guidance...</span>
-                  </>
-                ) : activeActions["step6_done"] ? (
-                  "Guidance Ready"
-                ) : (
-                  "AI configuration help"
-                )}
-              </button>
-              <button
-                type="button"
-                className="mlp-dw-primary-btn"
-                onClick={() => handleSaveStep("step6", "CONFIG")}
-                disabled={submittingSteps["step6"]}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  opacity: submittingSteps["step6"] ? 0.8 : 1,
-                  cursor: submittingSteps["step6"] ? "not-allowed" : "pointer",
-                }}
-              >
-                {submittingSteps["step6"] ? (
-                  <>
-                    <CircularProgress size={14} color="inherit" thickness={5} />
-                    <span>Recording CONFIG...</span>
-                  </>
-                ) : (
-                  "Record CONFIG"
-                )}
-              </button>
-            </div>
-          </div>
+
           {submittingSteps["step6"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -2820,196 +2941,216 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 07: TEST INTERNAL */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">07</span>
-              <span className="mlp-dw-step-name">TEST INTERNAL</span>
-              <span className="mlp-dw-step-tag">Internal test cycle</span>
-              <span className="mlp-dw-step-tag">consultant</span>
-              <span className="mlp-dw-step-tag">Test Scripts</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">07</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">TEST INTERNAL</span>
+                  <span className="mlp-dw-brd-tag">Validate internally</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step7")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Internal Testing</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle TEST INTERNAL details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step7");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step7 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Run the internal test pass and track any issues before customer review.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step7")}
           </div>
-          <p className="mlp-dw-step-desc">Internal testing executed against the test scripts before submission.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step7.hours ?? ""}
-                onChange={(e) => handleStepChange("step7", "hours", e.target.value)}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step7.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step7.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            {/* Attachment Field for Step 07 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step7 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step7", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step7"] || submittingSteps["step7"]}
-                onClick={() => fileInputRefs.current.step7 && fileInputRefs.current.step7.click()}
-                style={{
-                  opacity: (uploadingFiles["step7"] || submittingSteps["step7"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step7"] || submittingSteps["step7"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step7.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step7"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step7.attachmentName
-                        ? stepsState.step7.attachmentName.length > 12
-                          ? stepsState.step7.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step7.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* TEST INTERNAL Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                TEST INTERNAL STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step7.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step7", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 07 */}
-          {stepsState.step7.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step7.attachmentName}>
-                  {stepsState.step7.attachmentName}
-                </span>
+
+          {expandedSteps.step7 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step7.hours ?? ""}
+                    onChange={(e) => handleStepChange("step7", "hours", e.target.value)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step7.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step7.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Attachment Field for Step 07 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step7 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step7", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step7"] || submittingSteps["step7"]}
+                    onClick={() => fileInputRefs.current.step7 && fileInputRefs.current.step7.click()}
+                    title={stepsState.step7.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step7"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step7.attachmentName
+                            ? stepsState.step7.attachmentName.length > 14
+                              ? stepsState.step7.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step7.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* TEST INTERNAL Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    TEST INTERNAL STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step7.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step7")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
+
+              {/* Persistent Attached Document Box for Step 07 */}
+              {stepsState.step7.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step7.attachmentName}>
+                      {stepsState.step7.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step7")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step7", "TEST INTERNAL")}
+                  disabled={submittingSteps["step7"]}
+                >
+                  {submittingSteps["step7"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording Internal Testing...</span>
+                    </>
+                  ) : (
+                    "Record Internal Testing"
+                  )}
+                </button>
+              </div>
+            </>
           )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step7.days, stepsState.step7.hours, stepsState.step7.responsible)}</p> */}
-            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-              <button
-                type="button"
-                className="mlp-dw-action-btn"
-                disabled={activeActions["step7"]}
-                onClick={() => handleTriggerAction("step7", "Test Scripts generated with AI.")}
-                style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                {activeActions["step7"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Generating with AI...</span>
-                  </>
-                ) : activeActions["step7_done"] ? (
-                  "Test Scripts Ready"
-                ) : (
-                  "Generate with AI"
-                )}
-              </button>
-              <button
-                type="button"
-                className="mlp-dw-primary-btn"
-                onClick={() => handleSaveStep("step7", "TEST INTERNAL")}
-                disabled={submittingSteps["step7"]}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  opacity: submittingSteps["step7"] ? 0.8 : 1,
-                  cursor: submittingSteps["step7"] ? "not-allowed" : "pointer",
-                }}
-              >
-                {submittingSteps["step7"] ? (
-                  <>
-                    <CircularProgress size={14} color="inherit" thickness={5} />
-                    <span>Recording Test...</span>
-                  </>
-                ) : (
-                  "Record Test"
-                )}
-              </button>
-            </div>
-          </div>
+
           {submittingSteps["step7"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -3029,177 +3170,216 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 08: U. MANUAL */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">08</span>
-              <span className="mlp-dw-step-name">U. MANUAL</span>
-              <span className="mlp-dw-step-tag">User manual</span>
-              <span className="mlp-dw-step-tag">consultant</span>
-              <span className="mlp-dw-step-tag">User manual</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">08</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">U. MANUAL</span>
+                  <span className="mlp-dw-brd-tag">Prepare guidance</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step8")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">User Manual</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle U. MANUAL details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step8");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step8 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Prepare concise guidance to help customers use the delivered workflow.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step8")}
           </div>
-          <p className="mlp-dw-step-desc">User manual prepared for the customer team.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step8.hours ?? ""}
-                onChange={(e) => handleStepChange("step8", "hours", e.target.value)}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step8.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step8.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            
-            {/* Attachment Field for Step 08 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step8 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step8", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step8"] || submittingSteps["step8"]}
-                onClick={() => fileInputRefs.current.step8 && fileInputRefs.current.step8.click()}
-                style={{
-                  opacity: (uploadingFiles["step8"] || submittingSteps["step8"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step8"] || submittingSteps["step8"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step8.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step8"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step8.attachmentName
-                        ? stepsState.step8.attachmentName.length > 12
-                          ? stepsState.step8.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step8.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* User Manual Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                U.MANUAL STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step8.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step8", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 08 */}
-          {stepsState.step8.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step8.attachmentName}>
-                  {stepsState.step8.attachmentName}
-                </span>
+
+          {expandedSteps.step8 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step8.hours ?? ""}
+                    onChange={(e) => handleStepChange("step8", "hours", e.target.value)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step8.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step8.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Attachment Field for Step 08 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step8 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step8", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step8"] || submittingSteps["step8"]}
+                    onClick={() => fileInputRefs.current.step8 && fileInputRefs.current.step8.click()}
+                    title={stepsState.step8.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step8"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step8.attachmentName
+                            ? stepsState.step8.attachmentName.length > 14
+                              ? stepsState.step8.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step8.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* User Manual Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    U.MANUAL STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step8.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step8")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step8.days, stepsState.step8.hours, stepsState.step8.responsible)}</p> */}
-            <button
-              type="button"
-              className="mlp-dw-primary-btn"
-              onClick={() => handleSaveStep("step8", "U. MANUAL")}
-              disabled={submittingSteps["step8"]}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                opacity: submittingSteps["step8"] ? 0.8 : 1,
-                cursor: submittingSteps["step8"] ? "not-allowed" : "pointer",
-              }}
-            >
-              {submittingSteps["step8"] ? (
-                <>
-                  <CircularProgress size={14} color="inherit" thickness={5} />
-                  <span>Recording User Manual...</span>
-                </>
-              ) : (
-                "Record User Manual"
+
+              {/* Persistent Attached Document Box for Step 08 */}
+              {stepsState.step8.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step8.attachmentName}>
+                      {stepsState.step8.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step8")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
               )}
-            </button>
-          </div>
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step8", "U. MANUAL")}
+                  disabled={submittingSteps["step8"]}
+                >
+                  {submittingSteps["step8"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording User Manual...</span>
+                    </>
+                  ) : (
+                    "Record User Manual"
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+
           {submittingSteps["step8"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -3219,175 +3399,216 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 09: SUBMISSION */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">09</span>
-              <span className="mlp-dw-step-name">SUBMISSION</span>
-              <span className="mlp-dw-step-tag">Submission to the customer</span>
-              <span className="mlp-dw-step-tag">consultant</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">09</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">SUBMISSION</span>
+                  <span className="mlp-dw-brd-tag">Submit to customer</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step9")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Submission</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle SUBMISSION details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step9");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step9 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Package the final materials and submit the completed work for customer review.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step9")}
           </div>
-          <p className="mlp-dw-step-desc">Deliverables and documents submitted to the customer for validation.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step9.hours ?? ""}
-                onChange={(e) => handleStepChange("step9", "hours", e.target.value)}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step9.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step9.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            {/* Attachment Field for Step 09 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step9 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step9", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step9"] || submittingSteps["step9"]}
-                onClick={() => fileInputRefs.current.step9 && fileInputRefs.current.step9.click()}
-                style={{
-                  opacity: (uploadingFiles["step9"] || submittingSteps["step9"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step9"] || submittingSteps["step9"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step9.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step9"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step9.attachmentName
-                        ? stepsState.step9.attachmentName.length > 12
-                          ? stepsState.step9.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step9.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* SUBMISSION Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                SUBMISSION STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step9.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step9", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-          </div>
-          {/* Persistent Attached Document Box for Step 09 */}
-          {stepsState.step9.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step9.attachmentName}>
-                  {stepsState.step9.attachmentName}
-                </span>
+
+          {expandedSteps.step9 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step9.hours ?? ""}
+                    onChange={(e) => handleStepChange("step9", "hours", e.target.value)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step9.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step9.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Attachment Field for Step 09 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step9 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step9", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step9"] || submittingSteps["step9"]}
+                    onClick={() => fileInputRefs.current.step9 && fileInputRefs.current.step9.click()}
+                    title={stepsState.step9.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step9"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step9.attachmentName
+                            ? stepsState.step9.attachmentName.length > 14
+                              ? stepsState.step9.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step9.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* SUBMISSION Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    SUBMISSION STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step9.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step9")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step9.days, stepsState.step9.hours, stepsState.step9.responsible)}</p> */}
-            <button
-              type="button"
-              className="mlp-dw-primary-btn"
-              onClick={() => handleSaveStep("step9", "SUBMISSION")}
-              disabled={submittingSteps["step9"]}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                opacity: submittingSteps["step9"] ? 0.8 : 1,
-                cursor: submittingSteps["step9"] ? "not-allowed" : "pointer",
-              }}
-            >
-              {submittingSteps["step9"] ? (
-                <>
-                  <CircularProgress size={14} color="inherit" thickness={5} />
-                  <span>Recording Submission...</span>
-                </>
-              ) : (
-                "Record Submission"
+
+              {/* Persistent Attached Document Box for Step 09 */}
+              {stepsState.step9.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step9.attachmentName}>
+                      {stepsState.step9.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step9")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
               )}
-            </button>
-          </div>
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step9", "SUBMISSION")}
+                  disabled={submittingSteps["step9"]}
+                >
+                  {submittingSteps["step9"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording Submission...</span>
+                    </>
+                  ) : (
+                    "Record Submission"
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+
           {submittingSteps["step9"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -3407,198 +3628,240 @@ const DeliveryWorkflow = ({
         </div>
 
         {/* Step 10: VA */}
-        <div className="mlp-dw-step-card">
+        <div className="mlp-dw-step-card mlp-dw-brd-card">
           <div className="mlp-dw-step-top">
-            <div className="mlp-dw-step-title-row">
-              <span className="mlp-dw-step-num">10</span>
-              <span className="mlp-dw-step-name">VA</span>
-              <span className="mlp-dw-step-tag">Validation and acceptance</span>
-              <span className="mlp-dw-step-tag">customer</span>
+            <div className="mlp-dw-brd-header-left">
+              <span className="mlp-dw-brd-num">10</span>
+              <div className="mlp-dw-brd-title-group">
+                <div className="mlp-dw-brd-meta-row">
+                  <span className="mlp-dw-brd-doc-code">VA</span>
+                  <span className="mlp-dw-brd-tag">Close the loop</span>
+                </div>
+                <div
+                  className="mlp-dw-brd-heading-row"
+                  onClick={() => toggleStepExpand("step10")}
+                  style={{ cursor: "pointer" }}
+                >
+                  <h3 className="mlp-dw-brd-heading">Validation & Acceptance</h3>
+                  <button
+                    type="button"
+                    className="mlp-dw-brd-toggle-btn"
+                    aria-label="Toggle VA details"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleStepExpand("step10");
+                    }}
+                  >
+                    <svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{
+                        transform: expandedSteps.step10 ? "rotate(0deg)" : "rotate(180deg)",
+                        transition: "transform 0.2s ease",
+                      }}
+                    >
+                      <polyline points="18 15 12 9 6 15" />
+                    </svg>
+                  </button>
+                </div>
+                <p className="mlp-dw-step-desc">
+                  Record customer feedback, acceptance, and any final follow-up actions.
+                </p>
+              </div>
             </div>
             {renderStepBadge("step10")}
           </div>
-          <p className="mlp-dw-step-desc">Customer validates in QA and accepts. Acceptance closes the ticket.</p>
-          <div className="mlp-dw-form-row">
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">WORKING HOURS</label>
-              <TextField
-                type="number"
-                size="small"
-                variant="outlined"
-                value={stepsState.step10.hours ?? ""}
-                onChange={(e) => handleStepChange("step10", "hours", e.target.value)}
-                disabled
-                sx={muiInputSx}
-                slotProps={{ htmlInput: { min: 0 } }}
-              />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                START DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField size="small" variant="outlined" value={formatCreatedDate(selectedWorkflowTicket?.createddate)} disabled sx={muiInputSx} />
-            </div>
-            <div className="mlp-dw-field-group">
-              <label className="mlp-dw-field-lbl">
-                END DATE <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step10.endDate || ""}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            <div className="mlp-dw-field-group mlp-dw-field-responsible">
-              <label className="mlp-dw-field-lbl">
-                RESPONSIBLE BY <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step10.responsible || defaultConsultant || "NA"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-            
-            {/* Attachment Field for Step 10 */}
-            <div className="mlp-dw-field-group mlp-dw-field-attachment">
-              <label className="mlp-dw-field-lbl">ATTACHMENT</label>
-              <input
-                type="file"
-                ref={(el) => (fileInputRefs.current.step10 = el)}
-                style={{ display: "none" }}
-                onChange={(e) => handleStepFileChange("step10", e)}
-              />
-              <button
-                type="button"
-                className="mlp-dw-upload-btn"
-                disabled={uploadingFiles["step10"] || submittingSteps["step10"]}
-                onClick={() => fileInputRefs.current.step10 && fileInputRefs.current.step10.click()}
-                style={{
-                  opacity: (uploadingFiles["step10"] || submittingSteps["step10"]) ? 0.75 : 1,
-                  cursor: (uploadingFiles["step10"] || submittingSteps["step10"]) ? "not-allowed" : "pointer",
-                }}
-                title={stepsState.step10.attachmentName || "Upload Attachment"}
-              >
-                {uploadingFiles["step10"] ? (
-                  <>
-                    <CircularProgress size={13} color="inherit" thickness={5} />
-                    <span>Uploading...</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                      <polyline points="17 8 12 3 7 8" />
-                      <line x1="12" y1="3" x2="12" y2="15" />
-                    </svg>
-                    <span>
-                      {stepsState.step10.attachmentName
-                        ? stepsState.step10.attachmentName.length > 12
-                          ? stepsState.step10.attachmentName.slice(0, 12) + "..."
-                          : stepsState.step10.attachmentName
-                        : "Upload File"}
-                    </span>
-                  </>
-                )}
-              </button>
-            </div>
-            {/* VA Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-step-status">
-              <label className="mlp-dw-field-lbl">
-                VA STATUS <span style={{ color: "#ef4444", marginLeft: "2px" }}>*</span>
-              </label>
-              <FormControl size="small" fullWidth disabled>
-                <Select
-                  value={stepsState.step10.stepStatus || "Pending"}
-                  onChange={(e) => handleStepChange("step10", "stepStatus", e.target.value)}
-                  disabled
-                  sx={muiSelectSx}
-                  MenuProps={menuProps}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Completed">Completed</MenuItem>
-                  <MenuItem value="Rejected">Rejected</MenuItem>
-                </Select>
-              </FormControl>
-            </div>
-            {/* Ticket Status Field */}
-            <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
-              <label className="mlp-dw-field-lbl">TICKET STATUS</label>
-              <TextField
-                size="small"
-                variant="outlined"
-                value={stepsState.step10.ticketStatus || stepsState.step10.status || "Inprocess"}
-                disabled
-                sx={muiInputSx}
-              />
-            </div>
-          </div>
-          {/* Work note / Remarks Textarea for Step 10 */}
-          {/* Remarks Textarea for Step 10 */}
-          <div className="mlp-td-form-field" style={{ marginTop: "14px", width: "100%" }}>
-            <label className="mlp-td-form-label">Remarks (optional)</label>
-            <textarea
-              className="mlp-td-textarea"
-              placeholder="Add remarks..."
-              value={stepsState.step10.remarks || ""}
-              onChange={(e) => handleStepChange("step10", "remarks", e.target.value)}
-            />
-          </div>
-          {/* Persistent Attached Document Box for Step 10 */}
-          {stepsState.step10.attachmentName && (
-            <div className="mlp-dw-attached-file-box">
-              <div className="mlp-dw-attached-file-info">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                  <line x1="16" y1="13" x2="8" y2="13" />
-                  <line x1="16" y1="17" x2="8" y2="17" />
-                  <polyline points="10 9 9 9 8 9" />
-                </svg>
-                <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                <span className="mlp-dw-attached-file-name" title={stepsState.step10.attachmentName}>
-                  {stepsState.step10.attachmentName}
-                </span>
+
+          {expandedSteps.step10 && (
+            <>
+              <div className="mlp-dw-form-row mlp-dw-brd-form-row">
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <TextField
+                    type="number"
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step10.hours ?? ""}
+                    onChange={(e) => handleStepChange("step10", "hours", e.target.value)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                    slotProps={{ htmlInput: { min: 0 } }}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    START DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={formatCreatedDate(selectedWorkflowTicket?.createddate)}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group">
+                  <label className="mlp-dw-field-lbl">
+                    END DATE <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step10.endDate || ""}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+                <div className="mlp-dw-field-group mlp-dw-field-responsible">
+                  <label className="mlp-dw-field-lbl">
+                    RESPONSIBLE BY <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step10.responsible || defaultConsultant || "NA"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Attachment Field for Step 10 */}
+                <div className="mlp-dw-field-group mlp-dw-field-attachment">
+                  <label className="mlp-dw-field-lbl">ATTACHMENT</label>
+                  <input
+                    type="file"
+                    ref={(el) => (fileInputRefs.current.step10 = el)}
+                    style={{ display: "none" }}
+                    onChange={(e) => handleStepFileChange("step10", e)}
+                  />
+                  <button
+                    type="button"
+                    className="mlp-dw-upload-btn mlp-dw-brd-upload-btn"
+                    disabled={uploadingFiles["step10"] || submittingSteps["step10"]}
+                    onClick={() => fileInputRefs.current.step10 && fileInputRefs.current.step10.click()}
+                    title={stepsState.step10.attachmentName || "Upload Attachment"}
+                  >
+                    {uploadingFiles["step10"] ? (
+                      <>
+                        <CircularProgress size={13} color="inherit" thickness={5} />
+                        <span>Uploading...</span>
+                      </>
+                    ) : (
+                      <>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                          <polyline points="17 8 12 3 7 8" />
+                          <line x1="12" y1="3" x2="12" y2="15" />
+                        </svg>
+                        <span>
+                          {stepsState.step10.attachmentName
+                            ? stepsState.step10.attachmentName.length > 14
+                              ? stepsState.step10.attachmentName.slice(0, 14) + "..."
+                              : stepsState.step10.attachmentName
+                            : "Upload file"}
+                        </span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* VA Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-step-status">
+                  <label className="mlp-dw-field-lbl">
+                    VA STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step10.stepStatus || "Pending"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">TICKET STATUS</label>
+                  <TextField
+                    size="small"
+                    variant="outlined"
+                    value={stepsState.step10.ticketStatus || stepsState.step10.status || "Inprocess"}
+                    disabled
+                    fullWidth
+                    sx={muiInputSx}
+                  />
+                </div>
               </div>
-              <button
-                type="button"
-                className="mlp-dw-attached-file-remove"
-                onClick={() => handleRemoveStepFile("step10")}
-                title="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
-          )}
-          <div className="mlp-dw-step-footer">
-            {/* <p className="mlp-dw-step-subtext">{renderStepFooterSubtext(stepsState.step10.days, stepsState.step10.hours, stepsState.step10.responsible)}</p> */}
-            <button
-              type="button"
-              className="mlp-dw-primary-btn"
-              onClick={() => handleSaveStep("step10", "VA")}
-              disabled={submittingSteps["step10"]}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "8px",
-                opacity: submittingSteps["step10"] ? 0.8 : 1,
-                cursor: submittingSteps["step10"] ? "not-allowed" : "pointer",
-              }}
-            >
-              {submittingSteps["step10"] ? (
-                <>
-                  <CircularProgress size={14} color="inherit" thickness={5} />
-                  <span>Recording VA...</span>
-                </>
-              ) : (
-                "Record Acceptance (VA)"
+
+              {/* Remarks Textarea for Step 10 */}
+              <div className="mlp-td-form-field" style={{ marginTop: "14px", width: "100%" }}>
+                <label className="mlp-td-form-label">Remarks (optional)</label>
+                <textarea
+                  className="mlp-td-textarea"
+                  placeholder="Add remarks..."
+                  value={stepsState.step10.remarks || ""}
+                  onChange={(e) => handleStepChange("step10", "remarks", e.target.value)}
+                />
+              </div>
+
+              {/* Persistent Attached Document Box for Step 10 */}
+              {stepsState.step10.attachmentName && (
+                <div className="mlp-dw-attached-file-box">
+                  <div className="mlp-dw-attached-file-info">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                      <polyline points="14 2 14 8 20 8" />
+                      <line x1="16" y1="13" x2="8" y2="13" />
+                      <line x1="16" y1="17" x2="8" y2="17" />
+                      <polyline points="10 9 9 9 8 9" />
+                    </svg>
+                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
+                    <span className="mlp-dw-attached-file-name" title={stepsState.step10.attachmentName}>
+                      {stepsState.step10.attachmentName}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="mlp-dw-attached-file-remove"
+                    onClick={() => handleRemoveStepFile("step10")}
+                    title="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
               )}
-            </button>
-          </div>
+
+              <div className="mlp-dw-step-footer mlp-dw-brd-footer">
+                <button
+                  type="button"
+                  className="mlp-dw-brd-record-btn"
+                  onClick={() => handleSaveStep("step10", "VA")}
+                  disabled={submittingSteps["step10"]}
+                >
+                  {submittingSteps["step10"] ? (
+                    <>
+                      <CircularProgress size={14} color="inherit" thickness={5} />
+                      <span>Recording VA...</span>
+                    </>
+                  ) : (
+                    "Record Acceptance (VA)"
+                  )}
+                </button>
+              </div>
+            </>
+          )}
+
           {submittingSteps["step10"] && (
             <div style={{ marginTop: "10px", width: "100%", borderRadius: "4px", overflow: "hidden" }}>
               <LinearProgress sx={{ height: 4, borderRadius: 2 }} />
@@ -3674,17 +3937,9 @@ const DeliveryWorkflow = ({
                 type="button"
                 className="mlp-dw-primary-btn"
                 style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "6px" }}
-                disabled={activeActions["docStudio"]}
-                onClick={() => handleTriggerAction("docStudio", `${workflowDocTab} generated with AI and attached to drafts.`)}
+                onClick={handleFeatureNotImplemented}
               >
-                {activeActions["docStudio"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Generating {workflowDocTab}...</span>
-                  </>
-                ) : (
-                  `Generate ${workflowDocTab} with AI`
-                )}
+                Generate {workflowDocTab} with AI
               </button>
             </div>
 
@@ -3701,17 +3956,9 @@ const DeliveryWorkflow = ({
                 type="button"
                 className="mlp-dw-primary-btn"
                 style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: "6px" }}
-                disabled={activeActions["configPlan"]}
-                onClick={() => handleTriggerAction("configPlan", "Configuration plan and recommendations generated.")}
+                onClick={handleFeatureNotImplemented}
               >
-                {activeActions["configPlan"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Generating Plan...</span>
-                  </>
-                ) : (
-                  "Generate configuration plan"
-                )}
+                Generate configuration plan
               </button>
             </div>
 
@@ -3752,17 +3999,9 @@ const DeliveryWorkflow = ({
                 type="button"
                 className="mlp-dw-primary-btn"
                 style={{ alignSelf: "flex-start", marginTop: 4, display: "inline-flex", alignItems: "center", gap: "6px" }}
-                disabled={activeActions["slaMonitor"]}
-                onClick={() => handleTriggerAction("slaMonitor", "SLA monitor run completed. Stakeholders notified.")}
+                onClick={handleFeatureNotImplemented}
               >
-                {activeActions["slaMonitor"] ? (
-                  <>
-                    <CircularProgress size={12} color="inherit" thickness={5} />
-                    <span>Running Monitor...</span>
-                  </>
-                ) : (
-                  "Run SLA monitor now"
-                )}
+                Run SLA monitor now
               </button>
 
               <p className="mlp-dw-side-desc" style={{ fontSize: "10px", marginTop: 4 }}>
@@ -3772,6 +4011,35 @@ const DeliveryWorkflow = ({
           </>
         )}
       </div>
+
+      {/* Feature Not Implemented Toast Notification */}
+      <Snackbar
+        open={toastOpen}
+        autoHideDuration={4000}
+        onClose={() => setToastOpen(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert
+          onClose={() => setToastOpen(false)}
+          severity="info"
+          sx={{
+            borderRadius: "8px",
+            fontSize: "12.5px",
+            fontWeight: 500,
+            boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
+            backgroundColor: "#043329",
+            color: "#ffffff",
+            "& .MuiAlert-icon": {
+              color: "#34d399",
+            },
+            "& .MuiAlert-action": {
+              color: "#ffffff",
+            },
+          }}
+        >
+          {toastMessage}
+        </Alert>
+      </Snackbar>
 
         {/* Card 5: Rules of the flow */}
         {/* <div className="mlp-dw-side-card">

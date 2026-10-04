@@ -6,6 +6,7 @@ import { getUserInfo } from "../Utils/GetUserInfoHelper";
 import TopBar from "../Layouts/TopBar";
 import NeoAIChatWidget from "../Components/Common/NeoAIChatWidget";
 import NeoAIFullPage from "../Components/Common/NeoAIFullPage";
+import Notification from "../Features/ModuleLeadComponents/Notification";
 
 
 const navItemsList = [
@@ -724,21 +725,7 @@ const ExecutiveSponsorPage = () => {
           ) : activeNav === "neoai" ? (
             <NeoAIFullPage roleName="EXECUTIVE SPONSOR" />
           ) : (
-            /* Other Option Placeholder (Screenshot 3) */
-            <div className="esp-other-section">
-              <div className="cons-breadcrumb-row">
-                <span className="cons-breadcrumb-muted">EXECUTIVE SPONSOR</span>
-                <span className="cons-breadcrumb-sep">›</span>
-                <span className="cons-breadcrumb-curr">{(currentNav.label || "SECTION").toUpperCase()}</span>
-              </div>
-              <h1 className="esp-page-title">{currentNav.label}</h1>
-              <p className="esp-page-subtitle">This option is clicked</p>
-              <div className="esp-placeholder-card">
-                <p style={{ color: "#64748b", margin: 0 }}>
-                  Showing content for <strong>{currentNav.label}</strong>. You can navigate to other options from the left sidebar or return to <strong>Executive Dashboard</strong>.
-                </p>
-              </div>
-            </div>
+            <Notification currentNav={currentNav} roleName="EXECUTIVE SPONSOR" />
           )}
         </main>
       </div>

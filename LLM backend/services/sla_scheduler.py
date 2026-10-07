@@ -6,7 +6,9 @@ import os
 import asyncio
 import logging
 from typing import Optional
-from services.sla_monitor_service import run_sla_monitoring_cycle_async, run_sla_monitoring_cycle
+
+from services.sla_reminder_store import SLATracker
+from services.sla_monitor_service import run_sla_monitoring_cycle_async, log_startup_timezone
 
 logger = logging.getLogger("SLA_Scheduler")
 
@@ -27,7 +29,10 @@ class SLABackgroundScheduler:
         self.last_run_result: Optional[dict] = None
 
     async def _run_loop(self):
+        log_startup_timezone()
+        SLATracker.init()
         logger.info(f"SLA Background Async Scheduler started. Running every {self.interval_seconds / 60.0:.2f} minutes.")
+        
         while self._is_running:
             try:
                 res = await run_sla_monitoring_cycle_async()

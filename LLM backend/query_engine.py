@@ -423,7 +423,12 @@ async def _call_model_by_name(model_name: str, prompt_text: str, system_instruct
     if not api_key or api_key == "your_nvidia_api_key":
         return None
 
-    url = f"{base_url.rstrip('/')}/chat/completions"
+    clean_base = base_url.rstrip("/")
+    if clean_base.endswith("/chat/completions"):
+        url = clean_base
+    else:
+        url = f"{clean_base}/chat/completions"
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"

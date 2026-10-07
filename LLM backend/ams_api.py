@@ -16,6 +16,7 @@ class AMSApi:
         self._ticket_status_url = None
         self._ticket_create_url = None
         self._ticket_details_url = None
+        self._ticket_steps_url = None
         self._ticket_step_reminder_url = None
         self.token = None
         self.token_type = "Bearer"
@@ -30,7 +31,8 @@ class AMSApi:
             return self._email
         self.reload_env()
         return (
-            os.getenv("AMS_EMAIL")
+            os.getenv("SLA_EMAIL")
+            or os.getenv("AMS_EMAIL")
             or os.getenv("EMAIL")
             or ""
         )
@@ -47,7 +49,8 @@ class AMSApi:
             return self._password
         self.reload_env()
         return (
-            os.getenv("AMS_PASSWORD")
+            os.getenv("SLA_PASSWORD")
+            or os.getenv("AMS_PASSWORD")
             or os.getenv("AMS_PASS")
             or os.getenv("PASSWORD")
             or ""
@@ -113,6 +116,17 @@ class AMSApi:
     @ticket_details_url.setter
     def ticket_details_url(self, value):
         self._ticket_details_url = value
+
+    @property
+    def ticket_steps_url(self):
+        if self._ticket_steps_url:
+            return self._ticket_steps_url
+        self.reload_env()
+        return os.getenv("TICKET_STEPS_API_URL", "http://172.16.32.50/api/Ticket/GetTicketSteps")
+
+    @ticket_steps_url.setter
+    def ticket_steps_url(self, value):
+        self._ticket_steps_url = value
 
     @property
     def ticket_step_reminder_url(self):
@@ -317,6 +331,51 @@ class AMSApi:
             if "ticketId" in data or "ticketStaus" in data:
                 return [data]
         raise Exception("Unexpected GetTicketDetails API response format.")
+
+    async def get_ticket_steps(self, ticket_id: str, timeout=60):
+        """Get step workflow history for a ticket from /api/Ticket/GetTicketSteps/{ticketNo} (async)."""
+        if not self.token:
+            await self.authenticate()
+        headers = {
+            "Authorization": f"Bearer {self.token}",
+            "Accept": "application/json"
+        }
+        url = f"{self.ticket_steps_url.rstrip('/')}/{str(ticket_id).strip()}"
+        try:
+            async with httpx.AsyncClient(timeout=float(timeout)) as client:
+                response = await client.get(
+                    url,
+                    headers=headers,
+                )
+
+                if response.status_code == 401:
+                    if self._password or (self.email and self.password):
+                        try:
+                            await self.authenticate()
+                            headers["Authorization"] = f"Bearer {self.token}"
+                            response = await client.get(
+                                url,
+                                headers=headers,
+                            )
+                        except Exception:
+                            raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                    else:
+                        raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                
+                # If 404 with path param, try query parameter fallback
+                if response.status_code == 404:
+                    alt_url = self.ticket_steps_url.rstrip('/')
+                    response = await client.get(
+                        alt_url,
+                        params={"ticketNo": str(ticket_id).strip()},
+                        headers=headers,
+                    )
+
+                response.raise_for_status()
+                data = response.json()
+                return data
+        except httpx.HTTPError as err:
+            raise Exception(f"Failed to reach AMS Ticket Steps API at {url}: {err}")
 
     async def send_ticket_step_reminder(self, payload: dict, timeout=60):
         """Send ticket step reminder POST to /api/Ticket/SendTicketStepReminder (async)."""

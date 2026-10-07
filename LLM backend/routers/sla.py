@@ -4,7 +4,8 @@ routers/sla.py - REST API Router for SLA Monitoring Service.
 
 from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, status
-from services.sla_monitor_service import run_sla_monitoring_cycle_async, run_sla_monitoring_cycle, SLAReminderStore
+from services.sla_reminder_store import SLATracker
+from services.sla_monitor_service import run_sla_monitoring_cycle_async
 from services.sla_scheduler import sla_scheduler_instance
 from ams_api import AMSApi
 
@@ -14,7 +15,7 @@ router = APIRouter(prefix="/api/sla", tags=["SLA Monitoring"])
 @router.post(
     "/trigger",
     summary="Trigger SLA Monitoring Cycle Manually",
-    description="Immediately runs a single SLA monitoring cycle checking top 100 tickets and sending reminders."
+    description="Immediately runs a single SLA monitoring cycle checking tickets and sending reminders."
 )
 async def trigger_sla_monitoring(
     authorization: Optional[str] = Header(None, description="Optional Bearer <token>")
@@ -41,29 +42,29 @@ async def trigger_sla_monitoring(
 @router.get(
     "/status",
     summary="Get SLA Monitoring Status",
-    description="Returns current status of the SLA background scheduler, configuration, and last cycle stats."
+    description="Returns current status of the SLA background scheduler, configuration, and tracked SLA records."
 )
 def get_sla_status():
-    sent_reminders = SLAReminderStore._load()
+    records = SLATracker.get_all()
     return {
         "success": True,
         "scheduler_running": sla_scheduler_instance.is_running(),
         "interval_seconds": sla_scheduler_instance.interval_seconds,
         "last_run_time": sla_scheduler_instance.last_run_time,
         "last_run_result": sla_scheduler_instance.last_run_result,
-        "sent_reminders_count": len(sent_reminders),
-        "sent_reminders": sent_reminders
+        "tracked_records_count": len(records),
+        "tracked_records": records
     }
 
 
 @router.delete(
     "/reminders",
-    summary="Reset Sent SLA Reminders Store",
-    description="Clears all recorded sent reminders from storage so reminders can be re-sent for testing."
+    summary="Reset SLA Tracker Database Store",
+    description="Clears all recorded SLA tracking records from SQLite storage."
 )
 def reset_sla_reminders():
-    SLAReminderStore.clear()
+    SLATracker.clear()
     return {
         "success": True,
-        "message": "Sent SLA reminders storage cleared."
+        "message": "SLA tracker database cleared."
     }

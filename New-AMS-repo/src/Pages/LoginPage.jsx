@@ -408,14 +408,14 @@ const LoginPage = () => {
             </div> */}
 
             {/* Use Another Console Button */}
-            <button
+            {/* <button
               type="button"
               className="lp-btn-another-console"
               onClick={() => navigate("/")}
               disabled={loading}
             >
               Use another console
-            </button>
+            </button> */}
 
             {scopeLabel && (
               <p className="lp-scope-hint">{scopeLabel}</p>

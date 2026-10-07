@@ -165,7 +165,7 @@ const renderStepTicketStatusOptions = (stepKey, currentValue) => {
   }
 
   return options.map((opt) => (
-    <MenuItem key={opt} value={opt}>
+    <MenuItem key={opt} value={opt} title={opt}>
       {opt}
     </MenuItem>
   ));
@@ -173,6 +173,7 @@ const renderStepTicketStatusOptions = (stepKey, currentValue) => {
 
 const muiSelectEnabledSx = {
   width: "100%",
+  minWidth: "170px",
   height: "36px",
   fontSize: "12px",
   fontFamily: "inherit",
@@ -192,14 +193,20 @@ const muiSelectEnabledSx = {
     borderWidth: "1.5px",
   },
   "& .MuiSelect-select": {
-    padding: "7px 10px",
+    padding: "7px 34px 7px 10px !important",
+    paddingRight: "34px !important",
     fontSize: "12px",
-    display: "flex",
+    display: "block",
     alignItems: "center",
-    color: "inherit",
+    color: "#0f172a",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    textAlign: "left",
   },
   "& .MuiSelect-icon": {
     color: "#64748b",
+    right: "8px",
   },
 };
 
@@ -767,9 +774,16 @@ const DeliveryWorkflow = ({
             const total = rec.estimatedTotalHours !== null && rec.estimatedTotalHours !== undefined
               ? String(rec.estimatedTotalHours)
               : (Number(tech) + Number(func) > 0 ? String(Number(tech) + Number(func)) : "");
-            const custApproved = rec.customerApprovedHours !== null && rec.customerApprovedHours !== undefined
-              ? String(rec.customerApprovedHours)
-              : (rec.approvedHours !== null && rec.approvedHours !== undefined ? String(rec.approvedHours) : "");
+            const rawCustApproved = rec.customerApprovedHours !== null && rec.customerApprovedHours !== undefined
+              ? rec.customerApprovedHours
+              : (rec.approvedHours !== null && rec.approvedHours !== undefined ? rec.approvedHours : "");
+            let custApproved = "";
+            if (rawCustApproved !== null && rawCustApproved !== undefined && String(rawCustApproved).trim() !== "") {
+              const parsedApproved = parseFloat(rawCustApproved);
+              if (!isNaN(parsedApproved) && parsedApproved !== 0) {
+                custApproved = String(rawCustApproved);
+              }
+            }
             
             let docStatus = "No";
             if (rec.documentStatus) {
@@ -2174,7 +2188,15 @@ const DeliveryWorkflow = ({
                     type="number"
                     size="small"
                     variant="outlined"
-                    value={stepsState.step3.customerApprovedHours || ""}
+                    value={
+                      stepsState.step3.customerApprovedHours !== null &&
+                      stepsState.step3.customerApprovedHours !== undefined &&
+                      String(stepsState.step3.customerApprovedHours).trim() !== "" &&
+                      parseFloat(stepsState.step3.customerApprovedHours) !== 0 &&
+                      !isNaN(parseFloat(stepsState.step3.customerApprovedHours))
+                        ? String(stepsState.step3.customerApprovedHours)
+                        : ""
+                    }
                     disabled
                     sx={muiInputSx}
                     slotProps={{ htmlInput: { min: 0 } }}

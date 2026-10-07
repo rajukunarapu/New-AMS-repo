@@ -304,7 +304,7 @@ const NeoAIFullPage = ({ roleName }) => {
                   <span className="neoai-bubble-sender-lbl bot">NEOAI</span>
                   <div className="neoai-bot-card thinking-card">
                     <CircularProgress size={14} color="inherit" thickness={5} />
-                    <span>Executing hybrid vector + SQL retrieval pipeline...</span>
+                    <span>Searching relevant documents and records...</span>
                   </div>
                 </div>
               )}

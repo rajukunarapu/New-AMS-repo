@@ -3303,6 +3303,19 @@
   width: 100%;
 }
 
+.mlp-dw-field-group.mlp-dw-field-ticket-status {
+  min-width: 175px;
+  width: 100%;
+}
+
+.mlp-dw-field-ticket-status .MuiSelect-select {
+  padding-right: 34px !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  display: block !important;
+}
+
 @media (max-width: 1200px) {
   .mlp-dw-form-row {
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

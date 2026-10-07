@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import PageLoading from "../Components/Common/PageLoading";
 
 // Lazy load the pages for better performance
-const HomePage = lazy(() => import("../Pages/HomePage"));
+// const HomePage = lazy(() => import("../Pages/HomePage"));
 const LoginPage = lazy(() => import("../Pages/LoginPage"));
 const ModuleLeadPage = lazy(() => import("../Pages/ModuleLeadPage"));
 const ConsultantPage = lazy(() => import("../Pages/ConsultantPage"));
@@ -74,7 +74,8 @@ const AppRoutes = () => {
       <Suspense fallback={<PageLoading />}>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<HomePage />} />
+          {/* <Route path="/" element={<HomePage />} /> */}
+          <Route path="/" element={<LoginPage />} />
           <Route path="/login" element={<LoginPage />} />
 
           {/* Protected Routes (require valid unexpired token) */}

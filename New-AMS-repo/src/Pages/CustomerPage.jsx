@@ -702,6 +702,7 @@ const CustomerPage = () => {
                                   const stepDef = STEPS.find((s) => s.key === activeStepKey);
                                   const rec = getLatestStepRecord(stepsData, stepDef?.docType);
                                   const isBud = activeStepKey === "bud";
+                                  const isTicketAck = activeStepKey === "ticketAck";
                                   const isStepCompleted = Boolean(rec);
                                   const statusChipLabel = isStepCompleted ? "Completed" : "Pending";
 
@@ -826,16 +827,18 @@ const CustomerPage = () => {
                                           />
                                         </div>
 
-                                        {/* 5. Customer Acknowledged On */}
-                                        <div className="cp-step-field-group">
-                                          <label className="cp-step-field-lbl">CUSTOMER ACKNOWLEDGED ON</label>
-                                          <input
-                                            type="text"
-                                            disabled
-                                            className="cp-step-input-disabled"
-                                            value={custAckVal}
-                                          />
-                                        </div>
+                                        {/* 5. Customer Acknowledged On (only for Ticket Ack step) */}
+                                        {isTicketAck && (
+                                          <div className="cp-step-field-group">
+                                            <label className="cp-step-field-lbl">CUSTOMER ACKNOWLEDGED ON</label>
+                                            <input
+                                              type="text"
+                                              disabled
+                                              className="cp-step-input-disabled"
+                                              value={custAckVal}
+                                            />
+                                          </div>
+                                        )}
 
                                         {/* Extra fields for BUD */}
                                         {isBud && (

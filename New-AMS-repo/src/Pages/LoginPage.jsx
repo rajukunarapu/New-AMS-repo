@@ -185,22 +185,12 @@ const LoginPage = () => {
         <div className="lp-hero-content">
           {/* Brand Header */}
           <div className="lp-brand-header">
-            <div className="lp-brand-icon-box">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M12 2C12 7 7 12 2 12C7 12 12 17 12 22C12 17 17 12 22 12C17 12 12 7 12 2Z"
-                  fill="#ffffff"
-                />
-                <circle cx="19.5" cy="4.5" r="2" fill="#ffffff" />
-                <circle cx="4.5" cy="19.5" r="1.5" fill="#ffffff" />
-              </svg>
-            </div>
-            <div className="lp-brand-text-wrap">
-              <div className="lp-brand-title">
-                <span>NEOVATIC</span>
-                <span className="lp-brand-reg">®</span>
-              </div>
-              <div className="lp-brand-tagline">INNOVATION. INSIGHT. INTEGRITY.</div>
+            <div className="lp-brand-logo-badge">
+              <img
+                src="/Neovatic_website_logo.webp"
+                alt="Neovatic"
+                className="lp-brand-logo-img"
+              />
             </div>
           </div>
 

@@ -89,7 +89,7 @@ const parseDateTimestamp = (dateStr) => {
 };
 
 const formatDateDisplay = (dateVal) => {
-  if (!dateVal) return "-";
+  if (!dateVal) return "";
   const ts = parseDateTimestamp(dateVal);
   if (!ts) return String(dateVal);
   const d = new Date(ts);
@@ -628,7 +628,7 @@ const CustomerPage = () => {
                 ) : (
                   <>
                     {visibleTickets.map((ticket) => {
-                      const ticketId = ticket.ticketNo || ticket.id;
+                      const ticketId = ticket.ticketNo ;
                       const activeStepKey = expandedStep[ticketId];
                       const stepsData = workflowCache[ticketId] || [];
                       const isLoading = loadingWorkflow[ticketId];
@@ -640,13 +640,13 @@ const CustomerPage = () => {
                           <div className="cp-ticket-row-card">
                             <div className="cp-ticket-info-block">
                               <div className="cp-ticket-title-line">
-                                <span className="cp-ticket-id">{ticket.ticketNo || ticket.id}</span>
+                                <span className="cp-ticket-id">{ticket.ticketNo}</span>
                                 <span className="cp-ticket-title">
-                                  {ticket.description || ticket.remarks || "No description provided"}
+                                  {ticket.description || "No description provided"}
                                 </span>
                               </div>
                               <div className="cp-ticket-stage-line">
-                                <span className="cp-ticket-status">{ticket.ticketStatus || "In Progress"}</span>
+                                <span className="cp-ticket-status">{ticket.ticketStatus || ""}</span>
                                 {" · "}
                                 current stage: <span className="cp-ticket-stage">Delivery Workflow (3 Steps)</span>
                               </div>
@@ -707,11 +707,11 @@ const CustomerPage = () => {
 
                                   const startDateVal = formatDateDisplay(rec?.startDate);
                                   const endDateVal = formatDateDisplay(rec?.endDate);
-                                  const consultantVal = rec?.responsibleBy || "-";
+                                  const consultantVal = rec?.responsibleBy || "";
                                   const stepStatusVal = rec?.stepStatus || (rec ? "Completed" : "Pending");
                                   const custAckVal = formatDateDisplay(rec?.customerAcknowledgement);
 
-                                  const budStatusVal = rec?.ticketStatus || rec?.stepStatus || (rec ? "Completed" : "Pending");
+                                  const budStatusVal = rec?.stepStatus || (rec ? "Completed" : "Pending");
 
                                   const rawEstTech = rec?.estimatedTechnicalHours !== null && rec?.estimatedTechnicalHours !== undefined && !isNaN(Number(rec.estimatedTechnicalHours))
                                     ? Number(rec.estimatedTechnicalHours)
@@ -723,9 +723,9 @@ const CustomerPage = () => {
                                     ? Number(rec.estimatedTotalHours)
                                     : (rawEstTech + rawEstFunc > 0 ? rawEstTech + rawEstFunc : null);
 
-                                  const estTechHours = rec?.estimatedTechnicalHours || "-";
-                                  const estFuncHours = rec?.estimatedFunctionalHours || "-";
-                                  const estTotalHours = rawEstTotal !== null ? String(rawEstTotal) : (rec?.estimatedTotalHours || "-");
+                                  const estTechHours = rec?.estimatedTechnicalHours || "";
+                                  const estFuncHours = rec?.estimatedFunctionalHours || "";
+                                  const estTotalHours = rawEstTotal !== null ? String(rawEstTotal) : (rec?.estimatedTotalHours || "");
 
                                   const rawApprovedVal =
                                     rec?.customerApprovedHours !== undefined && rec?.customerApprovedHours !== null && String(rec?.customerApprovedHours).trim() !== ""

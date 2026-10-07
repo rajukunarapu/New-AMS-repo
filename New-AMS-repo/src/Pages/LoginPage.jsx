@@ -35,17 +35,17 @@ const LoginPage = () => {
   const resolveTargetPath = (roleName) => {
     // Non-governed role logins (SLA Framework, Executive Sponsor, Customer) retain exact current behavior
     const requestedPath = destinationPath || from?.pathname || "";
-    const isOtherConsole =
-      requestedPath === "/SLAFramework" ||
-      requestedPath === "/ExecutiveSponser" ||
-      requestedPath === "/customer" ||
-      consoleTitle.toLowerCase().includes("sla framework") ||
-      consoleTitle.toLowerCase().includes("executive") ||
-      consoleTitle.toLowerCase().includes("customer");
+    // const isOtherConsole =
+      // requestedPath === "/SLAFramework" ||
+      // requestedPath === "/ExecutiveSponser" ||
+      // requestedPath === "/customer" ||
+      // consoleTitle.toLowerCase().includes("executive") ;
+      // consoleTitle.toLowerCase().includes("sla framework") ||
+      // consoleTitle.toLowerCase().includes("customer");
 
-    if (isOtherConsole) {
-      return getRedirectPath();
-    }
+    // if (isOtherConsole) {
+    //   return getRedirectPath();
+    // }
 
     // Role-based routing for AMS Consultant, Module Lead, Platform Administrator
     if (roleName) {
@@ -58,6 +58,15 @@ const LoginPage = () => {
       }
       if (normalizedRole === "project manager") {
         return "/moduleLead";
+      }
+      if (normalizedRole === "customer") {
+        return "/customer";
+      }
+      if (normalizedRole === "sla admin") {
+        return "/SLAFramework";
+      }
+      if (normalizedRole === "executive sponser") {
+        return "/ExecutiveSponser";
       }
     }
 
@@ -97,9 +106,14 @@ const LoginPage = () => {
 
       if (response && response.success && response.token) {
         const returnedRole = response.role || response.roleName || response.data?.roleName || response.data?.role || "";
+        const returnedUserId = response.userId ?? response.data?.userId ?? "";
+
         localStorage.setItem("userEmail", email.trim());
         localStorage.setItem("token", response.token);
         localStorage.setItem("tokenTime", Date.now().toString());
+        if (returnedUserId !== null && returnedUserId !== undefined && returnedUserId !== "") {
+          localStorage.setItem("userId", String(returnedUserId));
+        }
         if (returnedRole) {
           localStorage.setItem("userRole", returnedRole);
           localStorage.setItem("roleName", returnedRole);

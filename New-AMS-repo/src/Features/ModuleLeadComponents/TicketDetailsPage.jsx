@@ -1037,17 +1037,7 @@ const TicketDetailsPage = ({
                       onChange={(e) => setAssignStatus(e.target.value)}
                     >
                       <option value="">Select status</option>
-                      {assignStatus &&
-                        !uniqueStatuses.some(
-                          (s) =>
-                            (s.name || "").trim().toLowerCase() ===
-                            assignStatus.trim().toLowerCase()
-                        ) && <option value={assignStatus}>{assignStatus}</option>}
-                      {uniqueStatuses.map((s) => (
-                        <option key={s.id || s.name} value={s.name}>
-                          {s.name}
-                        </option>
-                      ))}
+                      <option value="Assigned">Assigned</option>
                     </select>
                   </div>
 

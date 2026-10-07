@@ -138,6 +138,71 @@ const muiInputSx = {
   },
 };
 
+const STEP_TICKET_STATUS_OPTIONS = {
+  step3: ["Inprocess", "WCA : Awaiting User Input"],
+  step4: ["In Proc: Functional Analysis"],
+  step5: ["In Proc:  Technical Development"],
+  step6: ["In Proc: Functional Design"],
+  step7: ["In Proc: Functional Testing"],
+  step8: ["In Proc: Functional Testing"],
+  step9: [
+    "WCA: UAT",
+    "WCA:  Awaiting User Input",
+    "WCA: Man Hours Approval",
+    "WCA: Closure Confirmation",
+    "WCA:  Approval for changes into PRD ",
+    "WCA: On hold",
+  ],
+  step10: ["Closed"],
+};
+
+const renderStepTicketStatusOptions = (stepKey, currentValue) => {
+  const baseOptions = STEP_TICKET_STATUS_OPTIONS[stepKey] || [];
+  let options = [...baseOptions];
+
+  if (currentValue && !options.some((opt) => opt.trim().toLowerCase() === String(currentValue).trim().toLowerCase())) {
+    options = [currentValue, ...options];
+  }
+
+  return options.map((opt) => (
+    <MenuItem key={opt} value={opt}>
+      {opt}
+    </MenuItem>
+  ));
+};
+
+const muiSelectEnabledSx = {
+  width: "100%",
+  height: "36px",
+  fontSize: "12px",
+  fontFamily: "inherit",
+  color: "#0f172a",
+  backgroundColor: "#ffffff",
+  borderRadius: "12px",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#cbd5e1 !important",
+    transition: "all 0.15s ease",
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#94a3b8 !important",
+  },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#33557a !important",
+    borderWidth: "1.5px",
+  },
+  "& .MuiSelect-select": {
+    padding: "7px 10px",
+    fontSize: "12px",
+    display: "flex",
+    alignItems: "center",
+    color: "inherit",
+  },
+  "& .MuiSelect-icon": {
+    color: "#64748b",
+  },
+};
+
 const muiSelectSx = {
   width: "100%",
   height: "36px",
@@ -465,12 +530,13 @@ const DeliveryWorkflow = ({
 
   // Steps 02–10 state with initial dates, valid status names, and attachments
   const [stepsState, setStepsState] = useState({
-    step2: { days: "", hours: "", responsible: defaultConsultant, status: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step2: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
     step3: {
       days: "",
       hours: "",
       responsible: defaultConsultant,
       status: "",
+      ticketStatus: "",
       stepStatus: "Pending",
       endDate: "",
       attachment: null,
@@ -481,12 +547,12 @@ const DeliveryWorkflow = ({
       customerApprovedHours: "",
       documentStatus: "No",
     },
-    step4: { days: "", hours: "", responsible: defaultConsultant, status: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
-    step5: { days: "", hours: "", responsible: defaultConsultant, status: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
-    step6: { days: "", hours: "", responsible: defaultConsultant, status: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
-    step7: { days: "", hours: "", responsible: defaultConsultant, status: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
-    step8: { days: "", hours: "", responsible: defaultConsultant, status: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
-    step9: { days: "", hours: "", responsible: defaultConsultant, status: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step4: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step5: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step6: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step7: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step8: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step9: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
     step10: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", remarks: "", attachment: null, attachmentName: "" },
   });
 
@@ -499,6 +565,10 @@ const DeliveryWorkflow = ({
         ...currentStep,
         [field]: value,
       };
+
+      if (field === "ticketStatus") {
+        updated.status = value;
+      }
 
       if (stepKey === "step3" && (field === "estimatedTechnicalHours" || field === "estimatedFunctionalHours")) {
         const tech = field === "estimatedTechnicalHours" ? value : currentStep.estimatedTechnicalHours;
@@ -713,6 +783,7 @@ const DeliveryWorkflow = ({
               hours: "",
               responsible: rec.responsibleBy || defaultName,
               status: recTicketStatus,
+              ticketStatus: recTicketStatus,
               stepStatus: sStatus,
               endDate: mappedEndDate,
               attachment: null,
@@ -751,14 +822,13 @@ const DeliveryWorkflow = ({
         } else {
           newHasRecords[stepKey] = false;
           newCompleted[stepKey] = false;
-          const fallbackStatus = fallbackTicket ? (fallbackTicket.ticketStatus || fallbackTicket.status || "") : "";
           if (stepKey === "step3") {
             updatedSteps[stepKey] = {
               days: "",
               hours: "",
               responsible: defaultName,
-              status: fallbackStatus,
-              ticketStatus: fallbackStatus,
+              status: "",
+              ticketStatus: "",
               stepStatus: "Pending",
               endDate: "",
               remarks: "",
@@ -775,8 +845,8 @@ const DeliveryWorkflow = ({
               days: "",
               hours: "",
               responsible: defaultName,
-              status: fallbackStatus,
-              ticketStatus: fallbackStatus,
+              status: "",
+              ticketStatus: "",
               stepStatus: "Pending",
               endDate: "",
               remarks: "",
@@ -912,8 +982,23 @@ const DeliveryWorkflow = ({
       stepStatusVal = "Completed";
       attachmentVal = ackAttachment || null;
       extraFields = {};
+    } else if (stepKey === "step2") {
+      const s = stepsState.step2 || {};
+      responsibleVal = s.responsible || defaultConsultant;
+      statusVal = "";
+      stepStatusVal = "Completed";
+      customerAckFormatted = "";
+      endSlaFormatted = formatToMMDDYYYY(new Date());
+      attachmentVal = s.attachment || null;
+      extraFields = {};
     } else if (stepKey === "step3") {
       const s = stepsState.step3 || {};
+      const tStatus = s.ticketStatus || s.status || "";
+      if (!tStatus || !String(tStatus).trim()) {
+        showStepAlert(stepKey, "error", "Please select a Ticket Status.");
+        return;
+      }
+
       const tech = Number(s.estimatedTechnicalHours) || 0;
       const func = Number(s.estimatedFunctionalHours) || 0;
       const total = tech + func;
@@ -932,9 +1017,16 @@ const DeliveryWorkflow = ({
         EstimatedFunctionalHours: s.estimatedFunctionalHours || "",
         EstimatedTotalHours: totalHoursStr,
         DocumentStatus: docStatusVal,
+        TicketStatus: tStatus,
       };
     } else if (stepKey === "step10") {
       const s = stepsState.step10 || {};
+      const tStatus = s.ticketStatus || s.status || "";
+      if (!tStatus || !String(tStatus).trim()) {
+        showStepAlert(stepKey, "error", "Please select a Ticket Status.");
+        return;
+      }
+
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = "";
       stepStatusVal = "Completed";
@@ -944,17 +1036,26 @@ const DeliveryWorkflow = ({
 
       extraFields = {
         Remarks: s.remarks || "",
-        TicketStatus: "Closed",
+        TicketStatus: tStatus,
       };
     } else {
+      // Steps 4 to 9
       const s = stepsState[stepKey] || {};
+      const tStatus = s.ticketStatus || s.status || "";
+      if (!tStatus || !String(tStatus).trim()) {
+        showStepAlert(stepKey, "error", "Please select a Ticket Status.");
+        return;
+      }
+
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = "";
       stepStatusVal = "Completed";
       customerAckFormatted = "";
       endSlaFormatted = formatToMMDDYYYY(new Date());
       attachmentVal = s.attachment || null;
-      extraFields = {};
+      extraFields = {
+        TicketStatus: tStatus,
+      };
     }
 
     setSubmittingSteps((prev) => ({ ...prev, [stepKey]: true }));
@@ -988,7 +1089,7 @@ const DeliveryWorkflow = ({
               ...prev[stepKey],
               stepStatus: stepStatusVal,
               endDate: formatDisplayDate(endSlaFormatted),
-              ...(stepKey === "step10" ? { status: "Closed", ticketStatus: "Closed" } : {}),
+              ticketStatus: extraFields?.TicketStatus || prev[stepKey]?.ticketStatus || "",
               ...(stepKey === "step3" ? { documentStatus: extraFields.DocumentStatus } : {}),
             },
           }));
@@ -1011,7 +1112,7 @@ const DeliveryWorkflow = ({
                 ...prev[stepKey],
                 stepStatus: stepStatusVal,
                 endDate: formatDisplayDate(endSlaFormatted),
-                ...(stepKey === "step10" ? { status: "Closed", ticketStatus: "Closed" } : {}),
+                ticketStatus: extraFields?.TicketStatus || prev[stepKey]?.ticketStatus || "",
                 ...(stepKey === "step3" ? { documentStatus: extraFields.DocumentStatus } : {}),
               },
             }));
@@ -1677,10 +1778,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step1"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording ticket ACK...</span>
+                      <span>Submitting ticket ACK...</span>
                     </>
                   ) : (
-                    "Record Ticket ACK"
+                    "Submit Ticket ACK"
                   )}
                 </button>
               </div>
@@ -1902,10 +2003,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step2"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording BRD...</span>
+                      <span>Submitting BRD...</span>
                     </>
                   ) : (
-                    "Record BRD"
+                    "Submit BRD"
                   )}
                 </button>
               </div>
@@ -2186,6 +2287,27 @@ const DeliveryWorkflow = ({
                     sx={muiInputSx}
                   />
                 </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step3.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step3", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step3", stepsState.step3.ticketStatus)}
+                    </Select>
+                  </FormControl>
+                </div>
               </div>
 
               {/* Persistent Attached Document Box for Step 03 */}
@@ -2225,10 +2347,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step3"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording BUD...</span>
+                      <span>Submitting BUD...</span>
                     </>
                   ) : (
-                    "Record BUD"
+                    "Submit BUD"
                   )}
                 </button>
               </div>
@@ -2308,7 +2430,7 @@ const DeliveryWorkflow = ({
             <>
               <div className="mlp-dw-form-row mlp-dw-brd-form-row">
                 <div className="mlp-dw-field-group">
-                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <label className="mlp-dw-field-lbl">TIMESHEET HOURS</label>
                   <TextField
                     type="number"
                     size="small"
@@ -2415,6 +2537,27 @@ const DeliveryWorkflow = ({
                     sx={muiInputSx}
                   />
                 </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step4.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step4", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step4", stepsState.step4.ticketStatus)}
+                    </Select>
+                  </FormControl>
+                </div>
               </div>
 
               {/* Persistent Attached Document Box for Step 04 */}
@@ -2454,10 +2597,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step4"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording FS...</span>
+                      <span>Submitting FS...</span>
                     </>
                   ) : (
-                    "Record FS"
+                    "Submit FS"
                   )}
                 </button>
               </div>
@@ -2537,7 +2680,7 @@ const DeliveryWorkflow = ({
             <>
               <div className="mlp-dw-form-row mlp-dw-brd-form-row">
                 <div className="mlp-dw-field-group">
-                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <label className="mlp-dw-field-lbl">TIMESHEET HOURS</label>
                   <TextField
                     type="number"
                     size="small"
@@ -2644,6 +2787,27 @@ const DeliveryWorkflow = ({
                     sx={muiInputSx}
                   />
                 </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step5.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step5", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step5", stepsState.step5.ticketStatus)}
+                    </Select>
+                  </FormControl>
+                </div>
               </div>
 
               {/* Persistent Attached Document Box for Step 05 */}
@@ -2683,10 +2847,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step5"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording TS...</span>
+                      <span>Submitting TS...</span>
                     </>
                   ) : (
-                    "Record TS"
+                    "Submit TS"
                   )}
                 </button>
               </div>
@@ -2766,7 +2930,7 @@ const DeliveryWorkflow = ({
             <>
               <div className="mlp-dw-form-row mlp-dw-brd-form-row">
                 <div className="mlp-dw-field-group">
-                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <label className="mlp-dw-field-lbl">TIMESHEET HOURS</label>
                   <TextField
                     type="number"
                     size="small"
@@ -2873,6 +3037,27 @@ const DeliveryWorkflow = ({
                     sx={muiInputSx}
                   />
                 </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step6.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step6", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step6", stepsState.step6.ticketStatus)}
+                    </Select>
+                  </FormControl>
+                </div>
               </div>
 
               {/* Persistent Attached Document Box for Step 06 */}
@@ -2912,10 +3097,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step6"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording CONFIG...</span>
+                      <span>Submitting CONFIG...</span>
                     </>
                   ) : (
-                    "Record CONFIG"
+                    "Submit CONFIG"
                   )}
                 </button>
               </div>
@@ -2995,7 +3180,7 @@ const DeliveryWorkflow = ({
             <>
               <div className="mlp-dw-form-row mlp-dw-brd-form-row">
                 <div className="mlp-dw-field-group">
-                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <label className="mlp-dw-field-lbl">TIMESHEET HOURS</label>
                   <TextField
                     type="number"
                     size="small"
@@ -3102,6 +3287,27 @@ const DeliveryWorkflow = ({
                     sx={muiInputSx}
                   />
                 </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step7.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step7", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step7", stepsState.step7.ticketStatus)}
+                    </Select>
+                  </FormControl>
+                </div>
               </div>
 
               {/* Persistent Attached Document Box for Step 07 */}
@@ -3141,10 +3347,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step7"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording Internal Testing...</span>
+                      <span>Submitting Internal Testing...</span>
                     </>
                   ) : (
-                    "Record Internal Testing"
+                    "Submit Internal Testing"
                   )}
                 </button>
               </div>
@@ -3224,7 +3430,7 @@ const DeliveryWorkflow = ({
             <>
               <div className="mlp-dw-form-row mlp-dw-brd-form-row">
                 <div className="mlp-dw-field-group">
-                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <label className="mlp-dw-field-lbl">TIMESHEET HOURS</label>
                   <TextField
                     type="number"
                     size="small"
@@ -3331,6 +3537,27 @@ const DeliveryWorkflow = ({
                     sx={muiInputSx}
                   />
                 </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step8.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step8", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step8", stepsState.step8.ticketStatus)}
+                    </Select>
+                  </FormControl>
+                </div>
               </div>
 
               {/* Persistent Attached Document Box for Step 08 */}
@@ -3370,10 +3597,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step8"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording User Manual...</span>
+                      <span>Submitting User Manual...</span>
                     </>
                   ) : (
-                    "Record User Manual"
+                    "Submit User Manual"
                   )}
                 </button>
               </div>
@@ -3453,7 +3680,7 @@ const DeliveryWorkflow = ({
             <>
               <div className="mlp-dw-form-row mlp-dw-brd-form-row">
                 <div className="mlp-dw-field-group">
-                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <label className="mlp-dw-field-lbl">TIMESHEET HOURS</label>
                   <TextField
                     type="number"
                     size="small"
@@ -3560,6 +3787,27 @@ const DeliveryWorkflow = ({
                     sx={muiInputSx}
                   />
                 </div>
+
+                {/* Ticket Status Field */}
+                <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step9.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step9", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step9", stepsState.step9.ticketStatus)}
+                    </Select>
+                  </FormControl>
+                </div>
               </div>
 
               {/* Persistent Attached Document Box for Step 09 */}
@@ -3599,10 +3847,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step9"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording Submission...</span>
+                      <span>Submitting Submission...</span>
                     </>
                   ) : (
-                    "Record Submission"
+                    "Submit Submission"
                   )}
                 </button>
               </div>
@@ -3682,7 +3930,7 @@ const DeliveryWorkflow = ({
             <>
               <div className="mlp-dw-form-row mlp-dw-brd-form-row">
                 <div className="mlp-dw-field-group">
-                  <label className="mlp-dw-field-lbl">WORKING HOURS</label>
+                  <label className="mlp-dw-field-lbl">TIMESHEET HOURS</label>
                   <TextField
                     type="number"
                     size="small"
@@ -3792,15 +4040,23 @@ const DeliveryWorkflow = ({
 
                 {/* Ticket Status Field */}
                 <div className="mlp-dw-field-group mlp-dw-field-ticket-status">
-                  <label className="mlp-dw-field-lbl">TICKET STATUS</label>
-                  <TextField
-                    size="small"
-                    variant="outlined"
-                    value={stepsState.step10.ticketStatus || stepsState.step10.status || "Inprocess"}
-                    disabled
-                    fullWidth
-                    sx={muiInputSx}
-                  />
+                  <label className="mlp-dw-field-lbl">
+                    TICKET STATUS <span style={{ color: "#ef4444" }}>*</span>
+                  </label>
+                  <FormControl size="small" fullWidth>
+                    <Select
+                      value={stepsState.step10.ticketStatus || ""}
+                      onChange={(e) => handleStepChange("step10", "ticketStatus", e.target.value)}
+                      displayEmpty
+                      sx={muiSelectEnabledSx}
+                      MenuProps={menuProps}
+                    >
+                      <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                        Select Ticket Status
+                      </MenuItem>
+                      {renderStepTicketStatusOptions("step10", stepsState.step10.ticketStatus)}
+                    </Select>
+                  </FormControl>
                 </div>
               </div>
 
@@ -3852,10 +4108,10 @@ const DeliveryWorkflow = ({
                   {submittingSteps["step10"] ? (
                     <>
                       <CircularProgress size={14} color="inherit" thickness={5} />
-                      <span>Recording VA...</span>
+                      <span>Submitting VA...</span>
                     </>
                   ) : (
-                    "Record Acceptance (VA)"
+                    "Submit Acceptance (VA)"
                   )}
                 </button>
               </div>

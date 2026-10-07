@@ -20,6 +20,7 @@ export async function loginAPI(email, password) {
       token: response.data?.token || response.data?.jwt || response.data?.accessToken,
       role: response.data?.data?.roleName || response.data?.roleName || response.data?.data?.role || response.data?.role || null,
       roleName: response.data?.data?.roleName || response.data?.roleName || null,
+      userId: response.data?.data?.userId ?? response.data?.userId ?? null,
       data: response.data?.data || response.data || null,
     };
   } catch (error) {

@@ -105,6 +105,7 @@ const ModuleLeadPage = () => {
   const [workNote, setWorkNote] = useState("");
   const [showReviewBox, setShowReviewBox] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [performedAssignedTickets, setPerformedAssignedTickets] = useState({});
 
   // Alert message state (MUI Alert)
   const [alertOpen, setAlertOpen] = useState(false);
@@ -299,17 +300,18 @@ const ModuleLeadPage = () => {
     }
   };
 
-  // Pre-fill Assign and Update card fields from selectedTicket (Status and Priority from backend)
+  // Pre-fill Assign and Update card fields from selectedTicket (Priority and Assignee from backend, Status based on ticketStatus / performed changes)
   useEffect(() => {
     if (!selectedTicket) return;
 
-    // Status: Match against uniqueStatuses or use ticket's own ticketStatus
-    const tStatus = (selectedTicket.ticketStatus || "").trim();
-    if (tStatus) {
-      const matched = uniqueStatuses.find(
-        (s) => s.name && s.name.trim().toLowerCase() === tStatus.toLowerCase()
-      );
-      setAssignStatus(matched ? matched.name : tStatus);
+    const ticketId = selectedTicket.ticketNo;
+    const tStatus = (selectedTicket.ticketStatus || selectedTicket.status || "").trim();
+
+    // Status: If performed in this session OR if ticket has any status value other than "Created"
+    if (ticketId && performedAssignedTickets[ticketId]) {
+      setAssignStatus(performedAssignedTickets[ticketId]);
+    } else if (tStatus && tStatus.toLowerCase() !== "created") {
+      setAssignStatus("Assigned");
     } else {
       setAssignStatus("");
     }
@@ -344,7 +346,7 @@ const ModuleLeadPage = () => {
 
     setWorkNote("");
     setShowReviewBox(false);
-  }, [selectedTicket?.ticketNo, uniqueStatuses, uniquePriorities]);
+  }, [selectedTicket?.ticketNo, selectedTicket?.ticketStatus, performedAssignedTickets, uniquePriorities]);
 
   // SLA calculation helper (realistic, clean, prevents NaN:NaN left)
   const getTicketSla = (ticket) => {
@@ -550,6 +552,12 @@ const ModuleLeadPage = () => {
         setAssignStatus(assignStatus.trim());
         setAssignPriority(assignPriority.trim());
         setWorkNote("");
+
+        // Record that this ticket has been assigned in this session
+        setPerformedAssignedTickets((prev) => ({
+          ...prev,
+          [ticketId]: assignStatus.trim() || "Assigned",
+        }));
       } else {
         setAlertType("error");
         setAlertMessage(response?.message || "Failed to update ticket details. Please try again.");

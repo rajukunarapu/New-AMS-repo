@@ -8,6 +8,7 @@ export async function postCustomerApprovedHours(ticketNumber, documentType, cust
         ticketId: ticketNumber,
         documentType: documentType,
         customerApprovedHours: customerApprovedHours,
+        User : Number(localStorage.getItem('userId'))
       },
       {
         headers: {

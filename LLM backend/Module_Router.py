@@ -122,7 +122,12 @@ async def _classify_with_nvidia(description: str, base_url: str, api_key: str, m
         f"2. Do not include any extra punctuation, explanations, or quotes."
     )
 
-    url = f"{base_url.rstrip('/')}/chat/completions"
+    clean_base = base_url.rstrip("/")
+    if clean_base.endswith("/chat/completions"):
+        url = clean_base
+    else:
+        url = f"{clean_base}/chat/completions"
+
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
@@ -242,12 +247,12 @@ async def assign_group(description: str) -> str:
 
     load_dotenv(override=True)
 
-    # Primary: NVIDIA API
-    nvidia_key = os.getenv("NVIDIA_API_KEY")
-    nvidia_base_url = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
-    nvidia_model = os.getenv("NVIDIA_MODEL", "nvidia/nemotron-3-super-120b-a12b")
+    # Primary: OpenAI / OpenRouter / NVIDIA API
+    nvidia_key = os.getenv("NVIDIA_API_KEY") or os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
+    nvidia_base_url = os.getenv("NVIDIA_BASE_URL") or os.getenv("OPENROUTER_BASE_URL") or "https://openrouter.ai/api/v1"
+    nvidia_model = os.getenv("NVIDIA_MODEL") or os.getenv("MAIN_MODEL") or "nvidia/nemotron-3-super-120b-a12b"
 
-    if nvidia_key and nvidia_key != "your_nvidia_api_key":
+    if nvidia_key and nvidia_key not in ("your_nvidia_api_key", "your_openrouter_api_key"):
         agent_res = await _classify_with_nvidia(description.strip(), nvidia_base_url, nvidia_key, nvidia_model)
         if agent_res:
             return agent_res

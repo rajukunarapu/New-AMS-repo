@@ -66,6 +66,63 @@ async def get_ticket_status(
         )
 
 
+@router.get(
+    "/tickets/steps/{ticket_id}",
+    summary="Get AMS Ticket Steps / Workflow",
+    description="Retrieves workflow step status from AMS /api/Ticket/GetTicketSteps/{ticketId}."
+)
+async def get_ticket_steps(
+    ticket_id: str,
+    authorization: str = Header(..., description="Bearer <token>"),
+    email: Optional[str] = Query(None, description="User email (optional)")
+):
+    try:
+        ams = _get_ams_client(authorization=authorization, email=email)
+        steps_data = await ams.get_ticket_steps(ticket_id)
+        return {
+            "success": True,
+            "ticketId": ticket_id,
+            "data": steps_data
+        }
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch ticket steps for {ticket_id}: {str(err)}"
+        )
+
+
+@router.post(
+    "/tickets/steps",
+    summary="Get AMS Ticket Steps via Payload",
+    description="Retrieves workflow step status from AMS /api/Ticket/GetTicketSteps with ticketId in body payload."
+)
+async def get_ticket_steps_payload(
+    payload: Dict[str, Any],
+    authorization: str = Header(..., description="Bearer <token>"),
+    email: Optional[str] = Query(None, description="User email (optional)")
+):
+    ticket_id = payload.get("ticketId") or payload.get("ticket_id") or payload.get("ticketNo")
+    if not ticket_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ticketId is required in payload."
+        )
+    try:
+        ams = _get_ams_client(authorization=authorization, email=email)
+        steps_data = await ams.get_ticket_steps(ticket_id)
+        return {
+            "success": True,
+            "ticketId": ticket_id,
+            "data": steps_data
+        }
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch ticket steps for {ticket_id}: {str(err)}"
+        )
+
+
+
 @router.post(
     "/tickets/create",
     summary="Create a new Ticket in AMS",

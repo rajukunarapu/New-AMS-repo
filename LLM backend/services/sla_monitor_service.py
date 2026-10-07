@@ -1,19 +1,47 @@
 """
 services/sla_monitor_service.py - Modular SLA Monitoring Engine for AMS Application.
+
+Features:
+1. Data source from GET /api/Ticket/GetTicketDetails (grouped by ticketId, mapped via map_api_row_to_internal).
+2. SLA clock starts at FS step (FS_DOC_TYPE). Approved hours read ONLY from BRD step (BRD_DOC_TYPE).
+3. Priority-based reminder intervals (1=24h, 2=24h, 3=4h, 4=1h).
+4. Short-SLA rule: Approved hours < 1 sent immediately.
+5. SLA breach handling: Calculates and records overrun duration (current time - deadline) until closed.
+6. Skip finished/closed tickets.
+7. Dummy AMS client with comprehensive test data for offline dev and easy swapping to real AMSApi.
 """
 
 import os
-import json
+import time
 import logging
+import inspect
 import threading
 import asyncio
-import httpx
-from datetime import datetime, date, time, timedelta
-from typing import Dict, Any, List, Optional, Tuple
+from datetime import datetime, date, time as dt_time, timedelta
+from typing import Dict, Any, List, Optional, Tuple, Set
+from collections import defaultdict
 
+# Import configuration constants
+from config import (
+    BRD_DOC_TYPE,
+    FS_DOC_TYPE,
+    BUSINESS_START_HOUR,
+    BUSINESS_END_HOUR,
+    P3_P4_REMINDER_HOUR,
+    SHORT_SLA_REMINDER_INTERVAL_MINUTES,
+    PRIORITY_REMINDER_INTERVALS_HOURS,
+    PRIORITY_NAMES,
+    ACTIVE_TICKET_STATUS,
+    CLOSED_TICKET_STATUSES,
+    SLA_EMAIL,
+    SLA_PASSWORD,
+    TICKET_DETAILS_API_URL,
+    TICKET_STEP_REMINDER_API_URL,
+)
 from ams_api import AMSApi
+from services.sla_reminder_store import SLATracker, resolve_db_path
 
-# Configure logger for SLA Monitoring
+# Configure logger for SLA Monitoring Engine
 logger = logging.getLogger("SLA_Monitor")
 logger.setLevel(logging.INFO)
 if not logger.handlers:
@@ -22,293 +50,305 @@ if not logger.handlers:
     ch.setFormatter(formatter)
     logger.addHandler(ch)
 
-STORAGE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), "sla_sent_reminders.json")
 
-
-class SLAReminderStore:
-    """Thread-safe persistent storage for tracking sent SLA reminders with in-memory caching."""
-    _lock = threading.Lock()
-    _cache: Optional[Dict[str, Any]] = None
-
-    @classmethod
-    def _load(cls) -> Dict[str, Any]:
-        if cls._cache is not None:
-            return cls._cache
-        if not os.path.exists(STORAGE_FILE):
-            cls._cache = {}
-            return cls._cache
-        try:
-            with open(STORAGE_FILE, "r", encoding="utf-8") as f:
-                cls._cache = json.load(f)
-                return cls._cache
-        except Exception as e:
-            logger.warning(f"Error reading reminder storage file: {e}")
-            cls._cache = {}
-            return cls._cache
-
-    @classmethod
-    def _save(cls, data: Dict[str, Any]):
-        cls._cache = data
-        try:
-            temp_file = f"{STORAGE_FILE}.tmp"
-            with open(temp_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
-            os.replace(temp_file, STORAGE_FILE)
-        except Exception as e:
-            logger.error(f"Error saving reminder storage file: {e}")
-
-    @classmethod
-    def make_key(cls, ticket_id: str, step_name: str, sla_deadline: Optional[datetime]) -> str:
-        deadline_str = sla_deadline.isoformat() if sla_deadline else "no_deadline"
-        t_id = str(ticket_id or "unknown").strip()
-        s_name = str(step_name or "pending").strip().lower()
-        return f"{t_id}__{s_name}__{deadline_str}"
-
-    @classmethod
-    def is_sent(cls, key: str) -> bool:
-        with cls._lock:
-            data = cls._load()
-            return key in data
-
-    @classmethod
-    def mark_sent(cls, key: str, metadata: Optional[Dict[str, Any]] = None):
-        with cls._lock:
-            data = cls._load()
-            data[key] = {
-                "sent_at": datetime.now().isoformat(),
-                **(metadata or {})
-            }
-            cls._save(data)
-
-    @classmethod
-    def clear(cls):
-        with cls._lock:
-            cls._cache = {}
-            if os.path.exists(STORAGE_FILE):
-                try:
-                    os.remove(STORAGE_FILE)
-                except Exception as e:
-                    logger.error(f"Error clearing reminder storage: {e}")
-
-
-def parse_reported_datetime(
-    reported_on: Optional[Any],
-    reported_on_time: Optional[Any],
-    ref_date: Optional[date] = None
-) -> datetime:
+def now_local() -> datetime:
     """
-    Parses reportedon / reportedDate and reportedontime (e.g. '09:55:25:410' or '09:55:25').
-    Handles milliseconds accurately without string operations for calculation.
+    Returns naive local datetime driven by optional SLA_TIMEZONE env var (e.g. Asia/Kolkata).
+    Falls back to system datetime.now().
     """
-    base_date = ref_date or datetime.now().date()
-
-    # 1. Try parsing reported_on if present
-    if reported_on and str(reported_on).strip():
-        r_str = str(reported_on).strip()
-        if "T" in r_str:
-            try:
-                dt_val = datetime.fromisoformat(r_str)
-                base_date = dt_val.date()
-                if not reported_on_time:
-                    return dt_val
-            except Exception:
-                pass
-        else:
-            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%m/%d/%Y", "%Y/%m/%d", "%d-%m-%Y"):
-                try:
-                    base_date = datetime.strptime(r_str, fmt).date()
-                    break
-                except Exception:
-                    pass
-
-    # 2. Parse reported_on_time (e.g. '09:55:25:410' or '09:55:25.410' or '09:55:25')
-    parsed_time = time(0, 0, 0)
-    if reported_on_time and str(reported_on_time).strip():
-        t_str = str(reported_on_time).strip()
-        # Standardize separators
-        t_str = t_str.replace(".", ":")
-        parts = t_str.split(":")
+    tz_str = os.getenv("SLA_TIMEZONE")
+    if tz_str:
         try:
-            h = int(parts[0]) if len(parts) > 0 else 0
-            m = int(parts[1]) if len(parts) > 1 else 0
-            s = int(parts[2]) if len(parts) > 2 else 0
-            ms = 0
-            if len(parts) > 3:
-                ms_str = parts[3]
-                if len(ms_str) == 3:
-                    ms = int(ms_str) * 1000
-                elif len(ms_str) > 0:
-                    ms = int(ms_str.ljust(6, '0')[:6])
-            parsed_time = time(h, m, s, ms)
+            import zoneinfo
+            tz = zoneinfo.ZoneInfo(tz_str)
+            return datetime.now(tz).replace(tzinfo=None)
         except Exception as e:
-            logger.warning(f"Could not parse reportedontime '{reported_on_time}': {e}. Using 00:00:00.")
+            logger.warning(f"Could not parse SLA_TIMEZONE '{tz_str}': {e}. Using system local time.")
+    return datetime.now()
+
+
+def log_startup_timezone():
+    """Logs startup information showing server local time and configured SLA credentials."""
+    now_dt = now_local()
+    tz_name = time.tzname[time.daylight] if time.daylight else time.tzname[0]
+    current_email = AMSApi().email
+    logger.info(
+        f"SLA Service Startup | Local Time: {now_dt.strftime('%Y-%m-%d %H:%M:%S')} | "
+        f"Timezone: {tz_name} | SLA Email: {current_email or 'Not Configured'} | "
+        f"BRD DocType: {BRD_DOC_TYPE} | FS DocType: {FS_DOC_TYPE}"
+    )
+
+
+def map_api_row_to_internal(row: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Maps raw API response row field names (keeping exact API spellings ticketStaus, assigintoindividual)
+    to a clean internal dictionary in one dedicated place.
+    """
+    prio_val = row.get("priority")
+    try:
+        priority = int(prio_val) if prio_val is not None else 1
+    except (ValueError, TypeError):
+        priority = 1
+
+    app_hrs_raw = row.get("customerApprovedHours")
+    approved_hours: Optional[float] = None
+    if app_hrs_raw is not None and str(app_hrs_raw).strip() != "":
+        try:
+            approved_hours = float(app_hrs_raw)
+        except (ValueError, TypeError):
+            approved_hours = None
+
+    work_days_raw = row.get("workingDays")
+    working_days: Optional[float] = None
+    if work_days_raw is not None and str(work_days_raw).strip() != "":
+        try:
+            working_days = float(work_days_raw)
+        except (ValueError, TypeError):
+            working_days = None
+
+    return {
+        "ticket_id": str(row.get("ticketId") or "").strip(),
+        "priority": priority,
+        "customer_approved_hours": approved_hours,
+        "document_type": str(row.get("documentType") or "").strip(),
+        "ticket_status": str(row.get("ticketStaus") or "").strip(),
+        "working_days": working_days,
+        "ticket_step_status": str(row.get("ticketStepstatus") or "").strip(),
+        "reported_on_time": str(row.get("reportedontime") or "").strip(),
+        "assigned_to_individual": row.get("assigintoindividual"),
+        "name": str(row.get("name") or "").strip(),
+        "email": str(row.get("email") or "").strip(),
+        "raw_row": row,
+    }
+
+
+def format_time_remaining(minutes: int) -> str:
+    """
+    Formats remaining time in minutes into a clean human-readable string:
+    - Less than 60 mins       -> 'X mins'
+    - 60 mins to 1439 mins    -> 'X hrs Y mins' (or 'X hrs' if Y=0)
+    - 1440 mins (24h) or more -> 'X days Y hrs Z mins'
+    """
+    if minutes < 0:
+        minutes = 0
+    if minutes < 60:
+        return f"{minutes} mins"
+
+    if minutes < 1440:
+        hours = minutes // 60
+        rem_mins = minutes % 60
+        if rem_mins > 0:
+            return f"{hours} hrs {rem_mins} mins"
+        return f"{hours} hrs"
+
+    # 24 hours (1440 mins) or more
+    days = minutes // 1440
+    rem_after_days = minutes % 1440
+    hours = rem_after_days // 60
+    rem_mins = rem_after_days % 60
+
+    day_unit = "day" if days == 1 else "days"
+    parts = [f"{days} {day_unit}"]
+    if hours > 0:
+        parts.append(f"{hours} hrs")
+    if rem_mins > 0:
+        parts.append(f"{rem_mins} mins")
+
+    return " ".join(parts)
+
+
+def resolve_latest_step_name(steps_data: Any, default_step: str = "BUD") -> str:
+    """
+    Parses response from GET /api/Ticket/GetTicketSteps/{ticketNo},
+    walks the steps list IN REVERSE, and returns the documentType of the latest step with a non-null documentType.
+    """
+    if not steps_data:
+        return default_step
+
+    steps_list = []
+    if isinstance(steps_data, dict):
+        steps_list = steps_data.get("steps") or steps_data.get("data") or steps_data.get("result") or []
+    elif isinstance(steps_data, list):
+        steps_list = steps_data
+
+    if not isinstance(steps_list, list):
+        return default_step
+
+    for step in reversed(steps_list):
+        if isinstance(step, dict):
+            doc_type = step.get("documentType")
+            if doc_type and str(doc_type).strip() and str(doc_type).strip().lower() != "null":
+                return str(doc_type).strip()
+
+    return default_step
+
+
+
+def parse_reported_on_time(time_str: str, ref_date: Optional[date] = None) -> datetime:
+    """
+    Parses reportedontime, which is a time-only string in HH:mm:ss:fff format (e.g., '12:27:33:507' or '12:27:33').
+    Combines parsed time with reference date (defaults to today's local date).
+
+    # TODO: Replace today's date fallback once real API provides full date/timestamp field.
+    """
+    base_date = ref_date or now_local().date()
+    if not time_str or not str(time_str).strip():
+        return datetime.combine(base_date, dt_time(0, 0, 0))
+
+    t_str = str(time_str).strip().replace(".", ":")
+    parts = t_str.split(":")
+
+    try:
+        h = int(parts[0]) if len(parts) > 0 and parts[0].isdigit() else 0
+        m = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else 0
+        s = int(parts[2]) if len(parts) > 2 and parts[2].isdigit() else 0
+        ms = 0
+        if len(parts) > 3 and parts[3].isdigit():
+            ms_str = parts[3]
+            if len(ms_str) == 3:
+                ms = int(ms_str) * 1000
+            elif len(ms_str) > 0:
+                ms = int(ms_str.ljust(6, '0')[:6])
+        parsed_time = dt_time(h, m, s, ms)
+    except Exception as e:
+        logger.warning(f"Could not parse reportedontime '{time_str}': {e}. Defaulting to 00:00:00.")
+        parsed_time = dt_time(0, 0, 0)
 
     return datetime.combine(base_date, parsed_time)
 
 
-def calculate_working_day_deadline(reported_datetime: datetime, working_days: float) -> datetime:
+def is_working_day(dt: datetime) -> bool:
+    """Returns True if dt is Monday through Friday (weekday 0..4)."""
+    return dt.weekday() < 5
+
+
+def calculate_business_hours_deadline(fs_start_time: datetime, approved_hours: float) -> datetime:
     """
-    Calculates SLA deadline based on working-day business calendar.
-    Skips weekends (Saturday = weekday 5, Sunday = weekday 6).
-    Matches application working days logic.
+    Calculates SLA deadline strictly within the daily 9 AM to 7 PM business window (10 hours/day),
+    skipping weekends (Saturday & Sunday) and overnight hours (7 PM to 9 AM).
     """
-    if working_days <= 0:
-        return reported_datetime
+    if approved_hours <= 0:
+        return fs_start_time
 
-    full_days = int(working_days)
-    fraction = working_days - full_days
+    current = fs_start_time
 
-    current = reported_datetime
-    remaining_days = full_days
+    # Align starting time to business hours window if needed
+    while True:
+        if current.weekday() >= 5:  # Weekend
+            days_ahead = 7 - current.weekday()
+            current = datetime.combine(current.date() + timedelta(days=days_ahead), dt_time(BUSINESS_START_HOUR, 0, 0))
+            continue
 
-    while remaining_days > 0:
-        current += timedelta(days=1)
-        if current.weekday() < 5:  # Monday through Friday
-            remaining_days -= 1
+        if current.hour < BUSINESS_START_HOUR:
+            current = datetime.combine(current.date(), dt_time(BUSINESS_START_HOUR, 0, 0))
+            break
+        elif current.hour >= BUSINESS_END_HOUR:
+            current = datetime.combine(current.date() + timedelta(days=1), dt_time(BUSINESS_START_HOUR, 0, 0))
+            continue
+        else:
+            break
 
-    if fraction > 0:
-        added_seconds = fraction * 24 * 3600
-        current += timedelta(seconds=added_seconds)
-        # Adjust if landing on weekend
-        while current.weekday() >= 5:
-            current += timedelta(days=1)
+    remaining_hours = approved_hours
+
+    while remaining_hours > 0:
+        end_of_business_today = datetime.combine(current.date(), dt_time(BUSINESS_END_HOUR, 0, 0))
+        available_hours_today = (end_of_business_today - current).total_seconds() / 3600.0
+
+        if remaining_hours <= available_hours_today:
+            current += timedelta(hours=remaining_hours)
+            remaining_hours = 0
+            break
+        else:
+            remaining_hours -= available_hours_today
+            next_day = current.date() + timedelta(days=1)
+            while next_day.weekday() >= 5:  # Skip Sat & Sun
+                next_day += timedelta(days=1)
+            current = datetime.combine(next_day, dt_time(BUSINESS_START_HOUR, 0, 0))
 
     return current
 
 
-def calculate_sla_details(ticket: Dict[str, Any], current_time: Optional[datetime] = None) -> Dict[str, Any]:
+def calculate_sla_deadline(
+    fs_start_time: datetime,
+    approved_hours: float,
+    working_days: Optional[float] = None
+) -> datetime:
     """
-    Calculates SLA Duration and Deadline according to business priorities:
-    Priority 1: approvedHours (decimal hours converted to minutes via approvedHours * 60)
-    Priority 2: workingDays (working-day deadline calculation)
-    Priority 3: None (SLA information unavailable)
+    Calculates SLA deadline from FS start time and approved hours.
+    Calculates time strictly from 9 AM to 7 PM daily on business days (Mon-Fri).
     """
-    raw_status = ticket.get("ticketStepstatus")
-    if raw_status is None or not str(raw_status).strip():
-        raw_status = ticket.get("ticketStaus")
-    step_status = str(raw_status or "").strip()
-    is_pending = (step_status.lower() == "pending")
-
-    if not is_pending:
-        return {
-            "is_pending": False,
-            "sla_available": False,
-            "reason": f"Step status '{step_status}' is not Pending"
-        }
-
-    rep_on = ticket.get("reportedon") or ticket.get("reportedDate") or ticket.get("reportedDateTime")
-    rep_time = ticket.get("reportedontime") or ticket.get("reportedTime")
-    reported_dt = parse_reported_datetime(rep_on, rep_time)
-
-    approved_hours_val = ticket.get("approvedHours")
-    working_days_val = ticket.get("workingDays")
-
-    # Priority 1: approvedHours
-    if approved_hours_val is not None and str(approved_hours_val).strip() != "":
-        try:
-            approved_hours = float(approved_hours_val)
-            sla_duration_minutes = approved_hours * 60.0
-            sla_deadline = reported_dt + timedelta(minutes=sla_duration_minutes)
-            return {
-                "is_pending": True,
-                "sla_available": True,
-                "priority_source": "approvedHours",
-                "approved_hours": approved_hours,
-                "sla_duration_minutes": sla_duration_minutes,
-                "reported_datetime": reported_dt,
-                "sla_deadline": sla_deadline
-            }
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid approvedHours value '{approved_hours_val}' on ticket {ticket.get('ticketId')}")
-
-    # Priority 2: workingDays
-    if working_days_val is not None and str(working_days_val).strip() != "":
-        try:
-            working_days = float(working_days_val)
-            sla_deadline = calculate_working_day_deadline(reported_dt, working_days)
-            total_duration_minutes = (sla_deadline - reported_dt).total_seconds() / 60.0
-            return {
-                "is_pending": True,
-                "sla_available": True,
-                "priority_source": "workingDays",
-                "working_days": working_days,
-                "sla_duration_minutes": total_duration_minutes,
-                "reported_datetime": reported_dt,
-                "sla_deadline": sla_deadline
-            }
-        except (ValueError, TypeError):
-            logger.warning(f"Invalid workingDays value '{working_days_val}' on ticket {ticket.get('ticketId')}")
-
-    # Priority 3: Neither exists
-    return {
-        "is_pending": True,
-        "sla_available": False,
-        "reason": "SLA information unavailable (neither approvedHours nor workingDays present)"
-    }
+    return calculate_business_hours_deadline(fs_start_time, approved_hours)
 
 
 def should_send_reminder(
-    sla_duration_minutes: float,
-    sla_deadline: datetime,
-    current_time: datetime,
-    reminder_already_sent: bool,
-    threshold_minutes: float = 30.0
-) -> Tuple[bool, str, float]:
+    ticket_id: str,
+    priority: int,
+    approved_hours: float,
+    is_breached: bool,
+    last_sent_at: Optional[datetime],
+    current_time: datetime
+) -> bool:
     """
-    Evaluates reminder condition:
-    - If reminder already sent -> False
-    - If SLA duration <= threshold_minutes (e.g. 30 mins) -> Immediate reminder required (True)
-    - If SLA duration > threshold_minutes -> Send when 0 < remaining_minutes <= threshold_minutes
-    Returns (should_send: bool, reason: str, remaining_minutes: float)
+    Evaluates whether a reminder payload should be sent for a ticket during this cycle:
+    - Weekend blackout rule: NO reminders on Sat & Sun for ANY priority.
+    - Business hours rule: NO reminders outside 9 AM - 7 PM window.
+    - Low (1) & Medium (2) Priority: Daily at 6:00 PM (18:00) on working days (Mon-Fri).
+    - High (3): Every 4 hours (9 AM - 7 PM window, Mon-Fri).
+    - Very High (4): Every 1 hour (9 AM - 7 PM window, Mon-Fri).
     """
-    if reminder_already_sent:
-        return False, "Reminder already sent for this ticket/step/SLA", 0.0
+    # 1. Weekend Blackout Rule: Absolutely NO reminders on Sat (5) & Sun (6)
+    if current_time.weekday() >= 5:
+        return False
 
-    remaining_minutes = (sla_deadline - current_time).total_seconds() / 60.0
+    # 2. Business Hours Rule: NO reminders outside 9 AM - 7 PM window
+    if current_time.hour < BUSINESS_START_HOUR or current_time.hour >= BUSINESS_END_HOUR:
+        return False
 
-    # CASE 2: Short SLA (<= 30 minutes)
-    if sla_duration_minutes <= threshold_minutes:
-        return True, "SLA duration <= 30 mins (Short SLA - Immediate reminder required)", remaining_minutes
+    # 3. Priority 1 (Low) & Priority 2 (Medium): Daily at 6:00 PM (18:00)
+    if priority in (1, 2):
+        from config import LOW_MED_REMINDER_HOUR
+        if current_time.hour < LOW_MED_REMINDER_HOUR:
+            return False
+        if last_sent_at is None:
+            return True
+        return last_sent_at.date() < current_time.date()
 
-    # CASE 1: Long SLA (> 30 minutes)
-    if 0 < remaining_minutes <= threshold_minutes:
-        return True, f"Remaining time ({remaining_minutes:.1f} mins) is within threshold (<= {threshold_minutes} mins)", remaining_minutes
+    # 4. Priority 3 (High, 4h) and Priority 4 (Very High, 1h)
+    interval_hours = PRIORITY_REMINDER_INTERVALS_HOURS.get(priority, 1.0 if priority == 4 else 4.0)
 
-    if remaining_minutes <= 0:
-        return False, f"SLA expired ({abs(remaining_minutes):.1f} mins ago)", remaining_minutes
+    if last_sent_at is None:
+        return True
 
-    return False, f"SLA not yet within threshold ({remaining_minutes:.1f} mins remaining)", remaining_minutes
+    elapsed = current_time - last_sent_at
 
+    # Short-SLA rule: approved hours <= 1.0 hour (minimum 15-minute throttle interval)
+    if approved_hours <= 1.0 and not is_breached:
+        return elapsed >= timedelta(minutes=SHORT_SLA_REMINDER_INTERVAL_MINUTES)
 
-def extract_step_name(ticket: Dict[str, Any]) -> str:
-    """Extracts actual ticket step name from ticket object (checking documentType first)."""
-    for field in ("documentType", "stepName", "step", "ticketStep", "ticketStepName", "step_name"):
-        val = ticket.get(field)
-        if val and str(val).strip():
-            return str(val).strip()
-    return "Pending Step"
+    return elapsed >= timedelta(hours=interval_hours)
 
 
 _cycle_lock = threading.Lock()
 
 
 async def run_sla_monitoring_cycle_async(
-    ams_client: Optional[AMSApi] = None,
+    ams_client: Optional[Any] = None,
     current_time: Optional[datetime] = None,
-    threshold_minutes: float = 30.0
+    db_path: Optional[str] = None
 ) -> Dict[str, Any]:
     """
-    Executes a complete non-blocking asynchronous SLA Monitoring cycle using httpx:
-    1. Fetches ticket details via GET /api/Ticket/GetTicketDetails asynchronously
-    2. Takes top 100 tickets
-    3. Filters for ticketStepstatus == 'Pending' (case-insensitive)
-    4. Calculates SLA duration/deadline
-    5. Checks reminder condition
-    6. Sends POST /api/Ticket/SendTicketStepReminder asynchronously if required
-    7. Marks reminder as sent ONLY on HTTP POST success
+    Executes a complete SLA Monitoring cycle:
+    1. Fetches tickets directly from AMS API (/api/Ticket/GetTicketDetails).
+    2. Maps raw fields to clean internal structure and groups by ticketId.
+    3. Gates strictly on ticketStaus == ACTIVE_TICKET_STATUS ('inprocess'). Hard-deletes closed tickets.
+    4. Evaluates SLA clock start at FS step and reads approved hours ONLY from BRD step.
+    5. Locks original_fs_start_time on first discovery to anchor deadlines permanently across daily rollovers.
+    6. Evaluates breach status & overrun duration.
+    7. Applies priority rules (1/2=Daily at 6 PM, 3=4h, 4=1h) and short-SLA 15m throttle.
+    8. Tracks last-sent timestamps in SLATracker store.
     """
     if not _cycle_lock.acquire(blocking=False):
-        logger.info("SLA Monitoring cycle already in progress. Skipping duplicate execution.")
+        logger.info("SLA Monitoring cycle already in progress. Skipping execution.")
         return {
             "success": True,
             "message": "SLA Monitoring cycle already in progress.",
@@ -317,158 +357,270 @@ async def run_sla_monitoring_cycle_async(
         }
 
     try:
-        now = current_time or datetime.now()
-        logger.info(f"Async SLA Monitor cycle started at {now.isoformat()}")
+        now = current_time or now_local()
+        target_db = resolve_db_path(db_path)
+        
+        # Ensure SQLite DB store initialized
+        await asyncio.to_thread(SLATracker.init, target_db)
 
-        client = ams_client or AMSApi()
+        logger.info(f"SLA Monitor cycle started at {now.isoformat()} (DB: {target_db})")
 
-        async with httpx.AsyncClient(timeout=15.0) as http_client:
-            # 1. Fetch tickets asynchronously
+        # Select client: Provided client or real AMSApi
+        if ams_client is not None:
+            client = ams_client
+        else:
+            client = AMSApi()
+
+        # 1. Fetch tickets from API
+        try:
+            res_or_coro = client.get_ticket_details(timeout=60)
+            if asyncio.iscoroutine(res_or_coro) or inspect.isawaitable(res_or_coro):
+                raw_tickets = await res_or_coro
+            else:
+                raw_tickets = res_or_coro
+        except Exception as err:
+            logger.error(f"Failed to fetch tickets from GetTicketDetails API: {err}. Aborting cycle.")
+            return {
+                "success": False,
+                "error": f"Failed to fetch tickets: {err}",
+                "total_fetched": 0,
+                "reminders_sent": 0,
+                "reminders_failed": 0
+            }
+
+        if not isinstance(raw_tickets, list):
+            logger.error(f"Unexpected response format from GetTicketDetails ({type(raw_tickets)}). Aborting cycle.")
+            return {
+                "success": False,
+                "error": f"Unexpected response format: {type(raw_tickets)}",
+                "total_fetched": 0,
+                "reminders_sent": 0,
+                "reminders_failed": 0
+            }
+
+        total_fetched = len(raw_tickets)
+
+        # 2. Map fields and group rows by ticketId
+        grouped_tickets: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        for row in raw_tickets:
+            mapped_row = map_api_row_to_internal(row)
+            t_id = mapped_row["ticket_id"]
+            if t_id:
+                grouped_tickets[t_id].append(mapped_row)
+
+        sent_count = 0
+        failed_count = 0
+        skipped_count = 0
+        processed_tickets = 0
+
+        # 3. Process each ticket group
+        for ticket_id, rows in grouped_tickets.items():
+            processed_tickets += 1
             try:
-                tickets = await client.get_ticket_details(timeout=15)
-            except Exception as err:
-                logger.error(f"Failed to fetch tickets from GetTicketDetails API: {err}")
-                return {
-                    "success": False,
-                    "error": f"Failed to fetch tickets: {err}",
-                    "processed_count": 0,
-                    "reminders_sent": 0
-                }
+                ticket_status = str(rows[0]["ticket_status"] or "").strip().lower()
 
-            if not isinstance(tickets, list):
-                logger.error(f"Unexpected response format from GetTicketDetails: {type(tickets)}")
-                tickets = []
+                # Rule 1: If ticket is closed/completed, hard DELETE from SQLite store
+                if ticket_status in CLOSED_TICKET_STATUSES:
+                    logger.info(f"Ticket '{ticket_id}' status is '{rows[0]['ticket_status']}' (Closed/Completed). Deleting from tracker DB.")
+                    await asyncio.to_thread(SLATracker.delete_ticket, ticket_id, target_db)
+                    skipped_count += 1
+                    continue
 
-            # 2. Top 100 tickets
-            top_100_tickets = tickets[:100]
-            total_fetched = len(tickets)
-            processed_top = len(top_100_tickets)
-            logger.info(f"Fetched {total_fetched} tickets. Processing top {processed_top} tickets.")
+                # Rule 2: Only tickets with ticketStaus == ACTIVE_TICKET_STATUS ('inprocess') are tracked
+                if ticket_status != ACTIVE_TICKET_STATUS:
+                    logger.debug(f"Ticket '{ticket_id}' status is '{rows[0]['ticket_status']}' (not '{ACTIVE_TICKET_STATUS}'). Skipping monitoring.")
+                    skipped_count += 1
+                    continue
 
-            pending_count = 0
-            reminders_sent_count = 0
-            reminders_failed_count = 0
-            skipped_count = 0
-            already_sent_count = 0
+                # Rule 3: Read customerApprovedHours ONLY from the BRD step row (must be > 0)
+                brd_row = next(
+                    (r for r in rows if r["document_type"].upper() == BRD_DOC_TYPE.upper()), None
+                )
 
-            logs: List[str] = []
+                if brd_row is None or brd_row["customer_approved_hours"] is None or brd_row["customer_approved_hours"] <= 0:
+                    app_hrs_val = brd_row.get("customer_approved_hours") if brd_row else None
+                    logger.info(
+                        f"Ticket '{ticket_id}': BRD step ('{BRD_DOC_TYPE}') row missing, null, or customerApprovedHours is <= 0 ({app_hrs_val}). "
+                        f"Deleting any existing record from DB and skipping monitoring."
+                    )
+                    await asyncio.to_thread(SLATracker.delete_ticket, ticket_id, target_db)
+                    skipped_count += 1
+                    continue
 
-            for ticket in top_100_tickets:
-                ticket_id = str(ticket.get("ticketId") or ticket.get("id") or "UNKNOWN").strip()
-                step_name = extract_step_name(ticket)
+                approved_hours = brd_row["customer_approved_hours"]
+                priority = brd_row["priority"]
+                working_days = brd_row["working_days"]
+                consultant_name = brd_row["name"] or rows[0]["name"]
+                consultant_email = brd_row["email"] or rows[0]["email"]
 
+                # Rule 4: SLA clock starts at FS step
+                fs_row = next(
+                    (r for r in rows if r["document_type"].upper() == FS_DOC_TYPE.upper()), None
+                )
+                timing_row = fs_row or brd_row
+                reported_time_str = timing_row["reported_on_time"]
+
+                # Timestamp Anchoring: Fetch existing DB record to reuse anchored original_fs_start_time
+                existing_record = await asyncio.to_thread(SLATracker.get_row, ticket_id, target_db)
+                last_sent_at: Optional[datetime] = None
+                original_fs_start_time: Optional[datetime] = None
+
+                if existing_record:
+                    prev_approved = existing_record.get("customer_approved_hours")
+                    orig_fs_str = existing_record.get("original_fs_start_time")
+                    if orig_fs_str:
+                        try:
+                            original_fs_start_time = datetime.fromisoformat(orig_fs_str)
+                        except Exception:
+                            original_fs_start_time = None
+
+                    # Only reset last_sent_at if customerApprovedHours was updated
+                    if prev_approved is not None and prev_approved != approved_hours:
+                        logger.info(
+                            f"Ticket '{ticket_id}': Customer approved hours updated ({prev_approved}h -> {approved_hours}h). Resetting last_sent_at."
+                        )
+                        last_sent_at = None
+                    elif existing_record.get("last_sent_at"):
+                        try:
+                            last_sent_at = datetime.fromisoformat(existing_record["last_sent_at"])
+                        except Exception:
+                            last_sent_at = None
+
+                # If ticket is seen for the first time, combine time string with today's date and anchor it
+                if original_fs_start_time is None:
+                    fs_start_time = parse_reported_on_time(reported_time_str, ref_date=now.date())
+                    original_fs_start_time = fs_start_time
+                else:
+                    fs_start_time = original_fs_start_time
+
+                # Calculate Deadline from anchored fs_start_time
+                sla_deadline = calculate_sla_deadline(fs_start_time, approved_hours, working_days)
+
+                # Evaluate SLA Breach & Overrun
+                is_breached = (now > sla_deadline)
+                if is_breached:
+                    sla_status = "SLA_BREACHED"
+                    overrun_seconds = (now - sla_deadline).total_seconds()
+                    overrun_mins = int(round(overrun_seconds / 60.0))
+                    overrun_str = f"Overdue by {overrun_mins} Mins"
+                    time_remaining_str = "0 Mins"
+                else:
+                    sla_status = "WITHIN_SLA"
+                    overrun_seconds = 0.0
+                    overrun_str = "None"
+                    rem_mins = max(0, int(round((sla_deadline - now).total_seconds() / 60.0)))
+                    time_remaining_str = f"{rem_mins} Mins"
+
+                # Check if reminder is due
+                due_to_send = should_send_reminder(
+                    ticket_id=ticket_id,
+                    priority=priority,
+                    approved_hours=approved_hours,
+                    is_breached=is_breached,
+                    last_sent_at=last_sent_at,
+                    current_time=now
+                )
+
+                # Update store with current calculated state and anchored start time
+                await asyncio.to_thread(
+                    SLATracker.update_ticket_state,
+                    ticket_id=ticket_id,
+                    priority=priority,
+                    approved_hours=approved_hours,
+                    fs_start_time=fs_start_time,
+                    sla_deadline=sla_deadline,
+                    sla_status=sla_status,
+                    overrun_seconds=overrun_seconds,
+                    consultant_name=consultant_name,
+                    consultant_email=consultant_email,
+                    original_fs_start_time=original_fs_start_time,
+                    now=now,
+                    db_path=target_db,
+                )
+
+                if not due_to_send:
+                    logger.info(f"Ticket '{ticket_id}': Reminder within interval (Last sent: {last_sent_at}). Skipping duplicate payload.")
+                    continue
+
+                # Construct exact 5-field reminder payload for /api/Ticket/SendTicketStepReminder
+                # 1. Dynamically fetch latest active step from GET /api/Ticket/GetTicketSteps/{ticketNo}
+                step_name_val = timing_row.get("document_type") or BRD_DOC_TYPE or "BUD"
                 try:
-                    sla_info = calculate_sla_details(ticket, current_time=now)
-
-                    if not sla_info.get("is_pending"):
-                        continue
-
-                    pending_count += 1
-                    logs.append(f"Ticket: {ticket_id} | Step: {step_name} | Status: Pending")
-
-                    if not sla_info.get("sla_available"):
-                        logger.info(f"Ticket: {ticket_id} - SLA information unavailable")
-                        logs.append(f"Ticket: {ticket_id} - SLA information unavailable - Skipped")
-                        skipped_count += 1
-                        continue
-
-                    sla_duration = sla_info["sla_duration_minutes"]
-                    sla_deadline = sla_info["sla_deadline"]
-                    priority_src = sla_info["priority_source"]
-
-                    store_key = SLAReminderStore.make_key(ticket_id, step_name, sla_deadline)
-                    already_sent = SLAReminderStore.is_sent(store_key)
-
-                    should_send, reason, remaining_mins = should_send_reminder(
-                        sla_duration_minutes=sla_duration,
-                        sla_deadline=sla_deadline,
-                        current_time=now,
-                        reminder_already_sent=already_sent,
-                        threshold_minutes=threshold_minutes
+                    steps_res = client.get_ticket_steps(ticket_id)
+                    if asyncio.iscoroutine(steps_res) or inspect.isawaitable(steps_res):
+                        steps_res = await steps_res
+                    step_name_val = resolve_latest_step_name(steps_res, default_step=step_name_val)
+                except Exception as steps_err:
+                    logger.warning(
+                        f"Could not fetch latest steps from API for ticket '{ticket_id}': {steps_err}. "
+                        f"Falling back to default step '{step_name_val}'."
                     )
 
-                    if already_sent:
-                        already_sent_count += 1
-                        logs.append(f"Ticket: {ticket_id} - Reminder already sent - Skipped")
-                        logger.info(f"Ticket: {ticket_id} - Reminder already sent")
-                        continue
+                # 2. Format timeRemaining payload (hours + mins if >= 60 mins)
+                if is_breached:
+                    time_remaining_payload = overrun_str
+                else:
+                    time_remaining_payload = format_time_remaining(rem_mins)
 
-                    if not should_send:
-                        logs.append(f"Ticket: {ticket_id} - SLA Duration: {sla_duration:.1f}m - Remaining: {remaining_mins:.1f}m - {reason}")
-                        logger.info(f"Ticket: {ticket_id} - {reason}")
-                        continue
+                payload = {
+                    "consultantName": consultant_name or "",
+                    "consultantEmail": consultant_email or "",
+                    "ticketNo": ticket_id,
+                    "timeRemaining": time_remaining_payload,
+                    "stepName": step_name_val,
+                }
 
-                    # Reminder is required!
-                    display_mins = remaining_mins if remaining_mins > 0 else sla_duration
-                    mins_int = int(round(display_mins))
-                    if mins_int <= 0:
-                        mins_int = int(round(sla_duration))
-                    time_remaining_str = f"{mins_int} Mins"
+                logger.info(
+                    f"Sending SLA Reminder Payload | Ticket: {ticket_id} | Priority: {priority} ({PRIORITY_NAMES.get(priority)}) | "
+                    f"Approved Hours: {approved_hours}h | Status: {sla_status} | Overrun: {overrun_str} | Remaining: {time_remaining_str}"
+                )
 
-                    payload = {
-                        "consultantName": str(ticket.get("name") or "").strip(),
-                        "consultantEmail": str(ticket.get("email") or "").strip(),
-                        "ticketNo": ticket_id,
-                        "timeRemaining": time_remaining_str,
-                        "stepName": step_name
-                    }
+                # Send payload to API
+                try:
+                    res_or_coro = client.send_ticket_step_reminder(payload, timeout=15)
+                    if asyncio.iscoroutine(res_or_coro) or inspect.isawaitable(res_or_coro):
+                        await res_or_coro
+                    
+                    await asyncio.to_thread(
+                        SLATracker.record_reminder_sent,
+                        ticket_id=ticket_id,
+                        sent_at=now,
+                        sla_status=sla_status,
+                        overrun_seconds=overrun_seconds,
+                        db_path=target_db
+                    )
+                    sent_count += 1
+                    logger.info(f"Ticket '{ticket_id}' reminder posted successfully.")
+                except Exception as post_err:
+                    failed_count += 1
+                    logger.error(f"Failed to post reminder for Ticket '{ticket_id}': {post_err}")
 
-                    logger.info(f"Sending ticket step reminder for Ticket: {ticket_id} (Step: {step_name}, Remaining: {time_remaining_str})")
+            except Exception as ticket_err:
+                logger.error(f"Error processing ticket '{ticket_id}': {ticket_err}")
 
-                    # Execute POST request asynchronously
-                    try:
-                        await asyncio.sleep(0.05)
-                        res = await client.send_ticket_step_reminder(payload, timeout=15)
-                        # Success! Mark as sent
-                        SLAReminderStore.mark_sent(store_key, {
-                            "ticketId": ticket_id,
-                            "stepName": step_name,
-                            "sla_deadline": sla_deadline.isoformat(),
-                            "priority_source": priority_src,
-                            "payload": payload,
-                            "response": str(res)
-                        })
-                        reminders_sent_count += 1
-                        logs.append(f"Ticket: {ticket_id} | Step: {step_name} | Reminder Sent: SUCCESS")
-                        logger.info(f"Ticket: {ticket_id} | Reminder Sent: SUCCESS")
-                    except Exception as post_err:
-                        reminders_failed_count += 1
-                        logs.append(f"Ticket: {ticket_id} | Step: {step_name} | Reminder Sent: FAILED ({post_err}) - DO NOT mark as sent")
-                        logger.error(f"Ticket: {ticket_id} | Reminder POST failed: {post_err}. Will retry on next cycle.")
+        logger.info(
+            f"SLA Monitoring Cycle Complete | Total Fetched Rows: {total_fetched} | Unique Tickets: {len(grouped_tickets)} | "
+            f"Sent: {sent_count} | Skipped: {skipped_count} | Failed: {failed_count}"
+        )
 
-                except Exception as ticket_err:
-                    logger.error(f"Error processing ticket {ticket_id}: {ticket_err}")
-                    logs.append(f"Ticket: {ticket_id} - Processing error: {ticket_err}")
+        return {
+            "success": True,
+            "timestamp": now.isoformat(),
+            "total_fetched": total_fetched,
+            "total_tickets": len(grouped_tickets),
+            "reminders_sent": sent_count,
+            "skipped_count": skipped_count,
+            "reminders_failed": failed_count,
+        }
 
-            summary_msg = (
-                f"SLA Monitor cycle completed. "
-                f"Total Fetched: {total_fetched}, Top 100 Processed: {processed_top}, "
-                f"Pending: {pending_count}, Reminders Sent: {reminders_sent_count}, "
-                f"POST Failed (Retrying): {reminders_failed_count}, Already Sent: {already_sent_count}, "
-                f"No SLA Info: {skipped_count}"
-            )
-            logger.info(summary_msg)
-
-            return {
-                "success": True,
-                "timestamp": now.isoformat(),
-                "total_fetched": total_fetched,
-                "processed_top": processed_top,
-                "pending_count": pending_count,
-                "reminders_sent": reminders_sent_count,
-                "reminders_failed": reminders_failed_count,
-                "already_sent_count": already_sent_count,
-                "no_sla_info_count": skipped_count,
-                "logs": logs
-            }
     finally:
         _cycle_lock.release()
 
 
 def run_sla_monitoring_cycle(
-    ams_client: Optional[AMSApi] = None,
+    ams_client: Optional[Any] = None,
     current_time: Optional[datetime] = None,
-    threshold_minutes: float = 30.0
+    db_path: Optional[str] = None
 ) -> Dict[str, Any]:
     """Synchronous wrapper for run_sla_monitoring_cycle_async."""
     try:
@@ -480,8 +632,12 @@ def run_sla_monitoring_cycle(
         import concurrent.futures
         with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
             future = pool.submit(
-                lambda: asyncio.run(run_sla_monitoring_cycle_async(ams_client, current_time, threshold_minutes))
+                lambda: asyncio.run(
+                    run_sla_monitoring_cycle_async(ams_client, current_time, db_path)
+                )
             )
             return future.result()
     else:
-        return asyncio.run(run_sla_monitoring_cycle_async(ams_client, current_time, threshold_minutes))
+        return asyncio.run(
+            run_sla_monitoring_cycle_async(ams_client, current_time, db_path)
+        )

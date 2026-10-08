@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # SLA Credentials
-SLA_EMAIL: str = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL") or ""
-SLA_PASSWORD: str = os.getenv("SLA_PASSWORD") or os.getenv("AMS_PASSWORD") or ""
+SLA_EMAIL: str = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL")
+SLA_PASSWORD: str = os.getenv("SLA_PASSWORD") or os.getenv("AMS_PASSWORD")
 
 # SLA API Endpoints
 TICKET_DETAILS_API_URL: str = (
@@ -46,7 +46,7 @@ SHORT_SLA_REMINDER_INTERVAL_MINUTES: int = int(os.getenv("SHORT_SLA_REMINDER_INT
 # Priority Reminder Intervals (Payload values: 1=Low, 2=Medium, 3=High, 4=Very High)
 PRIORITY_REMINDER_INTERVALS_HOURS: Dict[int, float] = {
     4: 1.0,   # Priority 4 (Very High): Every 1 hour (9 AM - 7 PM window, Mon-Fri)
-    3: 4.0,   # Priority 3 (High): Every 4 hours (9 AM - 7 PM window, Mon-Fri)
+    3: 1.0,   # Priority 3 (High): Every 1 hour (9 AM - 7 PM window, Mon-Fri)
     2: 24.0,  # Priority 2 (Medium): Daily at 6 PM (18:00) (Mon-Fri only)
     1: 24.0,  # Priority 1 (Low): Daily at 6 PM (18:00) (Mon-Fri only)
 }

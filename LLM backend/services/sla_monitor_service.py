@@ -4,7 +4,7 @@ services/sla_monitor_service.py - Modular SLA Monitoring Engine for AMS Applicat
 Features:
 1. Data source from GET /api/Ticket/GetTicketDetails (grouped by ticketId, mapped via map_api_row_to_internal).
 2. SLA clock starts at FS step (FS_DOC_TYPE). Approved hours read ONLY from BRD step (BRD_DOC_TYPE).
-3. Priority-based reminder intervals (1=24h, 2=24h, 3=4h, 4=1h).
+3. Priority-based reminder intervals (1=24h, 2=24h, 3=1h, 4=1h).
 4. Short-SLA rule: Approved hours < 1 sent immediately.
 5. SLA breach handling: Calculates and records overrun duration (current time - deadline) until closed.
 6. Skip finished/closed tickets.
@@ -293,8 +293,7 @@ def should_send_reminder(
     - Weekend blackout rule: NO reminders on Sat & Sun for ANY priority.
     - Business hours rule: NO reminders outside 9 AM - 7 PM window.
     - Low (1) & Medium (2) Priority: Daily at 6:00 PM (18:00) on working days (Mon-Fri).
-    - High (3): Every 4 hours (9 AM - 7 PM window, Mon-Fri).
-    - Very High (4): Every 1 hour (9 AM - 7 PM window, Mon-Fri).
+    - High (3) & Very High (4) Priority: Every 1 hour (9 AM - 7 PM window, Mon-Fri).
     """
     # 1. Weekend Blackout Rule: Absolutely NO reminders on Sat (5) & Sun (6)
     if current_time.weekday() >= 5:
@@ -313,8 +312,8 @@ def should_send_reminder(
             return True
         return last_sent_at.date() < current_time.date()
 
-    # 4. Priority 3 (High, 4h) and Priority 4 (Very High, 1h)
-    interval_hours = PRIORITY_REMINDER_INTERVALS_HOURS.get(priority, 1.0 if priority == 4 else 4.0)
+    # 4. Priority 3 (High, 1h) and Priority 4 (Very High, 1h)
+    interval_hours = PRIORITY_REMINDER_INTERVALS_HOURS.get(priority, 1.0)
 
     if last_sent_at is None:
         return True
@@ -344,7 +343,7 @@ async def run_sla_monitoring_cycle_async(
     4. Evaluates SLA clock start at FS step and reads approved hours ONLY from BRD step.
     5. Locks original_fs_start_time on first discovery to anchor deadlines permanently across daily rollovers.
     6. Evaluates breach status & overrun duration.
-    7. Applies priority rules (1/2=Daily at 6 PM, 3=4h, 4=1h) and short-SLA 15m throttle.
+    7. Applies priority rules (1/2=Daily at 6 PM, 3/4=1h) and short-SLA 15m throttle.
     8. Tracks last-sent timestamps in SLATracker store.
     """
     if not _cycle_lock.acquire(blocking=False):
@@ -421,7 +420,7 @@ async def run_sla_monitoring_cycle_async(
 
                 # Rule 1: If ticket is closed/completed, hard DELETE from SQLite store
                 if ticket_status in CLOSED_TICKET_STATUSES:
-                    logger.info(f"Ticket '{ticket_id}' status is '{rows[0]['ticket_status']}' (Closed/Completed). Deleting from tracker DB.")
+                    logger.debug(f"Ticket '{ticket_id}' status is '{rows[0]['ticket_status']}' (Closed/Completed). Deleting from tracker DB.")
                     await asyncio.to_thread(SLATracker.delete_ticket, ticket_id, target_db)
                     skipped_count += 1
                     continue
@@ -439,7 +438,7 @@ async def run_sla_monitoring_cycle_async(
 
                 if brd_row is None or brd_row["customer_approved_hours"] is None or brd_row["customer_approved_hours"] <= 0:
                     app_hrs_val = brd_row.get("customer_approved_hours") if brd_row else None
-                    logger.info(
+                    logger.debug(
                         f"Ticket '{ticket_id}': BRD step ('{BRD_DOC_TYPE}') row missing, null, or customerApprovedHours is <= 0 ({app_hrs_val}). "
                         f"Deleting any existing record from DB and skipping monitoring."
                     )

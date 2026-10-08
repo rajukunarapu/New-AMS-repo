@@ -2,6 +2,8 @@
 main.py - FastAPI Application Entry Point for AMS Ticket Intelligence Assistant (Updated).
 """
 
+import sys
+import multiprocessing
 from datetime import datetime, timezone
 import uvicorn
 from fastapi import FastAPI
@@ -90,5 +92,16 @@ def root():
     }
 
 
+from dotenv import load_dotenv
+load_dotenv()
+
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True, reload_dirs=["."])
+    multiprocessing.freeze_support()
+    port = int(os.getenv("PORT", "8000"))
+    host = os.getenv("HOST", "0.0.0.0")
+    print(f"Starting AMS AI Backend on {host}:{port}...")
+    if getattr(sys, "frozen", False):
+        # When running as a PyInstaller compiled binary, pass app directly and disable reload
+        uvicorn.run(app, host=host, port=port)
+    else:
+        uvicorn.run("main:app", host=host, port=port, reload=True, reload_dirs=["."])

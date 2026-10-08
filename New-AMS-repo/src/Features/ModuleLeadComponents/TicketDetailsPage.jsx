@@ -1126,7 +1126,7 @@ const TicketDetailsPage = ({
                 {showReviewBox && (
                   <div className="mlp-td-review-box">
                     <h4 className="mlp-td-review-title">
-                      Confirm these changes to {selectedTicket.ticketNo || "AAB2608266"}
+                      Assigned {selectedTicket.ticketNo || "AAB2608266"} to consultant
                     </h4>
                     <div className="mlp-td-review-table">
                       <div className="mlp-td-review-row">
@@ -1165,7 +1165,7 @@ const TicketDetailsPage = ({
                         disabled={isSubmitting}
                         onClick={handleConfirmAndWrite}
                       >
-                        {isSubmitting ? "Writing changes..." : "Confirm and write"}
+                        {isSubmitting ? "Writing changes..." : "Confirm and send"}
                       </button>
                       <button
                         type="button"

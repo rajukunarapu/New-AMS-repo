@@ -911,18 +911,20 @@ const CustomerPage = () => {
                                                 }}
                                                 min={0}
                                               />
-                                              {isHoursSubmitted && (
-                                                <span className="cp-step-submitted-note">
-                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                                                    <polyline points="20 6 9 17 4 12" />
-                                                  </svg>
-                                                  Customer approved hours already submitted.
-                                                </span>
-                                              )}
                                             </div>
                                           </>
                                         )}
                                       </div>
+
+                                      {/* Submitted Note / Alert after the fields */}
+                                      {isBud && isHoursSubmitted && (
+                                        <div className="cp-step-submitted-note" style={{ marginTop: "10px" }}>
+                                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                            <polyline points="20 6 9 17 4 12" />
+                                          </svg>
+                                          <span>Customer approved hours already submitted.</span>
+                                        </div>
+                                      )}
 
                                       {/* BUD Submit Button */}
                                       {isBud && !isHoursSubmitted && (

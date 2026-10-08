@@ -1,0 +1,22 @@
+include .env
+include *.py
+include *.txt
+include *.md
+include *.spec
+include requirements.txt
+recursive-include models *
+recursive-include routers *
+recursive-include services *
+recursive-include data *
+recursive-include logs *
+recursive-include tests *
+recursive-include scratch *
+
+prune venv
+prune .venv
+prune build
+prune dist
+prune **/__pycache__
+global-exclude *.pyc
+global-exclude *.pyo
+global-exclude *.pyd

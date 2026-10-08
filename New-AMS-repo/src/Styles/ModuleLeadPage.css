@@ -2718,6 +2718,10 @@
   background: #043329;
 }
 
+.mlp-dw-step-connector.skipped {
+  background: #ef4444;
+}
+
 .mlp-dw-step-circle {
   width: 26px;
   height: 26px;
@@ -2730,9 +2734,9 @@
   z-index: 2;
   position: relative;
   transition: all 0.2s ease;
-  background: #ffffff;
-  color: #94a3b8;
-  border: 1.5px solid #cbd5e1;
+  background: #fefce8;
+  color: #a16207;
+  border: 1.5px solid #fde047;
 }
 
 .mlp-dw-step-circle.completed {
@@ -2741,11 +2745,23 @@
   border: 2px solid #043329;
 }
 
-.mlp-dw-step-circle.active {
-  background: #043329;
+.mlp-dw-step-circle.skipped {
+  background: #ef4444;
   color: #ffffff;
-  border: 2px solid #043329;
-  box-shadow: 0 0 0 3px rgba(4, 51, 41, 0.15);
+  border: 2px solid #ef4444;
+}
+
+.mlp-dw-step-circle.pending {
+  background: #fefce8;
+  color: #a16207;
+  border: 1.5px solid #fde047;
+}
+
+.mlp-dw-step-circle.active {
+  background: #fefce8;
+  color: #a16207;
+  border: 2px solid #eab308;
+  box-shadow: 0 0 0 3px rgba(234, 179, 8, 0.25);
 }
 
 .mlp-dw-step-lbl {
@@ -2756,14 +2772,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  color: #94a3b8;
+  color: #a16207;
   font-weight: 500;
 }
 
-.mlp-dw-step-lbl.completed,
-.mlp-dw-step-lbl.active {
+.mlp-dw-step-lbl.completed {
   color: #043329;
   font-weight: 700;
+}
+
+.mlp-dw-step-lbl.skipped {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.mlp-dw-step-lbl.pending,
+.mlp-dw-step-lbl.active {
+  color: #a16207;
+  font-weight: 600;
 }
 
 /* Columns guide label strip */
@@ -2838,21 +2864,39 @@
   border-radius: 4px;
 }
 
-.mlp-dw-step-badge-ontime {
+.mlp-dw-step-badge-ontime,
+.mlp-dw-step-badge-pending {
   font-size: 12px;
   font-weight: 600;
-  color: #059669;
-  background: #ecfdf5;
-  border: 1px solid #a7f3d0;
+  color: #a16207;
+  background: #fefce8;
+  border: 1px solid #fef08a;
   padding: 4px 14px;
   border-radius: 9999px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.mlp-dw-step-badge-skipped {
+  font-size: 12px;
+  font-weight: 600;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  padding: 4px 14px;
+  border-radius: 9999px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .mlp-dw-step-badge-completed {
   font-size: 12px;
   font-weight: 600;
-  color: #059669;
+  color: #047857;
   background: #ecfdf5;
   border: 1px solid #a7f3d0;
   padding: 4px 14px;

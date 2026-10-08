@@ -124,17 +124,53 @@ const muiInputSx = {
     fontSize: "12px",
     color: "inherit",
   },
-  "& input::-webkit-calendar-picker-indicator": {
-    filter: "var(--calendar-filter, none)",
-    cursor: "pointer",
-    opacity: 1,
-    display: "block",
-  },
   "& .MuiInputBase-input::-webkit-calendar-picker-indicator": {
     filter: "var(--calendar-filter, none)",
     cursor: "pointer",
     opacity: 1,
     display: "block",
+  },
+};
+
+const muiDateInputSx = {
+  width: "100%",
+  "& .MuiOutlinedInput-root": {
+    height: "36px",
+    fontSize: "12px",
+    fontFamily: "inherit",
+    backgroundColor: "#ffffff !important",
+    color: "#0f172a !important",
+    borderRadius: "12px",
+    boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+    "& fieldset": {
+      borderColor: "#cbd5e1 !important",
+      transition: "all 0.15s ease",
+    },
+    "&:hover fieldset": {
+      borderColor: "#94a3b8 !important",
+    },
+    "&.Mui-focused fieldset": {
+      borderColor: "#33557a !important",
+      borderWidth: "1.5px",
+    },
+  },
+  "& .MuiOutlinedInput-input": {
+    padding: "7px 10px",
+    fontSize: "12px",
+    color: "#0f172a !important",
+    WebkitTextFillColor: "#0f172a !important",
+  },
+  "& input::-webkit-calendar-picker-indicator": {
+    cursor: "pointer",
+    filter: "none !important",
+    opacity: "1 !important",
+    display: "block !important",
+  },
+  "& .MuiInputBase-input::-webkit-calendar-picker-indicator": {
+    cursor: "pointer",
+    filter: "none !important",
+    opacity: "1 !important",
+    display: "block !important",
   },
 };
 
@@ -698,7 +734,7 @@ const DeliveryWorkflow = ({
         newCompleted.step1 = true;
         setAckCompleted(true);
         setAckCustomerDate(step1Rec.customerAcknowledgement ? formatDateForInput(step1Rec.customerAcknowledgement) : "");
-        setAckEndDate(step1Rec.endDate ? formatDisplayDate(step1Rec.endDate) : "");
+        setAckEndDate(step1Rec.endDate ? formatDateForInput(step1Rec.endDate) : "");
 
         const hasHours = step1Rec.workingHours !== null && step1Rec.workingHours !== undefined && String(step1Rec.workingHours).trim() !== "" && Number(step1Rec.workingHours) > 0;
         const hasDays = step1Rec.workingDays !== null && step1Rec.workingDays !== undefined && String(step1Rec.workingDays).trim() !== "" && Number(step1Rec.workingDays) > 0;
@@ -766,7 +802,7 @@ const DeliveryWorkflow = ({
             ? rec.ticketStatus
             : "";
 
-          const mappedEndDate = rec.endDate ? formatDisplayDate(rec.endDate) : "";
+          const mappedEndDate = rec.endDate ? formatDateForInput(rec.endDate) : "";
 
           if (stepKey === "step3") {
             const tech = rec.estimatedTechnicalHours !== null && rec.estimatedTechnicalHours !== undefined ? String(rec.estimatedTechnicalHours) : "";
@@ -965,6 +1001,9 @@ const DeliveryWorkflow = ({
       if (!ackCustomerDate || !String(ackCustomerDate).trim()) {
         missing.push("Customer Acknowledged On");
       }
+      if (!ackEndDate || !String(ackEndDate).trim()) {
+        missing.push("End Date");
+      }
       if (missing.length > 0) {
         setMissingFields(missing);
         showStepAlert(stepKey, "error", `Please provide all required fields: ${missing.join(", ")}.`);
@@ -974,9 +1013,11 @@ const DeliveryWorkflow = ({
       // Date validation: Customer Acknowledged On must be on or after Acknowledgement Sent On
       const sentDateRaw = selectedWorkflowTicket?.createddate ? new Date(selectedWorkflowTicket.createddate) : new Date();
       const customerAckDateObj = new Date(ackCustomerDate);
+      const ackEndDateObj = new Date(ackEndDate);
       
       const sentDateMidnight = new Date(sentDateRaw.getFullYear(), sentDateRaw.getMonth(), sentDateRaw.getDate()).getTime();
       const ackDateMidnight = new Date(customerAckDateObj.getFullYear(), customerAckDateObj.getMonth(), customerAckDateObj.getDate()).getTime();
+      const ackEndDateMidnight = new Date(ackEndDateObj.getFullYear(), ackEndDateObj.getMonth(), ackEndDateObj.getDate()).getTime();
 
       if (ackDateMidnight < sentDateMidnight) {
         setMissingFields(["Customer Acknowledged On"]);
@@ -987,89 +1028,101 @@ const DeliveryWorkflow = ({
         );
         return;
       }
+
+      if (!isNaN(sentDateMidnight) && !isNaN(ackEndDateMidnight) && ackEndDateMidnight < sentDateMidnight) {
+        setMissingFields(["End Date"]);
+        showStepAlert(
+          stepKey,
+          "error",
+          `End Date cannot be earlier than Start Date (${formatCreatedDate(selectedWorkflowTicket?.createddate)}). Please select a date on or after the start date.`
+        );
+        return;
+      }
       setMissingFields([]);
 
       customerAckFormatted = formatToMMDDYYYY(ackCustomerDate);
-      endSlaFormatted = formatToMMDDYYYY(new Date());
+      endSlaFormatted = formatToMMDDYYYY(ackEndDate);
       responsibleVal = ackResponsibleBy || defaultConsultant;
       statusVal = "";
       stepStatusVal = "Completed";
       attachmentVal = ackAttachment || null;
       extraFields = {};
-    } else if (stepKey === "step2") {
-      const s = stepsState.step2 || {};
-      responsibleVal = s.responsible || defaultConsultant;
-      statusVal = "";
-      stepStatusVal = "Completed";
-      customerAckFormatted = "";
-      endSlaFormatted = formatToMMDDYYYY(new Date());
-      attachmentVal = s.attachment || null;
-      extraFields = {};
-    } else if (stepKey === "step3") {
-      const s = stepsState.step3 || {};
-      const tStatus = s.ticketStatus || s.status || "";
-      if (!tStatus || !String(tStatus).trim()) {
-        showStepAlert(stepKey, "error", "Please select a Ticket Status.");
-        return;
-      }
-
-      const tech = Number(s.estimatedTechnicalHours) || 0;
-      const func = Number(s.estimatedFunctionalHours) || 0;
-      const total = tech + func;
-      const totalHoursStr = total > 0 ? String(total) : (s.estimatedTotalHours || "");
-      const docStatusVal = (s.attachment || s.attachmentName) ? "Yes" : "No";
-
-      responsibleVal = s.responsible || defaultConsultant;
-      statusVal = "";
-      stepStatusVal = "Completed";
-      customerAckFormatted = "";
-      endSlaFormatted = formatToMMDDYYYY(new Date());
-      attachmentVal = s.attachment || null;
-
-      extraFields = {
-        EstimatedTechnicalHours: s.estimatedTechnicalHours || "",
-        EstimatedFunctionalHours: s.estimatedFunctionalHours || "",
-        EstimatedTotalHours: totalHoursStr,
-        DocumentStatus: docStatusVal,
-        TicketStatus: tStatus,
-      };
-    } else if (stepKey === "step10") {
-      const s = stepsState.step10 || {};
-      const tStatus = s.ticketStatus || s.status || "";
-      if (!tStatus || !String(tStatus).trim()) {
-        showStepAlert(stepKey, "error", "Please select a Ticket Status.");
-        return;
-      }
-
-      responsibleVal = s.responsible || defaultConsultant;
-      statusVal = "";
-      stepStatusVal = "Completed";
-      customerAckFormatted = "";
-      endSlaFormatted = formatToMMDDYYYY(new Date());
-      attachmentVal = s.attachment || null;
-
-      extraFields = {
-        Remarks: s.remarks || "",
-        TicketStatus: tStatus,
-      };
     } else {
-      // Steps 4 to 9
       const s = stepsState[stepKey] || {};
-      const tStatus = s.ticketStatus || s.status || "";
-      if (!tStatus || !String(tStatus).trim()) {
-        showStepAlert(stepKey, "error", "Please select a Ticket Status.");
+
+      // 1. Validate required End Date for all steps 2 to 10
+      if (!s.endDate || !String(s.endDate).trim()) {
+        showStepAlert(stepKey, "error", "Please provide all required fields: End Date.");
         return;
       }
 
+      // 2. Validate End Date is not earlier than Start Date
+      const startDateRaw = selectedWorkflowTicket?.createddate ? new Date(selectedWorkflowTicket.createddate) : new Date();
+      const endDateObj = new Date(s.endDate);
+      const startDateMidnight = new Date(startDateRaw.getFullYear(), startDateRaw.getMonth(), startDateRaw.getDate()).getTime();
+      const endDateMidnight = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate()).getTime();
+
+      if (!isNaN(startDateMidnight) && !isNaN(endDateMidnight) && endDateMidnight < startDateMidnight) {
+        showStepAlert(
+          stepKey,
+          "error",
+          `End Date cannot be earlier than Start Date (${formatCreatedDate(selectedWorkflowTicket?.createddate)}). Please select a date on or after the start date.`
+        );
+        return;
+      }
+
+      endSlaFormatted = formatToMMDDYYYY(s.endDate);
+      customerAckFormatted = "";
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = "";
       stepStatusVal = "Completed";
-      customerAckFormatted = "";
-      endSlaFormatted = formatToMMDDYYYY(new Date());
       attachmentVal = s.attachment || null;
-      extraFields = {
-        TicketStatus: tStatus,
-      };
+
+      if (stepKey === "step2") {
+        extraFields = {};
+      } else if (stepKey === "step3") {
+        const tStatus = s.ticketStatus || s.status || "";
+        if (!tStatus || !String(tStatus).trim()) {
+          showStepAlert(stepKey, "error", "Please select a Ticket Status.");
+          return;
+        }
+
+        const tech = Number(s.estimatedTechnicalHours) || 0;
+        const func = Number(s.estimatedFunctionalHours) || 0;
+        const total = tech + func;
+        const totalHoursStr = total > 0 ? String(total) : (s.estimatedTotalHours || "");
+        const docStatusVal = (s.attachment || s.attachmentName) ? "Yes" : "No";
+
+        extraFields = {
+          EstimatedTechnicalHours: s.estimatedTechnicalHours || "",
+          EstimatedFunctionalHours: s.estimatedFunctionalHours || "",
+          EstimatedTotalHours: totalHoursStr,
+          DocumentStatus: docStatusVal,
+          TicketStatus: tStatus,
+        };
+      } else if (stepKey === "step10") {
+        const tStatus = s.ticketStatus || s.status || "";
+        if (!tStatus || !String(tStatus).trim()) {
+          showStepAlert(stepKey, "error", "Please select a Ticket Status.");
+          return;
+        }
+
+        extraFields = {
+          Remarks: s.remarks || "",
+          TicketStatus: tStatus,
+        };
+      } else {
+        // Steps 4 to 9
+        const tStatus = s.ticketStatus || s.status || "";
+        if (!tStatus || !String(tStatus).trim()) {
+          showStepAlert(stepKey, "error", "Please select a Ticket Status.");
+          return;
+        }
+
+        extraFields = {
+          TicketStatus: tStatus,
+        };
+      }
     }
 
     setSubmittingSteps((prev) => ({ ...prev, [stepKey]: true }));
@@ -1202,20 +1255,59 @@ const DeliveryWorkflow = ({
     ));
   };
 
-  // Helper renderer for step status badge (Completed / On Time)
-  const renderStepBadge = (stepKey) => {
+  // Helper to determine step performance status: 'completed' (green), 'skipped' (red), 'pending' (yellow)
+  const getStepPerformanceStatus = (stepKey) => {
+    const stepIdx = WORKFLOW_10_STEPS.findIndex((s) => s.key === stepKey);
+    if (stepIdx === -1) return "pending";
+
     const isDone = Boolean(hasStepRecord[stepKey] || completedSteps[stepKey]);
     if (isDone) {
+      return "completed";
+    }
+
+    // If any later step is completed, this unperformed step was skipped (red)
+    const hasLaterStepCompleted = WORKFLOW_10_STEPS.slice(stepIdx + 1).some(
+      (s) => Boolean(hasStepRecord[s.key] || completedSteps[s.key])
+    );
+
+    if (hasLaterStepCompleted) {
+      return "skipped";
+    }
+
+    return "pending";
+  };
+
+  // Helper renderer for step status badge (Completed / Not Performed / Pending)
+  const renderStepBadge = (stepKey) => {
+    const status = getStepPerformanceStatus(stepKey);
+    if (status === "completed") {
       return (
-        <span className="mlp-dw-step-badge-completed">
-          {/* <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="20 6 9 17 4 12" />
-          </svg> */}
+        <span
+          className="mlp-dw-step-badge-completed"
+          style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}
+        >
           Completed
         </span>
       );
     }
-    return <span className="mlp-dw-step-badge-ontime">On Time</span>;
+    if (status === "skipped") {
+      return (
+        <span
+          className="mlp-dw-step-badge-skipped"
+          style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }}
+        >
+          Not Performed
+        </span>
+      );
+    }
+    return (
+      <span
+        className="mlp-dw-step-badge-pending"
+        style={{ background: "#fefce8", color: "#a16207", border: "1px solid #fef08a" }}
+      >
+        Pending
+      </span>
+    );
   };
 
   // Calculate completed stages and current active stage for the workflow timeline
@@ -1419,25 +1511,27 @@ const DeliveryWorkflow = ({
               {/* 10-Step Stepper Track */}
               <div className="mlp-dw-stepper-track">
                 {WORKFLOW_10_STEPS.map((step, idx) => {
-                  const isDone = Boolean(hasStepRecord[step.key] || completedSteps[step.key]);
-                  const isCurrent = idx === currentActiveStepIndex;
+                  const status = getStepPerformanceStatus(step.key);
+                  const isDone = status === "completed";
+                  const isSkipped = status === "skipped";
+                  const isPending = status === "pending";
+                  const isCurrent = idx === currentActiveStepIndex && isPending;
                   const stepNumFormatted = String(step.num).padStart(2, "0");
                   const labelText = idx === 0 && selectedWorkflowTicket?.ticketNo ? selectedWorkflowTicket.ticketNo : step.short;
+                  const prevStepStatus = idx > 0 ? getStepPerformanceStatus(WORKFLOW_10_STEPS[idx - 1].key) : null;
 
                   return (
                     <div key={step.key} className="mlp-dw-step-node-wrap">
                       {idx > 0 && (
                         <div
                           className={`mlp-dw-step-connector ${
-                            hasStepRecord[WORKFLOW_10_STEPS[idx - 1].key] || completedSteps[WORKFLOW_10_STEPS[idx - 1].key]
-                              ? "completed"
-                              : ""
+                            prevStepStatus === "completed" ? "completed" : prevStepStatus === "skipped" ? "skipped" : ""
                           }`}
                         />
                       )}
                       <div
                         className={`mlp-dw-step-circle ${
-                          isDone ? "completed" : isCurrent ? "active" : "pending"
+                          isDone ? "completed" : isSkipped ? "skipped" : isCurrent ? "active" : "pending"
                         }`}
                       >
                         {isDone ? (
@@ -1450,7 +1544,7 @@ const DeliveryWorkflow = ({
                       </div>
                       <span
                         className={`mlp-dw-step-lbl ${
-                          isDone ? "completed" : isCurrent ? "active" : "pending"
+                          isDone ? "completed" : isSkipped ? "skipped" : isCurrent ? "active" : "pending"
                         }`}
                       >
                         {labelText}
@@ -1715,12 +1809,32 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={ackEndDate || ""}
-                    disabled
+                    error={missingFields.includes("End Date")}
+                    onChange={(e) => {
+                      setAckEndDate(e.target.value);
+                      if (missingFields.includes("End Date")) {
+                        setMissingFields((prev) => prev.filter((f) => f !== "End Date"));
+                      }
+                    }}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
 
@@ -1901,13 +2015,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step2.endDate || ""}
-                    placeholder="Select date"
-                    disabled
+                    onChange={(e) => handleStepChange("step2", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
 
@@ -2220,12 +2347,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step3.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step3", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -2483,12 +2624,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step4.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step4", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -2733,12 +2888,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step5.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step5", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -2983,12 +3152,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step6.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step6", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3233,12 +3416,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step7.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step7", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3483,12 +3680,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step8.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step8", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3733,12 +3944,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step9.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step9", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3983,12 +4208,26 @@ const DeliveryWorkflow = ({
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
                   <TextField
+                    type="date"
                     size="small"
                     variant="outlined"
                     value={stepsState.step10.endDate || ""}
-                    disabled
+                    onChange={(e) => handleStepChange("step10", "endDate", e.target.value)}
+                    onClick={(e) => {
+                      if (e.target.showPicker) {
+                        try {
+                          e.target.showPicker();
+                        } catch (err) {}
+                      }
+                    }}
                     fullWidth
-                    sx={muiInputSx}
+                    sx={muiDateInputSx}
+                    slotProps={{
+                      inputLabel: { shrink: true },
+                      htmlInput: {
+                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
+                      },
+                    }}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">

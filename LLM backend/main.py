@@ -13,10 +13,13 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from routers import auth_router, chat_router, tickets_router, sla_router
 from services.sla_scheduler import sla_scheduler_instance
+from run_scheduler import setup_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Setup logging to ensure logs/sla_monitor.log file handler is active
+    setup_logging()
     # Startup: start SLA Background Scheduler non-blockingly on the event loop
     await sla_scheduler_instance.start()
     yield
@@ -92,16 +95,54 @@ def root():
     }
 
 
+import argparse
 from dotenv import load_dotenv
-load_dotenv()
+
+# Ensure .env is loaded from the executable directory when frozen with PyInstaller
+if getattr(sys, "frozen", False):
+    exe_dir = os.path.dirname(sys.executable)
+    load_dotenv(os.path.join(exe_dir, ".env"), override=True)
+else:
+    load_dotenv(override=True)
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    port = int(os.getenv("PORT", "8000"))
-    host = os.getenv("HOST", "0.0.0.0")
-    print(f"Starting AMS AI Backend on {host}:{port}...")
+
+    parser = argparse.ArgumentParser(description="AMS AI Ticket Intelligence Backend API")
+    parser.add_argument("--port", "-p", type=int, default=None, help="Port to listen on")
+    parser.add_argument("--host", type=str, default=None, help="Host interface IP to bind")
+    args, _ = parser.parse_known_args()
+
+    # IIS sets HTTP_PLATFORM_PORT when launching via HttpPlatformHandler
+    iis_port = os.getenv("HTTP_PLATFORM_PORT")
+    env_port = os.getenv("PORT")
+
+    # Priority: IIS env var > CLI argument > .env PORT > Default (90)
+    if iis_port:
+        port = int(iis_port)
+    elif args.port:
+        port = args.port
+    elif env_port:
+        port = int(env_port)
+    else:
+        port = 83
+
+    # For IIS or general hosting, bind host priority: CLI arg > .env HOST > (0.0.0.0 if IIS else 172.16.32.50)
+    env_host = os.getenv("HOST")
+    if args.host:
+        host = args.host
+    elif env_host:
+        host = env_host
+    elif iis_port:
+        host = "127.0.0.1"
+    else:
+        host = "172.16.32.50"
+
+    print(f"Starting AMS AI Backend on {host}:{port} (IIS/Dynamic Port Mode)...")
+
     if getattr(sys, "frozen", False):
         # When running as a PyInstaller compiled binary, pass app directly and disable reload
         uvicorn.run(app, host=host, port=port)
     else:
         uvicorn.run("main:app", host=host, port=port, reload=True, reload_dirs=["."])
+

@@ -6,6 +6,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('.env', '.'),
+        ('web.config', '.'),
         ('Module_Router.txt', '.'),
         ('SLA_SERVICE_README.md', '.'),
         ('requirements.txt', '.'),
@@ -49,7 +50,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['pyi_env_hook.py'],
     excludes=[
         'venv',
         '.venv',

@@ -11,6 +11,9 @@ import {
   Button,
   IconButton,
   Snackbar,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
 import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
@@ -18,6 +21,77 @@ import CloseIcon from "@mui/icons-material/Close";
 import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import { GetScreenshotAPI } from "../../Services/GetScreenshotAPI";
 import { getDeliveryWorkflowAPI } from "../../Services/GetDeliveryWorkflowAPI";
+
+const muiSelectEnabledSx = {
+  width: "100%",
+  minWidth: 0,
+  maxWidth: "100%",
+  height: "38px",
+  fontSize: "12.5px",
+  fontFamily: "inherit",
+  color: "#0f172a",
+  backgroundColor: "#ffffff",
+  borderRadius: "12px",
+  boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#cbd5e1 !important",
+    transition: "all 0.15s ease",
+  },
+  "&:hover .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#94a3b8 !important",
+  },
+  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+    borderColor: "#043329 !important",
+    borderWidth: "1.5px",
+  },
+  "& .MuiSelect-select": {
+    padding: "8px 36px 8px 12px !important",
+    paddingRight: "36px !important",
+    fontSize: "12.5px",
+    display: "block !important",
+    alignItems: "center",
+    color: "#0f172a",
+    overflow: "hidden !important",
+    textOverflow: "ellipsis !important",
+    whiteSpace: "nowrap !important",
+    textAlign: "left",
+    minWidth: 0,
+    width: "100%",
+    boxSizing: "border-box",
+  },
+  "& .MuiSelect-icon": {
+    color: "#64748b",
+    right: "8px",
+  },
+};
+
+const menuProps = {
+  slotProps: {
+    paper: {
+      sx: {
+        borderRadius: "6px",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.12)",
+        maxHeight: 260,
+        "& .MuiMenuItem-root": {
+          fontSize: "12px",
+          minHeight: "32px",
+          padding: "6px 12px",
+          transition: "background-color 0.15s ease",
+          "&.Mui-selected": {
+            backgroundColor: "#f1f5f9",
+            fontWeight: 600,
+          },
+          "&.Mui-selected:hover": {
+            backgroundColor: "#e2e8f0",
+          },
+          "&:hover": {
+            backgroundColor: "#f8fafc",
+          },
+        },
+      },
+    },
+  },
+};
 
 const STEP_DOC_TYPES = [
   "Ticket ACK",
@@ -1003,27 +1077,37 @@ const TicketDetailsPage = ({
                     <label className="mlp-td-form-label">
                       ASSIGN TO <span>*</span>
                     </label>
-                    <select
-                      className="mlp-td-select"
-                      value={assignTo}
-                      onChange={(e) => setAssignTo(e.target.value)}
-                    >
-                      <option value="">Select consultant</option>
-                      {assignTo &&
-                        !employees.some(
-                          (emp) =>
-                            (emp.name || emp.employeeName || "").trim().toLowerCase() ===
-                            assignTo.trim().toLowerCase()
-                        ) && <option value={assignTo}>{assignTo}</option>}
-                      {employees.map((emp) => {
-                        const empName = emp.name || emp.employeeName || "";
-                        return (
-                          <option key={emp.id || emp.employeeId || empName} value={empName}>
-                            {empName}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        value={assignTo || ""}
+                        onChange={(e) => setAssignTo(e.target.value)}
+                        displayEmpty
+                        sx={muiSelectEnabledSx}
+                        MenuProps={menuProps}
+                      >
+                        <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                          Select consultant
+                        </MenuItem>
+                        {assignTo &&
+                          !employees.some(
+                            (emp) =>
+                              (emp.name || emp.employeeName || "").trim().toLowerCase() ===
+                              assignTo.trim().toLowerCase()
+                          ) && (
+                            <MenuItem value={assignTo} title={assignTo}>
+                              {assignTo}
+                            </MenuItem>
+                          )}
+                        {employees.map((emp) => {
+                          const empName = emp.name || emp.employeeName || "";
+                          return (
+                            <MenuItem key={emp.id || emp.employeeId || empName} value={empName} title={empName}>
+                              {empName}
+                            </MenuItem>
+                          );
+                        })}
+                      </Select>
+                    </FormControl>
                   </div>
 
                   {/* STATUS */}
@@ -1031,14 +1115,22 @@ const TicketDetailsPage = ({
                     <label className="mlp-td-form-label">
                       STATUS <span>*</span>
                     </label>
-                    <select
-                      className="mlp-td-select"
-                      value={assignStatus}
-                      onChange={(e) => setAssignStatus(e.target.value)}
-                    >
-                      <option value="">Select status</option>
-                      <option value="Assigned">Assigned</option>
-                    </select>
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        value={assignStatus || ""}
+                        onChange={(e) => setAssignStatus(e.target.value)}
+                        displayEmpty
+                        sx={muiSelectEnabledSx}
+                        MenuProps={menuProps}
+                      >
+                        <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                          Select status
+                        </MenuItem>
+                        <MenuItem value="Assigned" title="Assigned">
+                          Assigned
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
                   </div>
 
                   {/* PRIORITY */}
@@ -1046,28 +1138,38 @@ const TicketDetailsPage = ({
                     <label className="mlp-td-form-label">
                       PRIORITY <span>*</span>
                     </label>
-                    <select
-                      className="mlp-td-select"
-                      value={assignPriority}
-                      onChange={(e) => setAssignPriority(e.target.value)}
-                    >
-                      <option value="">Select priority</option>
-                      {assignPriority &&
-                        !uniquePriorities.some(
-                          (p) =>
-                            (p.name || "").trim().toLowerCase() ===
-                            assignPriority.trim().toLowerCase()
-                        ) && <option value={assignPriority}>{assignPriority}</option>}
-                      {uniquePriorities.map((p) => {
-                        const pCode = p.code || formatPriorityCode(p.name);
-                        const pLabel = `${pCode} · ${p.name}`;
-                        return (
-                          <option key={p.id || p.code || p.name} value={p.name}>
-                            {pLabel}
-                          </option>
-                        );
-                      })}
-                    </select>
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        value={assignPriority || ""}
+                        onChange={(e) => setAssignPriority(e.target.value)}
+                        displayEmpty
+                        sx={muiSelectEnabledSx}
+                        MenuProps={menuProps}
+                      >
+                        <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                          Select priority
+                        </MenuItem>
+                        {assignPriority &&
+                          !uniquePriorities.some(
+                            (p) =>
+                              (p.name || "").trim().toLowerCase() ===
+                              assignPriority.trim().toLowerCase()
+                          ) && (
+                            <MenuItem value={assignPriority} title={assignPriority}>
+                              {assignPriority}
+                            </MenuItem>
+                          )}
+                        {uniquePriorities.map((p) => {
+                          const pCode = p.code || formatPriorityCode(p.name);
+                          const pLabel = `${pCode} · ${p.name}`;
+                          return (
+                            <MenuItem key={p.id || p.code || p.name} value={p.name} title={pLabel}>
+                              {pLabel}
+                            </MenuItem>
+                          );
+                        })}
+                      </Select>
+                    </FormControl>
                   </div>
                 </div>
 

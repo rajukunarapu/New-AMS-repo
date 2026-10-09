@@ -102,7 +102,7 @@ const LoginPage = () => {
 
     try {
       const response = await loginAPI(email.trim(), password.trim());
-      console.log("Login API response:", response);
+      // console.log("Login API response:", response);
 
       if (response && response.success && response.token) {
         const returnedRole = response.role || response.roleName || response.data?.roleName || response.data?.role || "";
@@ -301,7 +301,7 @@ const LoginPage = () => {
                 id="lp-email-input"
                 className="lp-text-input"
                 type="email"
-                placeholder="veera.pasya@neovatic.com"
+                placeholder="user@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"

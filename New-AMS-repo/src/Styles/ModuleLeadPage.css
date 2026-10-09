@@ -1761,15 +1761,18 @@
 
 .mlp-td-form-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin: 14px 0;
+  width: 100%;
 }
 
 .mlp-td-form-field {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  min-width: 0;
+  width: 100%;
 }
 
 .mlp-td-form-label {
@@ -3135,7 +3138,7 @@
   color: #ffffff !important;
   font-weight: 700 !important;
   font-size: 13px !important;
-  border-radius: 10px !important;
+  border-radius: 17px !important;
   padding: 8px 24px !important;
   border: none !important;
   cursor: pointer !important;

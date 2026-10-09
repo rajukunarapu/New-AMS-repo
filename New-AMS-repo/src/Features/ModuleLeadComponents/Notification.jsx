@@ -183,7 +183,7 @@ const Notification = ({ currentNav, roleName }) => {
               You're all caught up! When you receive new ticket assignments, customer replies, SLA warnings, or system updates, they will appear here in real time.
             </p>
 
-            <div
+            {/* <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -207,7 +207,7 @@ const Notification = ({ currentNav, roleName }) => {
                 }}
               />
               Live notification stream connected
-            </div>
+            </div> */}
           </div>
         </div>
       ) : (

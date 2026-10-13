@@ -203,92 +203,103 @@ class ChatService:
             else:
                 pass
 
-        # 3.5 Check if message is a capability/informational question about ticket creation
-        if is_capability_or_info_question(request.message):
-            info_response = (
-                "### Yes, I can create and submit tickets in AMS for you\n\n"
-                "You can create a ticket by simply describing your issue or request in natural language.\n\n"
-                "**Examples of how to ask:**\n"
-                "- *\"Create a ticket for Karamtara: SAP login error in FICO module, priority High\"*\n"
-                "- *\"Raise a ticket for ATG with description purchase order approval failed\"*\n"
-                "- *\"I need to open a High priority ticket for Karamtara\"*\n\n"
-                "Just tell me your issue description and client name, and I will generate a ticket draft preview for you to confirm!"
-            )
-            return ChatResponse(
-                success=True,
-                response=info_response,
-                data=None,
-                count=0,
-                ticket_draft=None,
-                action_type="query",
-                error=None
-            )
-
-        # 4. Check if new message initiates a Ticket Creation request
-        if await is_ticket_creation_prompt(request.message) or incoming_screenshot:
-            initial_draft = create_initial_draft(user_email=request.username)
-            if incoming_screenshot:
-                initial_draft["screenshort"] = incoming_screenshot
-
-            draft = await extract_fields_with_llm(request.message, initial_draft, known_clients)
-
-            if incoming_screenshot:
-                draft["screenshort"] = incoming_screenshot
-
-            draft = await finalize_draft_fields(draft, user_email=request.username, known_clients=known_clients)
-
-            if incoming_screenshot:
-                draft["screenshort"] = incoming_screenshot
-
-            missing = get_missing_core_fields(draft)
-            draft["_pending_field"] = missing[0] if missing else None
-            draft["_awaiting_confirmation"] = (len(missing) == 0)
-            TicketSessionManager.set_draft(session_key, draft)
-
-            preview_md = format_preview_markdown(draft, missing)
-
-            return ChatResponse(
-                success=True,
-                response=preview_md,
-                ticket_draft=draft,
-                action_type="ticket_preview",
-                count=0,
-                error=None
-            )
-
-        # 5. Process general queries via LLM Ticket Intelligence Engine
+        # 4. Single-Pass Dynamic Semantic Orchestration (Zero Keyword Rules, Dynamic Responses, Zero Blind AMS Calls)
         try:
-            tickets_data = []
-            try:
-                tickets_data = await ams.get_tickets(timeout=5) or []
-            except Exception as err:
-                print(f"[ChatService] Warning: AMS ticket API fetch failed: {err}")
+            from services.chat_orchestrator import run_chat_orchestrator
+            from query_engine import execute_planned_ticket_query
+
+            decision = await run_chat_orchestrator(
+                user_message=request.message,
+                history=request.history,
+                incoming_screenshot=incoming_screenshot,
+                known_clients=known_clients
+            )
+
+            action = decision.get("action")
+
+            # --- BRANCH 1: CONVERSATIONAL (Greetings, Capabilities, IT Questions, Small Talk) ---
+            if action == "CONVERSATIONAL":
+                # Delivered dynamically in Pass 1! 0 AMS calls, 0 2nd LLM calls.
+                chat_reply = decision.get("conversational_response") or "Hello! How can I assist you with AMS tickets or support today?"
+                return ChatResponse(
+                    success=True,
+                    response=chat_reply,
+                    data=None,
+                    count=0,
+                    ticket_draft=None,
+                    action_type="chat",
+                    error=None
+                )
+
+            # --- BRANCH 2: CREATE_TICKET (Issue reported, technical problem, error, or screenshot) ---
+            elif action == "CREATE_TICKET":
+                initial_draft = create_initial_draft(user_email=request.username)
+                if incoming_screenshot:
+                    initial_draft["screenshort"] = incoming_screenshot
+
+                # Merge pre-extracted fields from Pass 1 (saves redundant LLM extraction call!)
+                extracted_fields = decision.get("ticket_fields") or {}
+                for k, v in extracted_fields.items():
+                    if v is not None and str(v).strip():
+                        initial_draft[k] = v
+
+                # Finalize module/group mapping & client validation
+                draft = await finalize_draft_fields(initial_draft, user_email=request.username, known_clients=known_clients)
+                if incoming_screenshot:
+                    draft["screenshort"] = incoming_screenshot
+
+                missing = get_missing_core_fields(draft)
+                draft["_pending_field"] = missing[0] if missing else None
+                draft["_awaiting_confirmation"] = (len(missing) == 0)
+                TicketSessionManager.set_draft(session_key, draft)
+
+                preview_md = format_preview_markdown(draft, missing)
+                return ChatResponse(
+                    success=True,
+                    response=preview_md,
+                    ticket_draft=draft,
+                    action_type="ticket_preview",
+                    count=0,
+                    error=None
+                )
+
+            # --- BRANCH 3: QUERY_TICKETS (Ticket search, status, count, filtering, analytics) ---
+            else:
+                # Lazy-fetch AMS tickets (uses 30s in-memory cache)
                 tickets_data = []
-
-            if not tickets_data:
                 try:
-                    from scratch.test_updated_ticket_search import get_test_ticket_dataset
-                    tickets_data = get_test_ticket_dataset()
-                    print("[ChatService] AMS API returned empty or timeout. Loaded fallback ticket dataset.")
-                except Exception as fallback_err:
-                    print(f"[ChatService] Could not load fallback dataset: {fallback_err}")
+                    tickets_data = await ams.get_tickets(timeout=10) or []
+                except Exception as ams_err:
+                    print(f"[ChatService] Warning: AMS ticket API fetch failed: {ams_err}")
+                    tickets_data = []
 
-            answer_text, records_out = await process_ticket_query(
-                tickets_data=tickets_data or [],
-                user_question=request.message,
-                history=request.history
-            )
-            count = len(records_out) if isinstance(records_out, list) else 0
+                if not tickets_data:
+                    try:
+                        from scratch.test_updated_ticket_search import get_test_ticket_dataset
+                        tickets_data = get_test_ticket_dataset()
+                        print("[ChatService] Loaded fallback ticket dataset.")
+                    except Exception as fallback_err:
+                        print(f"[ChatService] Could not load fallback dataset: {fallback_err}")
 
-            return ChatResponse(
-                success=True,
-                response=answer_text,
-                data=records_out,
-                count=count,
-                ticket_draft=None,
-                action_type="query",
-                error=None
-            )
+                query_plan = decision.get("query_plan") or {}
+                answer_text, records_out = await execute_planned_ticket_query(
+                    tickets_data=tickets_data or [],
+                    query_plan=query_plan,
+                    user_question=request.message,
+                    history=request.history
+                )
+                count = len(records_out) if isinstance(records_out, list) else 0
+
+                return ChatResponse(
+                    success=True,
+                    response=answer_text,
+                    data=records_out,
+                    count=count,
+                    ticket_draft=None,
+                    action_type="query",
+                    error=None
+                )
+
         except Exception as err:
             return ChatResponse(
                 success=False,

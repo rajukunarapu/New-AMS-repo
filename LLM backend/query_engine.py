@@ -108,10 +108,6 @@ GROUP_ALIASES = {
     "sap sac": "SAP SAC",
     "ariba": "SAP ARIBA",
     "sap ariba": "SAP ARIBA",
-    "ai": "SAP-AI",
-    "sap ai": "SAP-AI",
-    "sap-ai": "SAP-AI",
-    "joule": "SAP-AI",
     "btp": "SAP-BTP",
     "sap btp": "SAP-BTP",
     "sap-btp": "SAP-BTP",
@@ -327,7 +323,7 @@ DEFAULT_FALLBACK_MODELS = [
 ]
 
 
-async def _call_model_by_name(model_name: str, prompt_text: str, system_instruction=None, json_response=False) -> Optional[str]:
+async def _call_model_by_name(model_name: str, prompt_text: str, system_instruction=None, json_response=False, temperature: Optional[float] = None, max_tokens: Optional[int] = None) -> Optional[str]:
     """
     Calls a specific model by name via OpenAI-compatible REST API (NVIDIA NIM / OpenRouter)
     or Google Gemini fallback if model_name starts with gemini.
@@ -367,11 +363,14 @@ async def _call_model_by_name(model_name: str, prompt_text: str, system_instruct
 
     messages.append({"role": "user", "content": prompt_text})
 
+    eff_temp = 0.1 if temperature is None else float(temperature)
+    eff_tokens = (512 if json_response else 1024) if max_tokens is None else int(max_tokens)
+
     payload = {
         "model": model_name,
         "messages": messages,
-        "temperature": 0.1,
-        "max_tokens": 512 if json_response else 1024
+        "temperature": eff_temp,
+        "max_tokens": eff_tokens
     }
 
     llm_timeout = int(os.getenv("LLM_TIMEOUT", "60"))
@@ -393,13 +392,13 @@ async def _call_model_by_name(model_name: str, prompt_text: str, system_instruct
     return None
 
 
-async def _call_nvidia(prompt_text, system_instruction=None, json_response=False):
+async def _call_nvidia(prompt_text, system_instruction=None, json_response=False, temperature: Optional[float] = None, max_tokens: Optional[int] = None):
     """
     Backward-compatible wrapper for primary model configured via MAIN_MODEL or NVIDIA_MODEL.
     """
     load_dotenv(override=True)
     model = os.getenv("MAIN_MODEL") or os.getenv("NVIDIA_MODEL") or "nvidia/nemotron-3-super-120b-a12b"
-    return await _call_model_by_name(model, prompt_text, system_instruction=system_instruction, json_response=json_response)
+    return await _call_model_by_name(model, prompt_text, system_instruction=system_instruction, json_response=json_response, temperature=temperature, max_tokens=max_tokens)
 
 
 async def _call_gemini(prompt_text, system_instruction=None, json_response=False):
@@ -455,7 +454,7 @@ async def _call_gemini(prompt_text, system_instruction=None, json_response=False
     return None
 
 
-async def _call_llm(prompt_text, system_instruction=None, json_response=False):
+async def _call_llm(prompt_text, system_instruction=None, json_response=False, temperature: Optional[float] = None, max_tokens: Optional[int] = None):
     """
     Unified async LLM call handler with multi-tiered fallback:
     1. Primary Model (MAIN_MODEL or NVIDIA_MODEL)
@@ -474,10 +473,13 @@ async def _call_llm(prompt_text, system_instruction=None, json_response=False):
     else:
         fallback_models = DEFAULT_FALLBACK_MODELS
 
+    # Exclude main_model from fallback list to avoid redundant retry of already failed model
+    fallback_models = [m for m in fallback_models if m != main_model]
+
     # 1. Try Main Model
     print(f"[LLM] Calling primary model '{main_model}'...")
     try:
-        res = await _call_model_by_name(main_model, prompt_text, system_instruction=system_instruction, json_response=json_response)
+        res = await _call_model_by_name(main_model, prompt_text, system_instruction=system_instruction, json_response=json_response, temperature=temperature, max_tokens=max_tokens)
         if res:
             print(f"[LLM] Primary model '{main_model}' responded successfully.")
             return res
@@ -493,7 +495,7 @@ async def _call_llm(prompt_text, system_instruction=None, json_response=False):
             print(f"Fallback model failed. Trying: {fb_model}")
 
         try:
-            fb_res = await _call_model_by_name(fb_model, prompt_text, system_instruction=system_instruction, json_response=json_response)
+            fb_res = await _call_model_by_name(fb_model, prompt_text, system_instruction=system_instruction, json_response=json_response, temperature=temperature, max_tokens=max_tokens)
             if fb_res:
                 print(f"[LLM] Fallback model '{fb_model}' responded successfully.")
                 return fb_res
@@ -601,8 +603,16 @@ def sanitize_and_enforce_intent(plan, user_question, meta):
     # 2. When a group or module entity is detected, enforce Filtering Intent precedence over Ranking
     if group_val:
         norm_cand = normalize_group_name(group_val)
-        is_known_group = bool(norm_cand and (norm_cand in GROUPS or norm_cand in meta.get("all_known_groups", []) or group_val.lower() in GROUP_ALIASES or norm_cand in meta.get("unique_groups", [])))
-        if is_known_group:
+        dataset_groups = meta.get("unique_groups", [])
+        is_known_group = bool(norm_cand and (norm_cand in GROUPS or norm_cand in meta.get("all_known_groups", []) or group_val.lower() in GROUP_ALIASES or norm_cand in dataset_groups))
+
+        if is_known_group and dataset_groups and norm_cand not in dataset_groups:
+            # Group is recognized in general taxonomy, but has 0 tickets in current dataset.
+            # Convert to semantic_text_search so descriptions are searched rather than hard-failing
+            plan["detected_group_or_module"] = None
+            if not plan.get("semantic_text_search"):
+                plan["semantic_text_search"] = group_val
+        elif is_known_group:
             plan["detected_group_or_module"] = norm_cand
             if plan.get("detected_assignee") and normalize_group_name(plan["detected_assignee"]) == norm_cand:
                 plan["detected_assignee"] = None
@@ -1985,6 +1995,71 @@ Write the natural language response:
 
     matching_desc = " (" + ", ".join(filter_desc) + ")" if filter_desc else ""
     return f"There are **{count}** ticket(s) matching your request{matching_desc}."
+
+
+async def execute_planned_ticket_query(tickets_data, query_plan, user_question, history=None):
+    """
+    Executes a query directly using a pre-formulated query plan from the single-pass orchestrator,
+    bypassing parse_query_plan_with_llm (saving an entire LLM call).
+    Generates a fresh, dynamic narrative response using generate_dynamic_query_narrative.
+    Returns: (answer_markdown_text, filtered_tickets_list_or_df)
+    """
+    if not tickets_data:
+        return "No ticket data is currently loaded. Please check AMS connection and refresh.", None
+
+    norm_tickets = [normalize_ticket_record(t) for t in tickets_data]
+    meta = get_dataset_metadata(norm_tickets)
+
+    if not isinstance(query_plan, dict):
+        query_plan = {}
+
+    agg = query_plan.get("aggregation")
+    is_count = (agg == "count")
+    sem_search = query_plan.get("semantic_search") or query_plan.get("semantic_text_search")
+
+    full_plan = {
+        "intent": "counting" if is_count else (query_plan.get("intent") or "filtering"),
+        "detected_client": query_plan.get("client") or query_plan.get("detected_client"),
+        "detected_status_semantic": query_plan.get("status") or query_plan.get("detected_status_semantic"),
+        "detected_priority": query_plan.get("priority") or query_plan.get("detected_priority"),
+        "detected_type": query_plan.get("type") or query_plan.get("detected_type"),
+        "detected_group_or_module": query_plan.get("group_or_module") or query_plan.get("detected_group_or_module"),
+        "detected_reporter": query_plan.get("reporter") or query_plan.get("detected_reporter"),
+        "detected_assignee": query_plan.get("assignee") or query_plan.get("detected_assignee"),
+        "detected_ticket_no": query_plan.get("ticket_no") or query_plan.get("detected_ticket_no"),
+        "date_range": query_plan.get("date_range") or {"type": None, "start_date": None, "end_date": None},
+        "semantic_text_search": sem_search,
+        "semantic_keywords": [w for w in re.findall(r'\w+', str(sem_search).lower())] if sem_search else [],
+        "conversational_intent": "normal",
+        "is_follow_up": bool(history and len(history) > 0),
+        "group_by_field": query_plan.get("group_by_field"),
+        "aggregation": {"function": "count", "field": "ticketNo"} if is_count else {"function": None, "field": None},
+        "comparison_clients": [c for c in meta.get("unique_clients", []) if c.lower() in user_question.lower()],
+        "sort": {"field": "createddate", "direction": "desc"},
+        "limit": query_plan.get("limit"),
+        "ambiguous_client_match": False,
+        "clarification_question": None
+    }
+
+    plan = sanitize_and_enforce_intent(full_plan, user_question, meta)
+
+    if plan.get("ambiguous_client_match") and plan.get("clarification_question"):
+        return plan["clarification_question"], None
+
+    df_filtered, summary_stats = execute_query_plan(norm_tickets, plan)
+    count = len(df_filtered)
+
+    # Use lightweight dynamic narrative generator to ensure varied, fresh, non-repetitive responses
+    try:
+        from services.chat_orchestrator import generate_dynamic_query_narrative
+        sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
+        natural_answer = await generate_dynamic_query_narrative(user_question, query_plan, count, summary_stats, sample_records)
+    except Exception as synth_err:
+        print(f"[QueryEngine] Dynamic narrative synthesis fallback: {synth_err}")
+        natural_answer = await generate_natural_response(user_question, plan, summary_stats, df_filtered, history=history)
+
+    records_out = df_filtered.to_dict(orient="records") if not df_filtered.empty else None
+    return natural_answer, records_out
 
 
 async def process_ticket_query(tickets_data, user_question, history=None):

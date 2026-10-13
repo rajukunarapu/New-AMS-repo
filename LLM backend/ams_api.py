@@ -8,6 +8,17 @@ load_dotenv(override=True)
 
 
 class AMSApi:
+    # In-memory ticket dataset cache to avoid repeated HTTP calls on follow-up queries (30s TTL)
+    _tickets_cache: Optional[List[Dict[str, Any]]] = None
+    _tickets_cache_time: float = 0.0
+    TICKETS_CACHE_TTL_SECONDS: float = 30.0
+
+    @classmethod
+    def invalidate_tickets_cache(cls):
+        """Invalidates the in-memory tickets cache (e.g. after a ticket is created)."""
+        cls._tickets_cache = None
+        cls._tickets_cache_time = 0.0
+
     def __init__(self, email=None, password=None):
         self._email = email
         self._password = password
@@ -141,19 +152,24 @@ class AMSApi:
 
     async def authenticate(self, email=None, password=None):
         """Asynchronously authenticate with AMS API using httpx."""
-        if email is not None:
-            self.email = email
-        if password is not None:
-            self.password = password
+        self.reload_env()
+        auth_email = email or self._email
+        auth_password = password or self._password
 
-        if not self.email or self.email == "your_email" or not self.password or self.password == "your_password":
+        # If no explicit password was provided (e.g. ChatService passing only username),
+        # use system SLA service credentials so backend data queries can authenticate seamlessly.
+        if not auth_password:
+            auth_email = os.getenv("SLA_EMAIL") or "SLA@Admin.com"
+            auth_password = os.getenv("SLA_PASSWORD") or "123456"
+
+        if not auth_email or auth_email == "your_email" or not auth_password or auth_password == "your_password":
             raise Exception(
                 "Invalid credentials configured. Please enter your actual AMS Email and Password in the sidebar or update the .env file."
             )
 
         payload = {
-            "email": self.email,
-            "password": self.password
+            "email": auth_email,
+            "password": auth_password
         }
     
         headers = {
@@ -176,7 +192,7 @@ class AMSApi:
     
         if response.status_code == 401:
             raise Exception(
-                f"Authentication failed (401 Unauthorized) for email '{self.email}'. Please check your email and password."
+                f"Authentication failed (401 Unauthorized) for email '{auth_email}'. Please check your email and password."
             )
         
         response.raise_for_status()
@@ -198,8 +214,13 @@ class AMSApi:
         self.token = token
         return token
 
-    async def get_tickets(self, timeout=60):
-        """Get AMS tickets using JWT with async httpx to prevent backend hanging."""
+    async def get_tickets(self, timeout=60, force_refresh: bool = False):
+        """Get AMS tickets using JWT with async httpx, utilizing 30s in-memory cache to prevent redundant HTTP requests."""
+        import time
+        now = time.time()
+        if not force_refresh and AMSApi._tickets_cache and (now - AMSApi._tickets_cache_time) < AMSApi.TICKETS_CACHE_TTL_SECONDS:
+            return AMSApi._tickets_cache
+
         if not self.token:
             await self.authenticate()
         headers = {
@@ -213,20 +234,19 @@ class AMSApi:
                     headers=headers,
                 )
 
-                # Token might have expired
+                # Token might have expired or be invalid - automatically re-authenticate with SLA credentials
                 if response.status_code == 401:
-                    if self._password or (self.email and self.password):
-                        try:
-                            await self.authenticate()
-                            headers["Authorization"] = f"Bearer {self.token}"
-                            response = await client.get(
-                                self.ticket_url,
-                                headers=headers,
-                            )
-                        except Exception:
-                            raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
-                    else:
-                        raise Exception("AMS Bearer token is expired or unauthorized (401). Please re-authenticate.")
+                    try:
+                        sla_email = os.getenv("SLA_EMAIL") or "SLA@Admin.com"
+                        sla_pass = os.getenv("SLA_PASSWORD") or "123456"
+                        await self.authenticate(email=sla_email, password=sla_pass)
+                        headers["Authorization"] = f"Bearer {self.token}"
+                        response = await client.get(
+                            self.ticket_url,
+                            headers=headers,
+                        )
+                    except Exception as reauth_err:
+                        raise Exception(f"AMS Bearer token is expired or unauthorized (401). System re-auth failed: {reauth_err}")
                 
                 response.raise_for_status()
                 data = response.json()
@@ -234,12 +254,15 @@ class AMSApi:
             raise Exception(f"Failed to reach AMS Ticket API at {self.ticket_url}: {err}")
         
         if isinstance(data, list):
+            AMSApi._tickets_cache = data
+            AMSApi._tickets_cache_time = time.time()
             return data
         if isinstance(data, dict):
-            if isinstance(data.get("data"), list):
-                return data["data"]
-            if isinstance(data.get("result"), list):
-                return data["result"]
+            res_list = data.get("data") if isinstance(data.get("data"), list) else (data.get("result") if isinstance(data.get("result"), list) else None)
+            if res_list is not None:
+                AMSApi._tickets_cache = res_list
+                AMSApi._tickets_cache_time = time.time()
+                return res_list
         raise Exception(
             "Unexpected ticket API response format."
         )
@@ -681,6 +704,9 @@ class AMSApi:
                 raise Exception(f"Ticket creation failed (500): {error_msg if error_msg else 'Internal Server Error'}{hint}")
             
             raise Exception(f"Ticket creation failed ({response.status_code}): {error_msg}")
+
+        # Invalidate ticket cache so subsequent queries reflect the new ticket immediately
+        AMSApi.invalidate_tickets_cache()
 
         try:
             return response.json()

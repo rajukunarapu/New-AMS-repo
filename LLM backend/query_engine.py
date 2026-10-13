@@ -305,102 +305,24 @@ if not GENAI_CLIENT:
 
 
 SYSTEM_PROMPT = """# Dynamic AMS Ticket Intelligence Assistant
+You are an intelligent AI assistant for an enterprise AMS Ticket Management System.
+Answer user questions accurately based strictly on the provided AMS ticket dataset.
 
-You are an intelligent AI assistant for an AMS Ticket Management System.
-Your primary responsibility is to answer user questions about AMS tickets using the actual ticket dataset available to the application.
-You must understand natural-language questions dynamically. Do NOT depend on static keyword lists, hardcoded phrases, or predefined filter combinations.
-
----
-
-## 1. Core Objective
-The user may ask any question about the available AMS tickets.
-Your job is to:
-1. Understand the user's natural-language intent.
-2. Inspect the available ticket data and its column structure.
-3. Identify relevant entities, conditions, relationships, dates, metrics, and concepts from the question.
-4. Determine which ticket fields are relevant.
-5. Dynamically query/filter/aggregate the actual ticket dataset.
-6. Analyze the resulting records when required.
-7. Return a clear, accurate natural-language answer.
-Never assume that the user will use exact database values or exact column names.
-
----
-
-## 2. Never Use Static Keyword-Based Filtering
-Do NOT implement logic such as: `if "open" in query: status = "Open"`.
-Instead, dynamically infer the meaning of the user's question from:
-* the ticket dataset
-* the available column names
-* the actual values in those columns
-* the semantic meaning of the question
-* relationships between fields
-* natural-language context
-
----
-
-## 3. Dynamic Schema Understanding
-Detect available columns dynamically. Map the user's concept to the most relevant available field. If the required information is not present, explain that clearly.
-
----
-
-## 4. Natural-Language Understanding
-Users may express concepts in different ways (e.g. "open/unresolved/pending/active", "critical/urgent/high priority"). Interpret semantically according to actual values in the dataset.
-
----
-
-## 5. Entity Resolution
-Resolve partial client names, abbreviations, informal references against registered dataset values. If ambiguous (e.g., multiple ABC companies), clarify. If single clear match, use it.
-
----
-
-## 6. Semantic Ticket Search
-Search fields like Description, Short Description, Remarks, Module, Assignment Group for conceptual meaning, not just exact substring.
-
----
-
-## 7. Dynamic Operations
-Support Retrieval, Filtering, Counting, Aggregation, Ranking, Comparison, Trend Analysis, Distribution Analysis, Semantic Search, Summarization, and Root-Cause Analysis.
-
----
-
-## 8. Dates
-Map natural date expressions (today, yesterday, this week, last week, this month, last month, last 7/30 days, recent) dynamically to creation/update date fields.
-
----
-
-## 9. Context Awareness
-Maintain conversation context for follow-up questions (e.g. "Show tickets for ABC" followed by "Only unresolved ones").
-
----
-
-## 10. Unknown & Missing Data
-Never invent ticket information or missing fields. State clearly if no data matches or fields are absent.
-
----
-
-## 11. Response Style
-Concise, clear, business-friendly, directly answer the question first. Provide counts/summaries and top records.
-
----
-
-## 12. Safety and Accuracy
-Always use actual AMS ticket data as the source of truth.
-
----
-
-## 13. Group & Module Filtering Intent & Not Found Responses
-When the user asks to filter or fetch tickets by group name or module name (e.g. "filter through group name SAP-FICO", "fetch ticket details for group RPA", "show tickets assigned to group SAP-MM", "module FICO", "filter by group Basis", "show tickets in group SAP AI"):
-1. Extract the target group name into `detected_group_or_module`.
-2. Map informal names or aliases to standard group names (e.g. 'FICO' -> 'SAP-FICO', 'MM' -> 'SAP-MM', 'Basis' -> 'SAP-BASIS', 'ABAP' -> 'SAP ABAP', 'DotNet' -> 'Dot Net Technologies', 'UI/UX' -> 'UI / UX', 'AI' -> 'SAP-AI').
-3. If no tickets match the requested group or module in the database, explicitly state "Group Not Found" or "Module Not Found" in the response (e.g., "Group Not Found: No tickets found for group 'SAP-FICO'").
+CORE RULES:
+1. Direct Answer First: ALWAYS answer the user's question directly in the very first sentence.
+2. Dynamic Understanding: Infer concepts (statuses, dates, priorities, clients) semantically from actual dataset values without rigid keyword matching.
+3. Specific Group/Module Queries:
+   - When a group/module is queried (e.g. SAP-FICO, SAP-MM, RPA), report matching ticket details directly.
+   - DO NOT generate system-wide group breakdown tables when a specific group or module was requested.
+   - If 0 tickets match the requested group or module, state 'Group Not Found' or 'Module Not Found'.
+4. Resolutions & Past Occurrences: When previous tickets or fixes are queried, cite matching Ticket Number, Client, Status, Date, and Resolution/Remarks notes.
+5. Factual Accuracy: Never invent ticket IDs, counts, or fake data. Base answers strictly on execution metrics.
 """
 
 
 DEFAULT_FALLBACK_MODELS = [
-    "nvidia/llama-3.1-nemotron-70b-instruct",
-    "meta/llama-3.3-70b-instruct",
-    "mistralai/mistral-large-2411",
-    "minimaxai/minimax-m3",
+    "nvidia/nemotron-3-super-120b-a12b",
+    "meta-llama/llama-3.1-70b-instruct",
     "google/gemma-2-27b-it"
 ]
 
@@ -449,7 +371,7 @@ async def _call_model_by_name(model_name: str, prompt_text: str, system_instruct
         "model": model_name,
         "messages": messages,
         "temperature": 0.1,
-        "max_tokens": 3072
+        "max_tokens": 512 if json_response else 1024
     }
 
     llm_timeout = int(os.getenv("LLM_TIMEOUT", "60"))
@@ -538,10 +460,8 @@ async def _call_llm(prompt_text, system_instruction=None, json_response=False):
     Unified async LLM call handler with multi-tiered fallback:
     1. Primary Model (MAIN_MODEL or NVIDIA_MODEL)
     2. Sequential Fallback Models in exact required sequence:
+       - nvidia/nemotron-3-super-120b-a12b
        - nvidia/llama-3.1-nemotron-70b-instruct
-       - meta/llama-3.3-70b-instruct
-       - mistralai/mistral-large-2411
-       - minimaxai/minimax-m3
        - google/gemma-2-27b-it
     3. Final Safety Net: Google Gemini API / Heuristic Query Engine
     """
@@ -726,21 +646,27 @@ async def parse_query_plan_with_llm(user_question, meta, history=None):
             if isinstance(msg, dict):
                 r = msg.get("role") or msg.get("sender") or "USER"
                 c = msg.get("content") or msg.get("text") or msg.get("query") or ""
-                formatted_h.append(f"{str(r).upper()}: {c}")
+                c_str = re.sub(r'<img[^>]*src="data:image[^>]*>', '[Image]', str(c), flags=re.IGNORECASE)
+                c_str = re.sub(r'data:image\/[^;]+;base64,[A-Za-z0-9+/=]+', '[Attached Image]', c_str)
+                if len(c_str) > 200:
+                    c_str = c_str[:200] + "..."
+                formatted_h.append(f"{str(r).upper()}: {c_str}")
         history_context = "\n".join(formatted_h)
+
+    # Token optimization: Compact metadata representation
+    clients_summary = json.dumps(meta['unique_clients'][:25]) if meta.get('unique_clients') else "[]"
+    groups_summary = json.dumps(meta.get('all_known_groups', GROUPS)[:25])
 
     prompt = f"""You are a dynamic query planner for an AMS Ticket dataset.
 Analyze the user's question, dataset metadata, and conversation context to produce a JSON query plan.
 
 ### AVAILABLE DATASET METADATA:
-- Total tickets in memory: {meta['total_count']}
-- Available columns: {json.dumps(meta['columns'])}
-- Known Client Names in dataset: {json.dumps(meta['unique_clients'])}
-- Known Ticket Statuses in dataset: {json.dumps(meta['unique_statuses'])}
-- Known Priorities in dataset: {json.dumps(meta['unique_priorities'])}
-- Known Assignment Groups / Modules in dataset: {json.dumps(meta['unique_groups'])}
-- All Valid Standard AMS Assignment Groups: {json.dumps(meta.get('all_known_groups', GROUPS))}
-- Sample ticket object: {json.dumps(meta['sample_rows'][:1] if meta['sample_rows'] else [])}
+- Total tickets: {meta['total_count']}
+- Columns: {json.dumps(meta['columns'])}
+- Known Clients: {clients_summary}
+- Known Statuses: {json.dumps(meta['unique_statuses'])}
+- Known Priorities: {json.dumps(meta['unique_priorities'])}
+- Standard Groups/Modules: {groups_summary}
 
 ### CONVERSATION HISTORY:
 {history_context if history_context else 'None'}
@@ -1794,34 +1720,133 @@ async def generate_natural_response(user_question, plan, summary_stats, df_filte
     Follows rule #24: Answer the user's question directly first.
     """
     count = summary_stats["filtered_count"]
-    sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
+    intent = plan.get("intent")
+    client = plan.get("detected_client")
+    priority = plan.get("detected_priority")
+    status_sem = plan.get("detected_status_semantic")
+    t_no = plan.get("detected_ticket_no")
+    group_req = plan.get("detected_group_or_module")
+    conv_intent = plan.get("conversational_intent") or ""
+
+    # Fast-Path 1: Greetings & general inquiry (0 Tokens)
+    if intent in ["greeting", "general_inquiry"]:
+        return (
+            "**Hello! I am your Dynamic AMS Ticket Intelligence Assistant.**\n\n"
+            "I can help you dynamically query, search, and manage your AMS tickets. Here is what you can do:\n\n"
+            "- **Search & Filter**: *'Show unresolved P2 tickets for ATG'* or *'Tickets reported this week'*\n"
+            "- **Analyze Metrics**: *'Which client has the most tickets?'* or *'Count of open SAP-MM tickets'*\n"
+            "- **Ticket Details**: Enter any Ticket No (e.g. `ATG2608234` or `Kar2608133`)\n"
+            "- **Create Tickets**: *'Create ticket for Karamtara: SAP login error, priority High'*\n\n"
+            "How can I assist you today?"
+        )
+
+    # Fast-Path 2: Ticket creation guidance (0 Tokens)
+    if intent == "ticket_creation":
+        client_str = f" for **{client}**" if client else ""
+        return (
+            f"### Create AMS Ticket{client_str}\n\n"
+            "I can help you create this ticket! Please specify details such as:\n"
+            "- **Client Name** (e.g. `client: Karamtara` or `ATG`)\n"
+            "- **Priority** (`Low`, `Medium`, `High`, `Critical`)\n"
+            "- **Description** (e.g. `issue: SAP login authentication failed`)\n"
+            "- **Reported By** (e.g. `reported by: Jaswanth`)\n\n"
+            "Or reply with the missing fields to complete your ticket draft."
+        )
+
+    # Fast-Path 3: Group Not Found (0 Tokens)
+    if count == 0 and group_req:
+        is_module_query = "module" in user_question.lower()
+        label = "Module" if is_module_query else "Group"
+        target_str = f" for client **{client}**" if client else ""
+        return (
+            f"### {label} Not Found\n\n"
+            f"No tickets were found matching {label.lower()} **'{group_req}'**{target_str} in the current database."
+        )
+
+    # Fast-Path 4: General zero matches (0 Tokens)
+    if count == 0 and intent not in ["root_cause_analysis", "summarization", "comparison"]:
+        target_str = f" for client **{client}**" if client else ""
+        return f"I couldn't find any tickets matching your request (**'{user_question}'**){target_str} in the current dataset."
+
+    # Fast-Path 5: Simple Count / "How many" Queries (0 Tokens)
+    if (intent == "counting" or conv_intent == "count_only" or "how many" in user_question.lower() or "count" in user_question.lower()) and not any(k in user_question.lower() for k in ["why", "compare", "breakdown", "summarize", "situation"]):
+        target_desc = []
+        if client: target_desc.append(f"client **{client}**")
+        if group_req: target_desc.append(f"group/module **{group_req}**")
+        if status_sem: target_desc.append(f"status **{status_sem}**")
+        if priority:
+            p_val = " / ".join(priority) if isinstance(priority, list) else priority
+            target_desc.append(f"priority **{p_val}**")
+        match_str = f" for {', '.join(target_desc)}" if target_desc else ""
+        return f"There are **{count}** ticket(s) matching your request{match_str}."
+
+    # Fast-Path 6: Single Ticket Details Inspection (0 Tokens)
+    if count == 1 and (t_no or "detail" in user_question.lower() or "show ticket" in user_question.lower()):
+        row = df_filtered.iloc[0].to_dict()
+        t_id = row.get("ticketNo") or row.get("ticketId") or row.get("txnId") or t_no or "N/A"
+        lines = [f"### Ticket Details: **{t_id}**\n"]
+        label_fields = [
+            ("Ticket Number / Ref", row.get("ticketNo") or row.get("ticketId")),
+            ("Client Name", row.get("clientName")),
+            ("Ticket Status", row.get("ticketStatus") or row.get("status")),
+            ("Priority", row.get("priority")),
+            ("Type of Ticket", row.get("typeofticket") or row.get("type")),
+            ("Assigned Group", row.get("assigntogroup")),
+            ("Module", row.get("module")),
+            ("Reported By", row.get("reportedby") or row.get("createdname")),
+            ("Reporter Email", row.get("createdEmails")),
+            ("Reported Date", row.get("reportedon") or row.get("createddate")),
+            ("Reported Time", row.get("reportedontime")),
+            ("Description", row.get("descriptionofTicket") or row.get("name")),
+            ("Transaction ID", row.get("txnId")),
+            ("AMS System", row.get("ams")),
+            ("Remarks / Notes", row.get("remarks")),
+            ("Screenshot / Attachment", row.get("screenshort")),
+        ]
+        for label, val in label_fields:
+            if val is not None and str(val).strip() != "":
+                if label in ["Ticket Number / Ref", "Client Name", "Ticket Status", "Priority", "Type of Ticket", "Assigned Group", "Module", "Reported Date", "Reported Time", "Transaction ID", "AMS System"]:
+                    lines.append(f"- **{label}**: `{val}`")
+                else:
+                    lines.append(f"- **{label}**: {val}")
+        return "\n".join(lines)
+
+    # Token optimization: Slim record projection with only essential display fields
+    sample_records = [
+        {
+            "ticketNo": r.get("ticketNo") or r.get("ticketId"),
+            "clientName": r.get("clientName"),
+            "status": r.get("ticketStatus") or r.get("status"),
+            "priority": r.get("priority"),
+            "module": r.get("assigntogroup") or r.get("module"),
+            "reportedon": r.get("reportedon"),
+            "description": str(r.get("descriptionofTicket") or r.get("description") or "")[:120],
+            "resolution": str(r.get("resolution") or r.get("remarks") or "")[:120] if (r.get("resolution") or r.get("remarks")) else None
+        }
+        for r in df_filtered.head(3).to_dict(orient="records")
+    ] if not df_filtered.empty else []
 
     # Prompt LLM to synthesize natural response based on concrete data results
     prompt = f"""You are the Dynamic AMS Ticket Intelligence Assistant.
 Formulate a clear, business-friendly natural language response to the user's question based strictly on the actual execution results below.
 
-### RULES:
-1. ALWAYS answer the user's question directly in the FIRST sentence (e.g. "There are 24 unresolved tickets for ABC...").
-2. Never expose internal database filter syntax or technical code implementation unless requested.
-3. If counts or statistics were requested, summarize them clearly with bullet points or markdown tables.
-4. If no tickets matched, state clearly that no matching tickets were found. Never invent ticket IDs or records.
-5. If the request was analytical (e.g. "which client has the most tickets?"), state the conclusion clearly first.
-6. When ticket details are requested or a single ticket is fetched, list ALL available label fields (Ticket Number, Client Name, Ticket Status, Priority, Type of Ticket, Assigned Group, Module, Reported By, Reported Date & Time, Reporter Email, Description, Transaction ID, AMS System, Remarks) clearly in bullet points or markdown section.
-7. If no tickets were found for a specific group or module requested by the user, explicitly start your response with "Group Not Found" or "Module Not Found" (e.g. "### Group Not Found\n\nNo tickets found for group 'SAP-FICO' in the current database.").
-8. IF A SPECIFIC GROUP OR MODULE IS FILTERED (detected_group_or_module is set), DO NOT generate system-wide group breakdown tables ("SAP-MM has the highest ticket count..."). State the matching ticket count for that specific group/module directly.
-9. IF PREVIOUS OCCURRENCES OR RESOLUTIONS ARE REQUESTED (e.g. "List previous tickets and resolutions" or "Have we seen this issue before"), list matching tickets clearly with Ticket Number, Client Name, Status, Date, Description, and Resolution/Remarks notes.
+RULES:
+1. ALWAYS answer the user's question directly in the FIRST sentence.
+2. If counts or statistics were requested, summarize them clearly with bullet points.
+3. If the request was analytical (e.g. "which client has the most tickets?"), state the conclusion clearly first.
+4. If previous occurrences or resolutions are requested, list tickets with Number, Client, Status, Date, Description, and Resolution.
 
-### USER QUESTION:
+USER QUESTION:
 "{user_question}"
 
-### EXECUTED PLAN INTENT:
+EXECUTED PLAN:
 {json.dumps(plan)}
 
-### CONCRETE EXECUTION METRICS:
+METRICS:
 - Total matching records: {count}
-- Initial total in database: {summary_stats['initial_total']}
-- Group aggregation breakdown: {json.dumps(summary_stats.get('group_stats'))}
-- Top 5 matching records sample: {json.dumps(sample_records)}
+- Initial total: {summary_stats['initial_total']}
+- Group breakdown: {json.dumps(summary_stats.get('group_stats'))}
+- Top matching sample: {json.dumps(sample_records)}
 
 Write the natural language response:
 """

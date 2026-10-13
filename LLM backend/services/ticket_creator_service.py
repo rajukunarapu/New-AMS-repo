@@ -169,8 +169,16 @@ async def classify_user_intent_with_llm(prompt: str, history: Optional[List[Dict
 
     user_payload = f'User Prompt: "{clean_p}"'
     if history:
-        recent_h = history[-3:]
-        user_payload += f"\nRecent Context:\n{json.dumps(recent_h)}"
+        clean_h = []
+        for h in history[-3:]:
+            if isinstance(h, dict):
+                t = str(h.get("text") or h.get("content") or h.get("query") or "")
+                t = re.sub(r'<img[^>]*src="data:image[^>]*>', '[Image]', t, flags=re.IGNORECASE)
+                t = re.sub(r'data:image\/[^;]+;base64,[A-Za-z0-9+/=]+', '[Attached Image]', t)
+                if len(t) > 200:
+                    t = t[:200] + "..."
+                clean_h.append({"sender": h.get("sender") or h.get("role") or "user", "text": t})
+        user_payload += f"\nRecent Context:\n{json.dumps(clean_h)}"
 
     try:
         raw_res = await _call_llm(user_payload, system_instruction=system_instruction, json_response=True)
@@ -534,10 +542,13 @@ async def extract_fields_with_llm(prompt: str, current_draft: Dict[str, Any], kn
             if kc and str(kc).strip() and str(kc).strip() not in all_clients:
                 all_clients.append(str(kc).strip())
 
-    # Build clean draft state for LLM context
+    # Build clean draft state for LLM context (mask heavy Base64 image data)
     llm_draft_state = dict(current_draft)
     if current_draft.get("descriptionofTicket") is None:
         llm_draft_state["descriptionofTicket"] = None
+    if llm_draft_state.get("screenshort"):
+        fname = extract_filename_from_screenshot(llm_draft_state["screenshort"]) or "image.png"
+        llm_draft_state["screenshort"] = f"[Image Attached: {fname}]"
 
     system_prompt = (
         "You are an expert NLP data extractor for an Enterprise AMS Ticket Management System. "
@@ -619,6 +630,9 @@ Respond ONLY with a JSON object containing the 11 fields. If a field was not men
                         if k == "descriptionofTicket" and current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
                             if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', prompt, re.IGNORECASE) or "description" in prompt.lower()):
                                 continue
+                        # Prevent LLM text token from overwriting real binary screenshot payload
+                        if k == "screenshort" and current_draft.get("screenshort"):
+                            continue
                         merged[k] = v
         except Exception as err:
             print(f"[LLM Extraction Parse Exception]: {err}")
@@ -1012,8 +1026,14 @@ async def analyze_user_intent_on_draft(
         "NEVER use screenshot file names (e.g. 'Screenshot 2026-07-24 160213.png') as descriptionofTicket."
     )
 
+    # Build lightweight draft representation for LLM intent analysis (mask heavy Base64 image)
+    draft_for_llm = dict(current_draft)
+    if draft_for_llm.get("screenshort"):
+        fname = extract_filename_from_screenshot(draft_for_llm["screenshort"]) or "image.png"
+        draft_for_llm["screenshort"] = f"[Image Attached: {fname}]"
+
     intent_prompt = f"""Current pending ticket draft:
-{json.dumps(current_draft, indent=2)}
+{json.dumps(draft_for_llm, indent=2)}
 
 Missing required fields in draft: {json.dumps(missing_fields)}
 Currently pending field awaiting user input: {json.dumps(pending_field)}
@@ -1056,6 +1076,8 @@ Respond with a JSON object:
             parsed = json.loads(cleaned)
             intent = parsed.get("intent", "").lower()
             mod_fields = {k: v for k, v in parsed.get("modified_fields", {}).items() if v is not None}
+            if "screenshort" in mod_fields and current_draft.get("screenshort"):
+                mod_fields.pop("screenshort", None)
             if "typeofticket" in mod_fields and mod_fields["typeofticket"]:
                 mod_fields["typeofticket"] = normalize_ticket_type(mod_fields["typeofticket"])
             if "descriptionofTicket" in mod_fields and mod_fields["descriptionofTicket"]:

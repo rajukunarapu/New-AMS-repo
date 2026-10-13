@@ -54,10 +54,16 @@ export const NeoAIProvider = ({ children }) => {
     });
   };
  
-  // Keep localStorage updated with chat turns
+  // Keep localStorage updated with chat turns (strip heavy screenshot data URLs to protect storage quota)
   useEffect(() => {
     try {
-      localStorage.setItem("neoai_shared_messages", JSON.stringify(messages));
+      const sanitized = messages.slice(-10).map((m) => {
+        if (m.screenshotUrl && m.screenshotUrl.length > 500) {
+          return { ...m, screenshotUrl: "[Image Attached]" };
+        }
+        return m;
+      });
+      localStorage.setItem("neoai_shared_messages", JSON.stringify(sanitized));
     } catch (e) {
       console.error("Error persisting NeoAI messages", e);
     }
@@ -109,11 +115,17 @@ export const NeoAIProvider = ({ children }) => {
       }
       const token = localStorage.getItem("token") || localStorage.getItem("jwt") || "";
  
-      // Format conversation history for LLM context
-      const historyList = messages.map((m) => ({
-        sender: m.sender,
-        text: m.text || m.query || "",
-      }));
+      // Format conversation history for LLM context (strip heavy Base64 and cap length)
+      const historyList = messages.slice(-4).map((m) => {
+        let t = m.text || m.query || "";
+        t = t.replace(/<img[^>]*src="data:image[^>]*>/gi, "[Image Attached]")
+             .replace(/data:image\/[^;]+;base64,[A-Za-z0-9+/=]+/gi, "[Attached Image]");
+        if (t.length > 250) t = t.slice(0, 250) + "...";
+        return {
+          sender: m.sender,
+          text: t,
+        };
+      });
  
       const res = await sendAIChatQuery({
         username,

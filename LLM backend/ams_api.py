@@ -622,7 +622,6 @@ class AMSApi:
                 if screenshot_file_tuple:
                     fname, fdata, fmime = screenshot_file_tuple
                     files_dict["Screenshot"] = (fname, fdata, fmime)
-                    files_dict["screenshort"] = (fname, fdata, fmime)
 
                 if files_dict:
                     response = await client.post(

@@ -6,3 +6,4 @@ venv/
 build/
 dist/
 pyi_env_hook.py
+web.config

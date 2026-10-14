@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <handlers>
+      <!-- Handler for IIS HttpPlatformHandler module -->
+      <add name="ams_backend" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified" />
+    </handlers>
+    
+    <httpPlatform processPath=".\ams_backend.exe"
+                  arguments="--port %HTTP_PLATFORM_PORT%"
+                  stdoutLogEnabled="true"
+                  stdoutLogFile=".\logs\stdout.log"
+                  startupTimeLimit="60">
+      <environmentVariables>
+        <!-- Server & Network Configuration -->
+        <environmentVariable name="HTTP_PLATFORM_PORT" value="%HTTP_PLATFORM_PORT%" />
+        <environmentVariable name="PORT" value="8080" />
+        <environmentVariable name="HOST" value="0.0.0.0" />
+
+        <!-- AMS Base and API Endpoints -->
+        <environmentVariable name="AMS_BASE_URL" value="http://localhost" />
+        <environmentVariable name="AMS_AUTH_URL" value="http://localhost/api/Auth/login" />
+        <environmentVariable name="AMS_TICKET_URL" value="http://localhost/api/Ticket" />
+        <environmentVariable name="AMS_TICKET_STATUS_URL" value="http://localhost/api/Ticket/Status" />
+        <environmentVariable name="AMS_TICKET_CREATE_URL" value="http://localhost/api/Ticket/CreateTicket" />
+
+        <!-- SLA Credentials -->
+        <environmentVariable name="SLA_EMAIL" value="your-email@example.com" />
+        <environmentVariable name="SLA_PASSWORD" value="your-password" />
+
+        <!-- SLA Monitoring Configurations & Endpoints -->
+        <environmentVariable name="SLA_BASE_URL" value="http://localhost" />
+        <environmentVariable name="TICKET_DETAILS_API_URL" value="http://localhost/api/Ticket/GetTicketDetails" />
+        <environmentVariable name="TICKET_STEPS_API_URL" value="http://localhost/api/Ticket/GetTicketSteps" />
+        <environmentVariable name="TICKET_STEP_REMINDER_API_URL" value="http://localhost/api/Ticket/SendTicketStepReminder" />
+        <environmentVariable name="SLA_MONITOR_INTERVAL_MINUTES" value="1" />
+        <environmentVariable name="SLA_REMINDER_THRESHOLD_MINUTES" value="30" />
+        <environmentVariable name="SLA_DB_PATH" value="data/sla_tracker.db" />
+        <environmentVariable name="SLA_LOG_DIR" value="logs" />
+
+        <!-- LLM / NVIDIA Configuration -->
+        <environmentVariable name="NVIDIA_BASE_URL" value="https://openrouter.ai/api/v1/chat/completions" />
+        <environmentVariable name="NVIDIA_API_KEY" value="your-api-key-here" />
+        <environmentVariable name="NVIDIA_MODEL" value="nvidia/nemotron-3-super-120b-a12b" />
+        <environmentVariable name="MAIN_MODEL" value="nvidia/nemotron-3-super-120b-a12b" />
+        <environmentVariable name="LLM_TIMEOUT" value="60" />
+
+        <!-- Outlook SMTP Server Credentials -->
+        <environmentVariable name="USER1_EMAIL" value="your-email@example.com" />
+        <environmentVariable name="USER1_PASSWORD" value="your-password" />
+        <environmentVariable name="SMTP_SERVER" value="smtp-mail.outlook.com" />
+        <environmentVariable name="SMTP_PORT" value="587" />
+      </environmentVariables>
+    </httpPlatform>
+  </system.webServer>
+</configuration>

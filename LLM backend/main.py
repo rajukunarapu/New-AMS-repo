@@ -2,13 +2,29 @@
 main.py - FastAPI Application Entry Point for AMS Ticket Intelligence Assistant (Updated).
 """
 
+import os
 import sys
+
+# Load environment variables from web.config before anything else initializes
+try:
+    from pyi_env_hook import load_from_web_config
+    load_from_web_config()
+except Exception:
+    pass
+
+from dotenv import load_dotenv
+# Ensure optional local .env is loaded without overriding web.config
+if getattr(sys, "frozen", False):
+    exe_dir = os.path.dirname(sys.executable)
+    load_dotenv(os.path.join(exe_dir, ".env"), override=False)
+else:
+    load_dotenv(override=False)
+
 import multiprocessing
 from datetime import datetime, timezone
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from routers import auth_router, chat_router, tickets_router, sla_router
@@ -96,14 +112,6 @@ def root():
 
 
 import argparse
-from dotenv import load_dotenv
-
-# Ensure .env is loaded from the executable directory when frozen with PyInstaller
-if getattr(sys, "frozen", False):
-    exe_dir = os.path.dirname(sys.executable)
-    load_dotenv(os.path.join(exe_dir, ".env"), override=True)
-else:
-    load_dotenv(override=True)
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
@@ -113,32 +121,42 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default=None, help="Host interface IP to bind")
     args, _ = parser.parse_known_args()
 
-    # IIS sets HTTP_PLATFORM_PORT when launching via HttpPlatformHandler
+    # Read IIS and Environment variables
     iis_port = os.getenv("HTTP_PLATFORM_PORT")
     env_port = os.getenv("PORT")
 
-    # Priority: IIS env var > CLI argument > .env PORT > Default (90)
-    if iis_port:
-        port = int(iis_port)
-    elif args.port:
+    # Validate that iis_port is a valid integer (IIS replaces %HTTP_PLATFORM_PORT% with an actual numeric port)
+    valid_iis_port = None
+    if iis_port and iis_port.strip().isdigit():
+        valid_iis_port = int(iis_port.strip())
+
+    # Validate env_port is a valid integer
+    valid_env_port = None
+    if env_port and str(env_port).strip().isdigit():
+        valid_env_port = int(str(env_port).strip())
+
+    # Priority: CLI argument > IIS dynamic port > PORT environment variable (web.config / .env) > Default (83)
+    if args.port:
         port = args.port
-    elif env_port:
-        port = int(env_port)
+    elif valid_iis_port:
+        port = valid_iis_port
+    elif valid_env_port:
+        port = valid_env_port
     else:
         port = 83
 
-    # For IIS or general hosting, bind host priority: CLI arg > .env HOST > (0.0.0.0 if IIS else 172.16.32.50)
+    # Host binding priority: CLI arg > HOST env var (web.config) > (127.0.0.1 if IIS dynamic port else 0.0.0.0)
     env_host = os.getenv("HOST")
     if args.host:
         host = args.host
     elif env_host:
         host = env_host
-    elif iis_port:
+    elif valid_iis_port:
         host = "127.0.0.1"
     else:
-        host = "172.16.32.50"
+        host = "0.0.0.0"
 
-    print(f"Starting AMS AI Backend on {host}:{port} (IIS/Dynamic Port Mode)...")
+    print(f"Starting AMS AI Backend on {host}:{port} (IIS/Manual Port Mode)...")
 
     if getattr(sys, "frozen", False):
         # When running as a PyInstaller compiled binary, pass app directly and disable reload

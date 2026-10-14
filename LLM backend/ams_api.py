@@ -4,7 +4,13 @@ import httpx
 from typing import Optional, Dict, Any, List, Tuple
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+try:
+    from pyi_env_hook import load_from_web_config
+    load_from_web_config()
+except Exception:
+    pass
+
+load_dotenv(override=False)
 
 
 class AMSApi:
@@ -33,8 +39,24 @@ class AMSApi:
         self.token_type = "Bearer"
 
     def reload_env(self):
-        """Reload variables from .env file into os.environ."""
-        load_dotenv(override=True)
+        """Reload variables from web.config and .env file into os.environ without clobbering existing environment."""
+        try:
+            from pyi_env_hook import load_from_web_config
+            load_from_web_config()
+        except Exception:
+            pass
+        load_dotenv(override=False)
+
+    @property
+    def base_url(self):
+        """Resolves base AMS URL from environment variables (e.g. web.config AMS_BASE_URL, SLA_BASE_URL, or HOST)."""
+        base = os.getenv("AMS_BASE_URL") or os.getenv("SLA_BASE_URL")
+        if base:
+            return base.rstrip("/")
+        host = os.getenv("HOST", "127.0.0.1")
+        if not host.startswith("http://") and not host.startswith("https://"):
+            return f"http://{host}".rstrip("/")
+        return host.rstrip("/")
 
     @property
     def email(self):
@@ -78,7 +100,7 @@ class AMSApi:
         if self._auth_url:
             return self._auth_url
         self.reload_env()
-        return os.getenv("AMS_AUTH_URL", "http://172.16.32.50/api/Auth/login")
+        return os.getenv("AMS_AUTH_URL") or f"{self.base_url}/api/Auth/login"
 
     @auth_url.setter
     def auth_url(self, value):
@@ -89,7 +111,7 @@ class AMSApi:
         if self._ticket_url:
             return self._ticket_url
         self.reload_env()
-        return os.getenv("AMS_TICKET_URL", "http://172.16.32.50/api/Ticket")
+        return os.getenv("AMS_TICKET_URL") or f"{self.base_url}/api/Ticket"
 
     @ticket_url.setter
     def ticket_url(self, value):
@@ -100,7 +122,7 @@ class AMSApi:
         if self._ticket_status_url:
             return self._ticket_status_url
         self.reload_env()
-        return os.getenv("AMS_TICKET_STATUS_URL", "http://172.16.32.50/api/Ticket/Status")
+        return os.getenv("AMS_TICKET_STATUS_URL") or f"{self.base_url}/api/Ticket/Status"
 
     @ticket_status_url.setter
     def ticket_status_url(self, value):
@@ -111,7 +133,7 @@ class AMSApi:
         if self._ticket_create_url:
             return self._ticket_create_url
         self.reload_env()
-        return os.getenv("AMS_TICKET_CREATE_URL", "http://172.16.32.50/api/Ticket/CreateTicket")
+        return os.getenv("AMS_TICKET_CREATE_URL") or f"{self.base_url}/api/Ticket/CreateTicket"
 
     @ticket_create_url.setter
     def ticket_create_url(self, value):
@@ -122,7 +144,7 @@ class AMSApi:
         if self._ticket_details_url:
             return self._ticket_details_url
         self.reload_env()
-        return os.getenv("TICKET_DETAILS_API_URL", "http://172.16.32.50/api/Ticket/GetTicketDetails")
+        return os.getenv("TICKET_DETAILS_API_URL") or f"{self.base_url}/api/Ticket/GetTicketDetails"
 
     @ticket_details_url.setter
     def ticket_details_url(self, value):
@@ -133,7 +155,7 @@ class AMSApi:
         if self._ticket_steps_url:
             return self._ticket_steps_url
         self.reload_env()
-        return os.getenv("TICKET_STEPS_API_URL", "http://172.16.32.50/api/Ticket/GetTicketSteps")
+        return os.getenv("TICKET_STEPS_API_URL") or f"{self.base_url}/api/Ticket/GetTicketSteps"
 
     @ticket_steps_url.setter
     def ticket_steps_url(self, value):
@@ -144,7 +166,7 @@ class AMSApi:
         if self._ticket_step_reminder_url:
             return self._ticket_step_reminder_url
         self.reload_env()
-        return os.getenv("TICKET_STEP_REMINDER_API_URL", "http://172.16.32.50/api/Ticket/SendTicketStepReminder")
+        return os.getenv("TICKET_STEP_REMINDER_API_URL") or f"{self.base_url}/api/Ticket/SendTicketStepReminder"
 
     @ticket_step_reminder_url.setter
     def ticket_step_reminder_url(self, value):
@@ -159,8 +181,8 @@ class AMSApi:
         # If no explicit password was provided (e.g. ChatService passing only username),
         # use system SLA service credentials so backend data queries can authenticate seamlessly.
         if not auth_password:
-            auth_email = os.getenv("SLA_EMAIL") or "SLA@Admin.com"
-            auth_password = os.getenv("SLA_PASSWORD") or "123456"
+            auth_email = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL", "")
+            auth_password = os.getenv("SLA_PASSWORD") or os.getenv("AMS_PASSWORD", "")
 
         if not auth_email or auth_email == "your_email" or not auth_password or auth_password == "your_password":
             raise Exception(
@@ -237,8 +259,8 @@ class AMSApi:
                 # Token might have expired or be invalid - automatically re-authenticate with SLA credentials
                 if response.status_code == 401:
                     try:
-                        sla_email = os.getenv("SLA_EMAIL") or "SLA@Admin.com"
-                        sla_pass = os.getenv("SLA_PASSWORD") or "123456"
+                        sla_email = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL", "")
+                        sla_pass = os.getenv("SLA_PASSWORD") or os.getenv("AMS_PASSWORD", "")
                         await self.authenticate(email=sla_email, password=sla_pass)
                         headers["Authorization"] = f"Bearer {self.token}"
                         response = await client.get(

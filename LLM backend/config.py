@@ -6,31 +6,44 @@ import os
 from typing import Dict, Set
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv(override=True)
+# Load environment variables from web.config first
+try:
+    from pyi_env_hook import load_from_web_config
+    load_from_web_config()
+except Exception:
+    pass
+
+# Load environment variables from .env file (override=False to preserve web.config values)
+load_dotenv(override=False)
 
 # SLA Credentials
-SLA_EMAIL: str = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL")
-SLA_PASSWORD: str = os.getenv("SLA_PASSWORD") or os.getenv("AMS_PASSWORD")
+SLA_EMAIL: str = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL", "")
+SLA_PASSWORD: str = os.getenv("SLA_PASSWORD") or os.getenv("AMS_PASSWORD", "")
+
+# Base URL (loaded from web.config SLA_BASE_URL, AMS_BASE_URL, or HOST)
+SLA_BASE_URL: str = (
+    os.getenv("SLA_BASE_URL")
+    or os.getenv("AMS_BASE_URL")
+    or (f"http://{os.getenv('HOST', '127.0.0.1')}" if not os.getenv("HOST", "").startswith("http") else os.getenv("HOST"))
+).rstrip("/")
+
+GET_TICKET_DETAILS_ENDPOINT: str = os.getenv("GET_TICKET_DETAILS_ENDPOINT", "/api/Ticket/GetTicketDetails")
+GET_TICKET_STEPS_ENDPOINT: str = os.getenv("GET_TICKET_STEPS_ENDPOINT", "/api/Ticket/GetTicketSteps")
+SEND_TICKET_REMINDER_ENDPOINT: str = os.getenv("SEND_TICKET_REMINDER_ENDPOINT", "/api/Ticket/SendTicketStepReminder")
 
 # SLA API Endpoints
 TICKET_DETAILS_API_URL: str = (
     os.getenv("TICKET_DETAILS_API_URL")
-    or f"{os.getenv('SLA_BASE_URL', 'http://172.16.32.50').rstrip('/')}/{os.getenv('GET_TICKET_DETAILS_ENDPOINT', '/api/Ticket/GetTicketDetails').lstrip('/')}"
+    or f"{SLA_BASE_URL}/{GET_TICKET_DETAILS_ENDPOINT.lstrip('/')}"
 )
 TICKET_STEP_REMINDER_API_URL: str = (
     os.getenv("TICKET_STEP_REMINDER_API_URL")
-    or f"{os.getenv('SLA_BASE_URL', 'http://172.16.32.50').rstrip('/')}/{os.getenv('SEND_TICKET_REMINDER_ENDPOINT', '/api/Ticket/SendTicketStepReminder').lstrip('/')}"
+    or f"{SLA_BASE_URL}/{SEND_TICKET_REMINDER_ENDPOINT.lstrip('/')}"
 )
 TICKET_STEPS_API_URL: str = (
     os.getenv("TICKET_STEPS_API_URL")
-    or f"{os.getenv('SLA_BASE_URL', 'http://172.16.32.50').rstrip('/')}/{os.getenv('GET_TICKET_STEPS_ENDPOINT', '/api/Ticket/GetTicketSteps').lstrip('/')}"
+    or f"{SLA_BASE_URL}/{GET_TICKET_STEPS_ENDPOINT.lstrip('/')}"
 )
-
-SLA_BASE_URL: str = os.getenv("SLA_BASE_URL", "http://172.16.32.50")
-GET_TICKET_DETAILS_ENDPOINT: str = os.getenv("GET_TICKET_DETAILS_ENDPOINT", "/api/Ticket/GetTicketDetails")
-GET_TICKET_STEPS_ENDPOINT: str = os.getenv("GET_TICKET_STEPS_ENDPOINT", "/api/Ticket/GetTicketSteps")
-SEND_TICKET_REMINDER_ENDPOINT: str = os.getenv("SEND_TICKET_REMINDER_ENDPOINT", "/api/Ticket/SendTicketStepReminder")
 
 # Document Type Constants
 BRD_DOC_TYPE: str = os.getenv("BRD_DOC_TYPE", "BUD")

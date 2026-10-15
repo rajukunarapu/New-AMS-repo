@@ -1,0 +1,469 @@
+[2026-10-15 14:14:17] [root] [INFO] Logging initialized. Log file: logs\sla_monitor.log
+[2026-10-15 14:14:17] [SLA_Scheduler] [INFO] SLA Background Async Scheduler service initialized.
+[2026-10-15 14:14:17] [SLA_Monitor] [INFO] SLA Service Startup | Local Time: 2026-10-15 14:14:17 | Timezone: India Standard Time | SLA Email: SLA@Admin.com | BRD DocType: BUD | FS DocType: FS
+[2026-10-15 14:14:17] [SLA_Store] [INFO] Initializing SLA Tracker database at: data/sla_tracker.db
+[2026-10-15 14:14:18] [SLA_Scheduler] [INFO] SLA Background Async Scheduler started. Running every 1.00 minutes.
+[2026-10-15 14:14:18] [SLA_Store] [INFO] Initializing SLA Tracker database at: data/sla_tracker.db
+[2026-10-15 14:14:18] [SLA_Monitor] [INFO] SLA Monitor cycle started at 2026-10-15T14:14:18.018043 (DB: data/sla_tracker.db)
+[2026-10-15 14:14:19] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Auth/login "HTTP/1.1 200 OK"
+[2026-10-15 14:14:20] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketDetails "HTTP/1.1 200 OK"
+[2026-10-15 14:14:20] [SLA_Store] [INFO] Ticket 'AAB2610170' deleted from SLA tracker store.
+[2026-10-15 14:14:21] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketSteps/Dix2610166 "HTTP/1.1 200 OK"
+[2026-10-15 14:14:21] [SLA_Monitor] [INFO] Sending SLA Reminder Payload | Ticket: Dix2610166 | Priority: 4 (Very High) | Approved Hours: 10.0h | Status: WITHIN_SLA | Overrun: None | Remaining: 1609 Mins
+[2026-10-15 14:14:22] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Ticket/SendTicketStepReminder "HTTP/1.1 200 OK"
+[2026-10-15 14:14:22] [SLA_Monitor] [INFO] Ticket 'Dix2610166' reminder posted successfully.
+[2026-10-15 14:14:22] [SLA_Store] [INFO] Ticket 'ATG2610165' deleted from SLA tracker store.
+[2026-10-15 14:14:22] [SLA_Store] [INFO] Ticket 'ATG2610164' deleted from SLA tracker store.
+[2026-10-15 14:14:22] [SLA_Store] [INFO] Ticket 'ATG2610162' deleted from SLA tracker store.
+[2026-10-15 14:14:22] [SLA_Store] [INFO] Ticket 'ATG2610161' deleted from SLA tracker store.
+[2026-10-15 14:14:22] [SLA_Store] [INFO] Ticket 'ATG2610158' deleted from SLA tracker store.
+[2026-10-15 14:14:22] [SLA_Store] [INFO] Ticket 'ATG2610157' deleted from SLA tracker store.
+[2026-10-15 14:14:22] [SLA_Monitor] [INFO] Ticket 'ATG2610155': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:14:22] [SLA_Monitor] [INFO] Ticket 'ATG2610154': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:14:23] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketSteps/ATG2610153 "HTTP/1.1 200 OK"
+[2026-10-15 14:14:23] [SLA_Monitor] [INFO] Sending SLA Reminder Payload | Ticket: ATG2610153 | Priority: 3 (High) | Approved Hours: 8.0h | Status: WITHIN_SLA | Overrun: None | Remaining: 1472 Mins
+[2026-10-15 14:14:25] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Ticket/SendTicketStepReminder "HTTP/1.1 200 OK"
+[2026-10-15 14:14:25] [SLA_Monitor] [INFO] Ticket 'ATG2610153' reminder posted successfully.
+[2026-10-15 14:14:25] [SLA_Store] [INFO] Ticket 'ATG2610148' deleted from SLA tracker store.
+[2026-10-15 14:14:25] [SLA_Store] [INFO] Ticket 'ATG2610147' deleted from SLA tracker store.
+[2026-10-15 14:14:25] [SLA_Store] [INFO] Ticket 'ATG2610146' deleted from SLA tracker store.
+[2026-10-15 14:14:25] [SLA_Store] [INFO] Ticket 'ATG2610143' deleted from SLA tracker store.
+[2026-10-15 14:14:25] [SLA_Store] [INFO] Ticket 'ATG2610142' deleted from SLA tracker store.
+[2026-10-15 14:14:27] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketSteps/DIM2610138 "HTTP/1.1 200 OK"
+[2026-10-15 14:14:27] [SLA_Monitor] [INFO] Sending SLA Reminder Payload | Ticket: DIM2610138 | Priority: 4 (Very High) | Approved Hours: 10.0h | Status: WITHIN_SLA | Overrun: None | Remaining: 1726 Mins
+[2026-10-15 14:14:29] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Ticket/SendTicketStepReminder "HTTP/1.1 200 OK"
+[2026-10-15 14:14:29] [SLA_Monitor] [INFO] Ticket 'DIM2610138' reminder posted successfully.
+[2026-10-15 14:14:29] [SLA_Store] [INFO] Ticket 'Gin2610137' deleted from SLA tracker store.
+[2026-10-15 14:14:30] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketSteps/ATG2610136 "HTTP/1.1 200 OK"
+[2026-10-15 14:14:30] [SLA_Monitor] [INFO] Sending SLA Reminder Payload | Ticket: ATG2610136 | Priority: 4 (Very High) | Approved Hours: 5.0h | Status: WITHIN_SLA | Overrun: None | Remaining: 1426 Mins
+[2026-10-15 14:14:31] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Ticket/SendTicketStepReminder "HTTP/1.1 200 OK"
+[2026-10-15 14:14:31] [SLA_Monitor] [INFO] Ticket 'ATG2610136' reminder posted successfully.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'IND26010134' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'SUP26010132' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'MED26010126' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'IND26010120' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'MEG26010118' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'ATG26010117' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'SAN26010114' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'SUP26010113' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'SUP26010112' deleted from SLA tracker store.
+[2026-10-15 14:14:31] [SLA_Store] [INFO] Ticket 'SUP26010111' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SUP26010110' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'GRA26010107' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'NEU26010102' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'THR2609453' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MEG2609450' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'LLO2609449' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MDG2609447' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MDG2609445' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MEG2609444' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MER2609439' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'DEE2609433' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609431' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SEE2609430' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609428' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609424' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609423' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SUP2609421' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609420' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SAN2609418' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609413' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MEG2609410' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'VPL2609406' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609405' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MED2609403' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'VPL2609402' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'LLO2609398' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'PAT2609397' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609394' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609391' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'LLO2609390' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'GIN2609388' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609385' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'GIN2609384' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'DEE2609379' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'VPL2609378' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MER2609377' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609375' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ANA2609371' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609365' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'GIN2609364' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609357' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ERO2609356' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SUP2609354' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'LAN2609353' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'INT2609349' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609347' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609346' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'INT2609342' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'IND2609338' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'LLO2609337' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ERO2609335' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'PAT2609334' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ANA2609333' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'PAT2609331' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MED2609330' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SAU2609322' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ICP2609321' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'LLO2609320' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ICP2609319' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ICP2609318' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ICP2609317' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ICP2609316' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SAU2609315' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ATG2609313' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MYK2609311' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'KIM2609310' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'ANA2609307' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SAU2609306' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SUP2609303' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MDG2609302' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'CHA2609301' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'MDG2609300' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Store] [INFO] Ticket 'SAN2609291' deleted from SLA tracker store.
+[2026-10-15 14:14:32] [SLA_Monitor] [INFO] SLA Monitoring Cycle Complete | Total Fetched Rows: 1000 | Unique Tickets: 237 | Sent: 4 | Skipped: 231 | Failed: 0
+[2026-10-15 14:15:06] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetClientNames?email=radhika%40sudhakarpipes.com "HTTP/1.1 200 OK"
+[2026-10-15 14:15:08] [httpx] [INFO] HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+[2026-10-15 14:15:09] [httpx] [INFO] HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+[2026-10-15 14:15:32] [SLA_Store] [INFO] Initializing SLA Tracker database at: data/sla_tracker.db
+[2026-10-15 14:15:32] [SLA_Monitor] [INFO] SLA Monitor cycle started at 2026-10-15T14:15:32.768110 (DB: data/sla_tracker.db)
+[2026-10-15 14:15:33] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Auth/login "HTTP/1.1 200 OK"
+[2026-10-15 14:15:34] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketDetails "HTTP/1.1 200 OK"
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'AAB2610170' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Monitor] [INFO] Ticket 'Dix2610166': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610165' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610164' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610162' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610161' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610158' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610157' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Monitor] [INFO] Ticket 'ATG2610155': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:15:34] [SLA_Monitor] [INFO] Ticket 'ATG2610154': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:15:34] [SLA_Monitor] [INFO] Ticket 'ATG2610153': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610148' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610147' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610146' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610143' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG2610142' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Monitor] [INFO] Ticket 'DIM2610138': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'Gin2610137' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Monitor] [INFO] Ticket 'ATG2610136': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'IND26010134' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'SUP26010132' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'MED26010126' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'IND26010120' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'MEG26010118' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'ATG26010117' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'SAN26010114' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'SUP26010113' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'SUP26010112' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'SUP26010111' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'SUP26010110' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'GRA26010107' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'NEU26010102' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'THR2609453' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'MEG2609450' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'LLO2609449' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'MDG2609447' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'MDG2609445' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'MEG2609444' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'MER2609439' deleted from SLA tracker store.
+[2026-10-15 14:15:34] [SLA_Store] [INFO] Ticket 'DEE2609433' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609431' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'SEE2609430' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609428' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609424' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609423' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'SUP2609421' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609420' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'SAN2609418' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609413' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'MEG2609410' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'VPL2609406' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609405' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'MED2609403' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'VPL2609402' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'LLO2609398' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'PAT2609397' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609394' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609391' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'LLO2609390' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'GIN2609388' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609385' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'GIN2609384' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'DEE2609379' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'VPL2609378' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'MER2609377' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609375' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ANA2609371' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609365' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'GIN2609364' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609357' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ERO2609356' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'SUP2609354' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'LAN2609353' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'INT2609349' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609347' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609346' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'INT2609342' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'IND2609338' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'LLO2609337' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ERO2609335' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'PAT2609334' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ANA2609333' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'PAT2609331' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'MED2609330' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'SAU2609322' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ICP2609321' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'LLO2609320' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ICP2609319' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ICP2609318' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ICP2609317' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ICP2609316' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'SAU2609315' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ATG2609313' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'MYK2609311' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'KIM2609310' deleted from SLA tracker store.
+[2026-10-15 14:15:35] [SLA_Store] [INFO] Ticket 'ANA2609307' deleted from SLA tracker store.
+[2026-10-15 14:15:36] [SLA_Store] [INFO] Ticket 'SAU2609306' deleted from SLA tracker store.
+[2026-10-15 14:15:36] [SLA_Store] [INFO] Ticket 'SUP2609303' deleted from SLA tracker store.
+[2026-10-15 14:15:36] [SLA_Store] [INFO] Ticket 'MDG2609302' deleted from SLA tracker store.
+[2026-10-15 14:15:36] [SLA_Store] [INFO] Ticket 'CHA2609301' deleted from SLA tracker store.
+[2026-10-15 14:15:36] [SLA_Store] [INFO] Ticket 'MDG2609300' deleted from SLA tracker store.
+[2026-10-15 14:15:36] [SLA_Store] [INFO] Ticket 'SAN2609291' deleted from SLA tracker store.
+[2026-10-15 14:15:36] [SLA_Monitor] [INFO] SLA Monitoring Cycle Complete | Total Fetched Rows: 1000 | Unique Tickets: 237 | Sent: 0 | Skipped: 231 | Failed: 0
+[2026-10-15 14:15:54] [SLA_Scheduler] [INFO] SLA Background Async Scheduler stopped.
+[2026-10-15 14:15:54] [SLA_Scheduler] [INFO] SLA Background Async Scheduler service shutdown.
+[2026-10-15 14:22:49] [root] [INFO] Logging initialized. Log file: logs\sla_monitor.log
+[2026-10-15 14:22:49] [SLA_Scheduler] [INFO] SLA Background Async Scheduler service initialized.
+[2026-10-15 14:22:49] [SLA_Monitor] [INFO] SLA Service Startup | Local Time: 2026-10-15 14:22:49 | Timezone: India Standard Time | SLA Email: SLA@Admin.com | BRD DocType: BUD | FS DocType: FS
+[2026-10-15 14:22:49] [SLA_Store] [INFO] Initializing SLA Tracker database at: data/sla_tracker.db
+[2026-10-15 14:22:49] [SLA_Scheduler] [INFO] SLA Background Async Scheduler started. Running every 1.00 minutes.
+[2026-10-15 14:22:49] [SLA_Store] [INFO] Initializing SLA Tracker database at: data/sla_tracker.db
+[2026-10-15 14:22:49] [SLA_Monitor] [INFO] SLA Monitor cycle started at 2026-10-15T14:22:49.184961 (DB: data/sla_tracker.db)
+[2026-10-15 14:22:50] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Auth/login "HTTP/1.1 200 OK"
+[2026-10-15 14:22:51] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketDetails "HTTP/1.1 200 OK"
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'AAB2610170' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Monitor] [INFO] Ticket 'Dix2610166': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610165' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610164' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610162' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610161' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610158' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610157' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Monitor] [INFO] Ticket 'ATG2610155': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:22:51] [SLA_Monitor] [INFO] Ticket 'ATG2610154': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:22:51] [SLA_Monitor] [INFO] Ticket 'ATG2610153': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610148' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610147' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610146' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610143' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2610142' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Monitor] [INFO] Ticket 'DIM2610138': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'Gin2610137' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Monitor] [INFO] Ticket 'ATG2610136': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'IND26010134' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SUP26010132' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MED26010126' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'IND26010120' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MEG26010118' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG26010117' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SAN26010114' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SUP26010113' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SUP26010112' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SUP26010111' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SUP26010110' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'GRA26010107' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'NEU26010102' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'THR2609453' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MEG2609450' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'LLO2609449' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MDG2609447' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MDG2609445' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MEG2609444' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MER2609439' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'DEE2609433' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'IND2609431' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SEE2609430' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'IND2609428' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2609424' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'ATG2609423' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SUP2609421' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'IND2609420' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'SAN2609418' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'IND2609413' deleted from SLA tracker store.
+[2026-10-15 14:22:51] [SLA_Store] [INFO] Ticket 'MEG2609410' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'VPL2609406' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'IND2609405' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'MED2609403' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'VPL2609402' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'LLO2609398' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'PAT2609397' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ATG2609394' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ATG2609391' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'LLO2609390' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'GIN2609388' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'IND2609385' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'GIN2609384' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'DEE2609379' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'VPL2609378' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'MER2609377' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ATG2609375' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ANA2609371' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'IND2609365' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'GIN2609364' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ATG2609357' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ERO2609356' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'SUP2609354' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'LAN2609353' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'INT2609349' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'IND2609347' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ATG2609346' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'INT2609342' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'IND2609338' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'LLO2609337' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ERO2609335' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'PAT2609334' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ANA2609333' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'PAT2609331' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'MED2609330' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'SAU2609322' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ICP2609321' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'LLO2609320' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ICP2609319' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ICP2609318' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ICP2609317' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ICP2609316' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'SAU2609315' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ATG2609313' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'MYK2609311' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'KIM2609310' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'ANA2609307' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'SAU2609306' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'SUP2609303' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'MDG2609302' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'CHA2609301' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'MDG2609300' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Store] [INFO] Ticket 'SAN2609291' deleted from SLA tracker store.
+[2026-10-15 14:22:52] [SLA_Monitor] [INFO] SLA Monitoring Cycle Complete | Total Fetched Rows: 1000 | Unique Tickets: 237 | Sent: 0 | Skipped: 231 | Failed: 0
+[2026-10-15 14:23:14] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetClientNames?email=radhika%40sudhakarpipes.com "HTTP/1.1 200 OK"
+[2026-10-15 14:23:16] [httpx] [INFO] HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 429 Too Many Requests"
+[2026-10-15 14:23:17] [httpx] [INFO] HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+[2026-10-15 14:23:34] [SLA_Scheduler] [INFO] SLA Background Async Scheduler stopped.
+[2026-10-15 14:23:34] [SLA_Scheduler] [INFO] SLA Background Async Scheduler service shutdown.
+[2026-10-15 14:24:08] [root] [INFO] Logging initialized. Log file: logs\sla_monitor.log
+[2026-10-15 14:24:08] [SLA_Scheduler] [INFO] SLA Background Async Scheduler service initialized.
+[2026-10-15 14:24:08] [SLA_Monitor] [INFO] SLA Service Startup | Local Time: 2026-10-15 14:24:08 | Timezone: India Standard Time | SLA Email: SLA@Admin.com | BRD DocType: BUD | FS DocType: FS
+[2026-10-15 14:24:08] [SLA_Store] [INFO] Initializing SLA Tracker database at: data/sla_tracker.db
+[2026-10-15 14:24:08] [SLA_Scheduler] [INFO] SLA Background Async Scheduler started. Running every 1.00 minutes.
+[2026-10-15 14:24:08] [SLA_Store] [INFO] Initializing SLA Tracker database at: data/sla_tracker.db
+[2026-10-15 14:24:08] [SLA_Monitor] [INFO] SLA Monitor cycle started at 2026-10-15T14:24:08.498816 (DB: data/sla_tracker.db)
+[2026-10-15 14:24:09] [httpx] [INFO] HTTP Request: POST http://172.16.32.50/api/Auth/login "HTTP/1.1 200 OK"
+[2026-10-15 14:24:10] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetTicketDetails "HTTP/1.1 200 OK"
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'AAB2610170' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Monitor] [INFO] Ticket 'Dix2610166': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610165' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610164' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610162' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610161' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610158' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610157' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Monitor] [INFO] Ticket 'ATG2610155': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:24:10] [SLA_Monitor] [INFO] Ticket 'ATG2610154': Reminder within interval (Last sent: None). Skipping duplicate payload.
+[2026-10-15 14:24:10] [SLA_Monitor] [INFO] Ticket 'ATG2610153': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610148' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610147' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610146' deleted from SLA tracker store.
+[2026-10-15 14:24:10] [SLA_Store] [INFO] Ticket 'ATG2610143' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2610142' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Monitor] [INFO] Ticket 'DIM2610138': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'Gin2610137' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Monitor] [INFO] Ticket 'ATG2610136': Reminder within interval (Last sent: 2026-10-15 14:14:18.018043). Skipping duplicate payload.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND26010134' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP26010132' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MED26010126' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND26010120' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MEG26010118' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG26010117' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SAN26010114' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP26010113' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP26010112' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP26010111' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP26010110' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'GRA26010107' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'NEU26010102' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'THR2609453' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MEG2609450' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'LLO2609449' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MDG2609447' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MDG2609445' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MEG2609444' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MER2609439' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'DEE2609433' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609431' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SEE2609430' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609428' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609424' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609423' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP2609421' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609420' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SAN2609418' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609413' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MEG2609410' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'VPL2609406' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609405' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MED2609403' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'VPL2609402' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'LLO2609398' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'PAT2609397' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609394' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609391' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'LLO2609390' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'GIN2609388' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609385' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'GIN2609384' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'DEE2609379' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'VPL2609378' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MER2609377' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609375' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ANA2609371' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609365' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'GIN2609364' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609357' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ERO2609356' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP2609354' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'LAN2609353' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'INT2609349' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609347' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609346' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'INT2609342' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'IND2609338' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'LLO2609337' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ERO2609335' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'PAT2609334' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ANA2609333' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'PAT2609331' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MED2609330' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SAU2609322' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ICP2609321' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'LLO2609320' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ICP2609319' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ICP2609318' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ICP2609317' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ICP2609316' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SAU2609315' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ATG2609313' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MYK2609311' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'KIM2609310' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'ANA2609307' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SAU2609306' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'SUP2609303' deleted from SLA tracker store.
+[2026-10-15 14:24:11] [SLA_Store] [INFO] Ticket 'MDG2609302' deleted from SLA tracker store.
+[2026-10-15 14:24:12] [SLA_Store] [INFO] Ticket 'CHA2609301' deleted from SLA tracker store.
+[2026-10-15 14:24:12] [SLA_Store] [INFO] Ticket 'MDG2609300' deleted from SLA tracker store.
+[2026-10-15 14:24:12] [SLA_Store] [INFO] Ticket 'SAN2609291' deleted from SLA tracker store.
+[2026-10-15 14:24:12] [SLA_Monitor] [INFO] SLA Monitoring Cycle Complete | Total Fetched Rows: 1000 | Unique Tickets: 237 | Sent: 0 | Skipped: 231 | Failed: 0
+[2026-10-15 14:24:36] [httpx] [INFO] HTTP Request: GET http://172.16.32.50/api/Ticket/GetClientNames?email=radhika%40sudhakarpipes.com "HTTP/1.1 200 OK"
+[2026-10-15 14:24:38] [httpx] [INFO] HTTP Request: POST https://openrouter.ai/api/v1/chat/completions "HTTP/1.1 200 OK"
+[2026-10-15 14:25:05] [SLA_Scheduler] [INFO] SLA Background Async Scheduler stopped.
+[2026-10-15 14:25:05] [SLA_Scheduler] [INFO] SLA Background Async Scheduler service shutdown.

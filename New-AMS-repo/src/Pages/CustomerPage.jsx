@@ -6,7 +6,7 @@ import { getUserInfo } from "../Utils/GetUserInfoHelper";
 import TopBar from "../Layouts/TopBar";
 import NeoAIChatWidget from "../Components/Common/NeoAIChatWidget";
 import NeoAIFullPage from "../Components/Common/NeoAIFullPage";
-import { ticketsAPI } from "../Services/TicketsAPI";
+import { getCustomerTickets } from "../Services/GetCustomerTicketsAPI";
 import { getDeliveryWorkflowAPI } from "../Services/GetDeliveryWorkflowAPI";
 import { postCustomerApprovedHours } from "../Services/PostCustomerApprovedHours";
 import { CircularProgress, Alert, Skeleton } from "@mui/material";
@@ -146,6 +146,7 @@ const CustomerPage = () => {
   const [activeNav, setActiveNav] = useState("portal");
   const [searchText, setSearchText] = useState("");
   const [tickets, setTickets] = useState([]);
+  const [totalTicketsCount, setTotalTicketsCount] = useState(0);
   const [loadingTickets, setLoadingTickets] = useState(true);
   const [visibleCount, setVisibleCount] = useState(10);
 
@@ -169,40 +170,56 @@ const CustomerPage = () => {
     (async function loadTickets() {
       setLoadingTickets(true);
       try {
-        const res = await ticketsAPI();
-        if (res && res.data && Array.isArray(res.data)) {
-          setTickets(res.data);
+        const res = await getCustomerTickets();
+        const rawTickets = res?.tickets || res?.data?.tickets || (Array.isArray(res?.data) ? res.data : []);
+        const totalCount = res?.totalTickets ?? res?.data?.totalTickets ?? (Array.isArray(rawTickets) ? rawTickets.length : 0);
+        setTotalTicketsCount(totalCount);
+
+        if (Array.isArray(rawTickets)) {
+          const mappedTickets = rawTickets.map((t) => ({
+            ...t,
+            ticketNo: t.TicketId ?? t.ticketNo ?? "",
+            TicketId: t.TicketId ?? t.ticketNo ?? "",
+            description: t.DescriptionofTicket ?? t.description ?? "",
+            DescriptionofTicket: t.DescriptionofTicket ?? t.description ?? "",
+            ticketStatus: t.TicketStaus !== undefined && t.TicketStaus !== null ? t.TicketStaus : (t.ticketStatus ?? ""),
+            TicketStaus: t.TicketStaus !== undefined && t.TicketStaus !== null ? t.TicketStaus : (t.ticketStatus ?? ""),
+            TicketStatusName: t.TicketStatusName ?? "",
+            clientName: t.CName ?? t.clientName ?? "",
+            id: t.TxnId ?? t.TicketId ?? t.id,
+          }));
+          setTickets(mappedTickets);
         } else {
           setTickets([]);
         }
       } catch (err) {
         console.error("Error fetching tickets in CustomerPage:", err);
         setTickets([]);
+        setTotalTicketsCount(0);
       } finally {
         setLoadingTickets(false);
       }
     })();
   }, []);
 
-  // Filter only tickets that have an assigned consultant (responsibleBy / name / assignedConsultant)
-  const ticketsWithConsultant = useMemo(() => {
-    return tickets.filter(hasAssignedConsultant);
-  }, [tickets]);
-
   // Filtered tickets based on search
   const filteredTickets = useMemo(() => {
-    if (!searchText) return ticketsWithConsultant;
+    if (!searchText) return tickets;
     const lower = searchText.toLowerCase();
-    return ticketsWithConsultant.filter(
+    return tickets.filter(
       (t) =>
+        (t.TicketId && String(t.TicketId).toLowerCase().includes(lower)) ||
         (t.ticketNo && String(t.ticketNo).toLowerCase().includes(lower)) ||
+        (t.DescriptionofTicket && String(t.DescriptionofTicket).toLowerCase().includes(lower)) ||
         (t.description && String(t.description).toLowerCase().includes(lower)) ||
-        (t.remarks && String(t.remarks).toLowerCase().includes(lower)) ||
+        (t.TicketStaus && String(t.TicketStaus).toLowerCase().includes(lower)) ||
+        (t.TicketStatusName && String(t.TicketStatusName).toLowerCase().includes(lower)) ||
+        (t.ticketStatus && String(t.ticketStatus).toLowerCase().includes(lower)) ||
+        (t.CName && String(t.CName).toLowerCase().includes(lower)) ||
         (t.clientName && String(t.clientName).toLowerCase().includes(lower)) ||
-        (t.name && String(t.name).toLowerCase().includes(lower)) ||
-        (t.responsibleBy && String(t.responsibleBy).toLowerCase().includes(lower))
+        (t.Reportedby && String(t.Reportedby).toLowerCase().includes(lower))
     );
-  }, [ticketsWithConsultant, searchText]);
+  }, [tickets, searchText]);
 
   // Limit tickets by visibleCount (initial 10, expandable via "Show More")
   const visibleTickets = useMemo(() => {
@@ -241,7 +258,7 @@ const CustomerPage = () => {
   useEffect(() => {
     if (visibleTickets.length === 0) return;
     visibleTickets.forEach((ticket) => {
-      const ticketId = ticket.ticketNo || ticket.id;
+      const ticketId = ticket.TicketId || ticket.ticketNo || ticket.id;
       if (ticketId && !workflowCache[ticketId] && !loadingWorkflow[ticketId]) {
         fetchTicketWorkflow(ticketId);
       }
@@ -260,7 +277,7 @@ const CustomerPage = () => {
   };
 
   const handleStepClick = async (ticket, stepKey) => {
-    const ticketId = ticket.ticketNo || ticket.id;
+    const ticketId = ticket.TicketId || ticket.ticketNo || ticket.id;
     if (!ticketId) return;
 
     if (expandedStep[ticketId] === stepKey) {
@@ -458,7 +475,7 @@ const CustomerPage = () => {
                   </div>
                   <div className="cons-stat-body">
                     <span className="cons-stat-big-num">
-                      {loadingTickets ? <Skeleton width={40} height={24} /> : (filteredTickets.length || 20)}
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : (totalTicketsCount || filteredTickets.length || 0)}
                     </span>
                     <span className="cons-pill-badge cons-pill-emerald">
                       Active Queue <span className="cons-pill-chevron">›</span>
@@ -572,7 +589,7 @@ const CustomerPage = () => {
                   <span className="cp-tickets-count" style={{ fontSize: "11.5px", fontWeight: 600, color: "#047857", background: "#ecfdf5", border: "1px solid #a7f3d0", padding: "2px 8px", borderRadius: "9999px" }}>
                     {loadingTickets
                       ? "Loading tickets..."
-                      : `${Math.min(visibleCount, filteredTickets.length)} of ${filteredTickets.length || 0} tickets`}
+                      : `${Math.min(visibleCount, filteredTickets.length)} of ${totalTicketsCount || filteredTickets.length || 0} tickets`}
                   </span>
                 </div>
 
@@ -628,7 +645,7 @@ const CustomerPage = () => {
                 ) : (
                   <>
                     {visibleTickets.map((ticket) => {
-                      const ticketId = ticket.ticketNo ;
+                      const ticketId = ticket.TicketId || ticket.ticketNo || ticket.id;
                       const activeStepKey = expandedStep[ticketId];
                       const stepsData = workflowCache[ticketId] || [];
                       const isLoading = loadingWorkflow[ticketId];
@@ -640,13 +657,15 @@ const CustomerPage = () => {
                           <div className="cp-ticket-row-card">
                             <div className="cp-ticket-info-block">
                               <div className="cp-ticket-title-line">
-                                <span className="cp-ticket-id">{ticket.ticketNo}</span>
+                                <span className="cp-ticket-id">{ticket.TicketId || ticket.ticketNo}</span>
                                 <span className="cp-ticket-title">
-                                  {ticket.description || "No description provided"}
+                                  {ticket.DescriptionofTicket || ticket.description || "No description provided"}
                                 </span>
                               </div>
                               <div className="cp-ticket-stage-line">
-                                <span className="cp-ticket-status">{ticket.ticketStatus || ""}</span>
+                                <span className="cp-ticket-status">
+                                  {ticket.TicketStatusName !== undefined && ticket.TicketStatusName !== null ? String(ticket.TicketStatusName) : (ticket.TicketStatusName || "")}
+                                </span>
                                 {" · "}
                                 current stage: <span className="cp-ticket-stage">Delivery Workflow (3 Steps)</span>
                               </div>

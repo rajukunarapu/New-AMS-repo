@@ -506,7 +506,7 @@ const CustomerPage = () => {
                   </div>
                   <div className="cons-stat-body">
                     <span className="cons-stat-big-num">
-                      {loadingTickets ? <Skeleton width={40} height={24} /> : 331}
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : 0}
                     </span>
                     <span className="cons-pill-badge cons-pill-teal">
                       Unassigned <span className="cons-pill-chevron">›</span>
@@ -537,7 +537,7 @@ const CustomerPage = () => {
                   </div>
                   <div className="cons-stat-body">
                     <span className="cons-stat-big-num">
-                      {loadingTickets ? <Skeleton width={40} height={24} /> : 3499}
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : 0}
                     </span>
                     <span className="cons-pill-badge cons-pill-amber">
                       At Risk <span className="cons-pill-chevron">›</span>
@@ -568,7 +568,7 @@ const CustomerPage = () => {
                   </div>
                   <div className="cons-stat-body">
                     <span className="cons-stat-big-num">
-                      {loadingTickets ? <Skeleton width={40} height={24} /> : 2}
+                      {loadingTickets ? <Skeleton width={40} height={24} /> : 0}
                     </span>
                     <span className="cons-pill-badge cons-pill-purple">
                       Paused <span className="cons-pill-chevron">›</span>

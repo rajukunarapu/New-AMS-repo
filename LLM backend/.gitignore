@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+build/
+dist/
+pyi_env_hook.py
+web.config

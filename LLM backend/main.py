@@ -2,21 +2,40 @@
 main.py - FastAPI Application Entry Point for AMS Ticket Intelligence Assistant (Updated).
 """
 
+import os
 import sys
+
+# Load environment variables from web.config before anything else initializes
+try:
+    from pyi_env_hook import load_from_web_config
+    load_from_web_config()
+except Exception:
+    pass
+
+from dotenv import load_dotenv
+# Ensure optional local .env is loaded without overriding web.config
+if getattr(sys, "frozen", False):
+    exe_dir = os.path.dirname(sys.executable)
+    load_dotenv(os.path.join(exe_dir, ".env"), override=False)
+else:
+    load_dotenv(override=False)
+
 import multiprocessing
 from datetime import datetime, timezone
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
 from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 from routers import auth_router, chat_router, tickets_router, sla_router
 from services.sla_scheduler import sla_scheduler_instance
+from run_scheduler import setup_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Setup logging to ensure logs/sla_monitor.log file handler is active
+    setup_logging()
     # Startup: start SLA Background Scheduler non-blockingly on the event loop
     await sla_scheduler_instance.start()
     yield
@@ -92,16 +111,56 @@ def root():
     }
 
 
-from dotenv import load_dotenv
-load_dotenv()
+import argparse
 
 if __name__ == "__main__":
     multiprocessing.freeze_support()
-    port = int(os.getenv("PORT", "8000"))
-    host = os.getenv("HOST", "0.0.0.0")
-    print(f"Starting AMS AI Backend on {host}:{port}...")
+
+    parser = argparse.ArgumentParser(description="AMS AI Ticket Intelligence Backend API")
+    parser.add_argument("--port", "-p", type=int, default=None, help="Port to listen on")
+    parser.add_argument("--host", type=str, default=None, help="Host interface IP to bind")
+    args, _ = parser.parse_known_args()
+
+    # Read IIS and Environment variables
+    iis_port = os.getenv("HTTP_PLATFORM_PORT")
+    env_port = os.getenv("PORT")
+
+    # Validate that iis_port is a valid integer (IIS replaces %HTTP_PLATFORM_PORT% with an actual numeric port)
+    valid_iis_port = None
+    if iis_port and iis_port.strip().isdigit():
+        valid_iis_port = int(iis_port.strip())
+
+    # Validate env_port is a valid integer
+    valid_env_port = None
+    if env_port and str(env_port).strip().isdigit():
+        valid_env_port = int(str(env_port).strip())
+
+    # Priority: CLI argument > IIS dynamic port > PORT environment variable (web.config / .env) > Default (83)
+    if args.port:
+        port = args.port
+    elif valid_iis_port:
+        port = valid_iis_port
+    elif valid_env_port:
+        port = valid_env_port
+    else:
+        port = 83
+
+    # Host binding priority: CLI arg > HOST env var (web.config) > (127.0.0.1 if IIS dynamic port else 0.0.0.0)
+    env_host = os.getenv("HOST")
+    if args.host:
+        host = args.host
+    elif env_host:
+        host = env_host
+    elif valid_iis_port:
+        host = "127.0.0.1"
+    else:
+        host = "0.0.0.0"
+
+    print(f"Starting AMS AI Backend on {host}:{port} (IIS/Manual Port Mode)...")
+
     if getattr(sys, "frozen", False):
         # When running as a PyInstaller compiled binary, pass app directly and disable reload
         uvicorn.run(app, host=host, port=port)
     else:
         uvicorn.run("main:app", host=host, port=port, reload=True, reload_dirs=["."])
+

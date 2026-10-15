@@ -6,6 +6,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('.env', '.'),
+        ('web.config', '.'),
         ('Module_Router.txt', '.'),
         ('SLA_SERVICE_README.md', '.'),
         ('requirements.txt', '.'),
@@ -35,6 +36,7 @@ a = Analysis(
         'routers.sla',
         'routers.tickets',
         'services',
+        'services.chat_orchestrator',
         'services.chat_service',
         'services.sla_monitor_service',
         'services.sla_reminder_store',
@@ -49,7 +51,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=['pyi_env_hook.py'],
     excludes=[
         'venv',
         '.venv',
@@ -82,3 +84,15 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
+
+# Post-build hook: Ensure dist/ directory contains web.config and runtime directories
+import os
+import shutil
+
+dist_dir = os.path.abspath('dist')
+os.makedirs(dist_dir, exist_ok=True)
+os.makedirs(os.path.join(dist_dir, 'logs'), exist_ok=True)
+os.makedirs(os.path.join(dist_dir, 'data'), exist_ok=True)
+if os.path.exists('web.config'):
+    shutil.copy2('web.config', os.path.join(dist_dir, 'web.config'))
+

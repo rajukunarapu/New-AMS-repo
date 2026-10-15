@@ -5,7 +5,13 @@ import time
 import httpx
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+try:
+    from pyi_env_hook import load_from_web_config
+    load_from_web_config()
+except Exception:
+    pass
+
+load_dotenv(override=False)
 
 # Complete list of valid assignment groups in AMS
 GROUPS = [

@@ -1,24 +1,24 @@
 """
 routers/tickets.py - Direct AMS Ticket management and Routing endpoints (Async).
 """
-
+ 
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Header, HTTPException, Query, status
 from ams_api import AMSApi
 from Module_Router import assign_group, GROUPS
 from models.schemas import TicketCreateRequest, RouteModuleRequest, RouteModuleResponse, normalize_ticket_type
-
+ 
 router = APIRouter(prefix="/api", tags=["Tickets & AMS Management"])
-
-
+ 
+ 
 def _get_ams_client(authorization: Optional[str] = None, email: Optional[str] = None) -> AMSApi:
     ams = AMSApi(email=email)
     if authorization:
         token = authorization.replace("Bearer ", "").strip()
         ams.token = token
     return ams
-
-
+ 
+ 
 @router.get(
     "/tickets",
     summary="List all AMS Tickets",
@@ -31,6 +31,19 @@ async def get_tickets(
     try:
         ams = _get_ams_client(authorization=authorization, email=email)
         tickets = await ams.get_tickets()
+ 
+        # If user is an external customer, restrict tickets to their assigned company only
+        if email:
+            from services.chat_service import is_customer_email
+            if is_customer_email(email):
+                company = await ams.get_client_company_name(email)
+                if company:
+                    company_clean = company.strip().lower()
+                    tickets = [
+                        t for t in (tickets or [])
+                        if str(t.get("clientName", "")).strip().lower() == company_clean
+                    ]
+ 
         return {
             "success": True,
             "count": len(tickets) if isinstance(tickets, list) else 0,
@@ -41,8 +54,8 @@ async def get_tickets(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch tickets: {str(err)}"
         )
-
-
+ 
+ 
 @router.get(
     "/tickets/status",
     summary="List AMS Ticket Statuses",
@@ -64,8 +77,8 @@ async def get_ticket_status(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch ticket statuses: {str(err)}"
         )
-
-
+ 
+ 
 @router.get(
     "/tickets/steps/{ticket_id}",
     summary="Get AMS Ticket Steps / Workflow",
@@ -89,8 +102,8 @@ async def get_ticket_steps(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch ticket steps for {ticket_id}: {str(err)}"
         )
-
-
+ 
+ 
 @router.post(
     "/tickets/steps",
     summary="Get AMS Ticket Steps via Payload",
@@ -120,9 +133,9 @@ async def get_ticket_steps_payload(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch ticket steps for {ticket_id}: {str(err)}"
         )
-
-
-
+ 
+ 
+ 
 @router.post(
     "/tickets/create",
     summary="Create a new Ticket in AMS",
@@ -136,18 +149,18 @@ async def create_ticket(
         reporter_email = ticket.reportedby if (ticket.reportedby and "@" in ticket.reportedby) else None
         ams = _get_ams_client(authorization=authorization, email=reporter_email)
         payload = ticket.model_dump(exclude_none=True)
-        
+       
         # Auto-classify group if not provided
         if not payload.get("assigntogroup") and payload.get("descriptionofTicket"):
             payload["assigntogroup"] = await assign_group(payload.get("descriptionofTicket", ""))
-            
+           
         from datetime import datetime
         if not payload.get("reportedon"):
             payload["reportedon"] = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
         if not payload.get("reportedontime"):
             payload["reportedontime"] = datetime.now().strftime("%H:%M:%S")
         payload["typeofticket"] = normalize_ticket_type(payload.get("typeofticket"))
-
+ 
         result = await ams.create_ticket(payload)
         return {
             "success": True,
@@ -159,8 +172,8 @@ async def create_ticket(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Failed to create ticket: {str(err)}"
         )
-
-
+ 
+ 
 @router.get(
     "/groups",
     summary="List Valid Assignment Groups / Modules",
@@ -172,8 +185,8 @@ def get_groups():
         "count": len(GROUPS),
         "groups": GROUPS
     }
-
-
+ 
+ 
 @router.post(
     "/route-module",
     response_model=RouteModuleResponse,
@@ -186,3 +199,8 @@ async def route_module(request: RouteModuleRequest):
         description=request.description,
         assigned_group=assigned
     )
+ 
+ 
+ 
+ 
+ 

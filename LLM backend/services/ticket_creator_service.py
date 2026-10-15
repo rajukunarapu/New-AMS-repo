@@ -326,11 +326,11 @@ def infer_ticket_type_from_text(text: Optional[str]) -> Optional[str]:
     return None
 
 
-def create_initial_draft(user_email: str = "") -> Dict[str, Any]:
+def create_initial_draft(user_email: str = "", locked_client: Optional[str] = None) -> Dict[str, Any]:
     """Creates a blank draft populated with sensible defaults."""
     now = datetime.now()
     return {
-        "clientName": None,
+        "clientName": locked_client or None,
         "ams": "AMS",
         "typeofticket": None,
         "priority": None,
@@ -341,7 +341,7 @@ def create_initial_draft(user_email: str = "") -> Dict[str, Any]:
         "screenshort": None,
         "remarks": None,
         "assigntogroup": None,
-        "_pending_field": "clientName"
+        "_pending_field": "descriptionofTicket" if locked_client else "clientName"
     }
 
 
@@ -881,15 +881,22 @@ def resolve_client_name(candidate_client: Optional[str], known_clients: Optional
     return c_clean
 
 
-async def finalize_draft_fields(draft: Dict[str, Any], user_email: str = "", known_clients: Optional[List[str]] = None) -> Dict[str, Any]:
+async def finalize_draft_fields(
+    draft: Dict[str, Any],
+    user_email: str = "",
+    known_clients: Optional[List[str]] = None,
+    locked_client: Optional[str] = None
+) -> Dict[str, Any]:
     """
     Ensures sensible defaults for non-provided fields (dates, auto-classification, reporter),
-    and resolves clientName to registered AMS database name.
+    and resolves clientName to registered AMS database name (or locks it for customers).
     """
     res = dict(draft)
     now = datetime.now()
 
-    if res.get("clientName"):
+    if locked_client:
+        res["clientName"] = locked_client
+    elif res.get("clientName"):
         res["clientName"] = resolve_client_name(res["clientName"], known_clients)
 
     if not res.get("reportedon"):

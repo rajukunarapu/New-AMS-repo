@@ -1,6 +1,6 @@
 """
 services/chat_orchestrator.py - Single-Pass Dynamic Semantic Orchestrator & Fast Dispatcher.
-
+ 
 Directly analyzes user prompts in a single LLM call without hardcoded keyword rules:
 1. "CONVERSATIONAL": Generates fresh, dynamic, varied natural replies (greetings, capabilities, chit-chat, advice).
    Zero AMS calls, zero second LLM calls!
@@ -8,22 +8,22 @@ Directly analyzes user prompts in a single LLM call without hardcoded keyword ru
    Zero AMS calls, zero second LLM calls!
 3. "QUERY_TICKETS": Formulates structured query filters for lazy AMS retrieval and dynamic narrative synthesis.
 """
-
+ 
 import re
 import json
 from typing import Dict, Any, List, Optional
 from query_engine import _call_llm
-
-
+ 
+ 
 ORCHESTRATOR_SYSTEM_INSTRUCTION = """You are the enterprise AI Assistant and Master Dispatcher for Neovatic AMS (Application Management Services).
 Analyze the user's message semantically and output a single JSON decision with one of three actions:
-
+ 
 ACTIONS:
 1. "CONVERSATIONAL":
    - Use for greetings, small talk, pleasantries, questions about your identity or capabilities, general IT questions, or questions about how AMS works.
    - "conversational_response": Write a fresh, engaging, context-aware, helpful natural response specifically tailored to what the user said.
    - CRITICAL: Never repeat robotic canned templates. Vary your vocabulary and phrasing naturally each time. Keep within 1-3 sentences.
-
+ 
 2. "CREATE_TICKET":
    - Use when the user describes a technical problem, transaction dump, system failure, bug, access request, or asks to raise/open/log a ticket, or attached an error screenshot.
    - "ticket_fields": {
@@ -32,7 +32,7 @@ ACTIONS:
        "descriptionofTicket": "<clear technical summary of the reported issue>"
      }
    - "dynamic_note": "<A 1-sentence friendly, varied dynamic confirmation that the issue has been captured in a draft>"
-
+ 
 3. "QUERY_TICKETS":
    - Use when the user wants to search, inspect, filter, count, list, or check the status/metrics of existing tickets.
    - "query_plan": {
@@ -44,7 +44,7 @@ ACTIONS:
        "aggregation": "<count|list|detail or null>",
        "semantic_search": "<search terms or feature keywords e.g. Joule, invoice, dump>"
      }
-
+ 
 OUTPUT FORMAT (STRICT JSON ONLY):
 {
   "action": "CONVERSATIONAL" | "CREATE_TICKET" | "QUERY_TICKETS",
@@ -54,8 +54,8 @@ OUTPUT FORMAT (STRICT JSON ONLY):
   "query_plan": { ... }
 }
 """
-
-
+ 
+ 
 def _sanitize_history_context(history: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, str]]:
     """Sanitizes chat history to the last 2 turns (max 200 chars per message), stripping heavy Base64 data."""
     if not history:
@@ -71,13 +71,15 @@ def _sanitize_history_context(history: Optional[List[Dict[str, Any]]] = None) ->
             role = item.get("sender") or item.get("role") or "user"
             cleaned.append({"role": role, "text": text})
     return cleaned
-
-
+ 
+ 
 async def run_chat_orchestrator(
     user_message: str,
     history: Optional[List[Dict[str, Any]]] = None,
     incoming_screenshot: Optional[str] = None,
-    known_clients: Optional[List[str]] = None
+    known_clients: Optional[List[str]] = None,
+    customer_client: Optional[str] = None,
+    user_email: Optional[str] = None
 ) -> Dict[str, Any]:
     """
     Executes single-pass semantic understanding on the user's message using the primary LLM.
@@ -91,27 +93,48 @@ async def run_chat_orchestrator(
     clean_msg = str(user_message or "").strip()
     msg_lower = clean_msg.lower()
     has_screenshot = bool(incoming_screenshot and str(incoming_screenshot).strip().lower() not in ["none", "null", ""])
-
+ 
     user_payload_dict = {
         "user_message": clean_msg if clean_msg else "(User attached an image without text)" if has_screenshot else "Hello",
         "has_screenshot": has_screenshot,
         "recent_conversation": _sanitize_history_context(history)
     }
-
+ 
+    if customer_client:
+        user_payload_dict["customer_account_organization"] = customer_client
+ 
     if known_clients:
         user_payload_dict["reference_client_names"] = known_clients[:30]
-
+ 
     user_payload = json.dumps(user_payload_dict, ensure_ascii=False)
-
+ 
+    system_instruction = ORCHESTRATOR_SYSTEM_INSTRUCTION
+    if customer_client:
+        system_instruction += f"""
+ 
+STRICT CUSTOMER ISOLATION POLICY:
+- The user is an external client user associated EXCLUSIVELY with organization: '{customer_client}' (logged in as '{user_email or "customer"}').
+- CLIENT RESTRICTION: The client/company name is strictly locked to '{customer_client}'. The user CANNOT change or switch it to another company.
+- TICKET ACCESS RESTRICTION: The user can ONLY create tickets for '{customer_client}', and can ONLY view/fetch tickets for '{customer_client}'.
+- CRITICAL BEHAVIOR FOR CLIENT NAME QUESTIONS & ATTEMPTS TO SWITCH COMPANIES:
+  If the user asks why the client name is not changing, asks to change the client name, enters an alternate company name (such as 'AAB', 'Dixon', 'ATG', etc.), asks why it defaulted to '{customer_client}', or asks about other companies' tickets:
+  1. Action MUST be "CONVERSATIONAL".
+  2. In "conversational_response", answer clearly, politely, and firmly:
+     Explain that because their login account is registered under '{customer_client}', all ticket creation and ticket searches are restricted strictly to '{customer_client}' for security and enterprise data isolation. State clearly that the client name cannot be modified to another organization and they cannot access or create tickets for other companies.
+  3. CRITICAL: NEVER apologize for using '{customer_client}'.
+  4. CRITICAL: NEVER say you will change or update the client name.
+  5. CRITICAL: NEVER ask the user what other client name they want.
+"""
+ 
     try:
         raw_res = await _call_llm(
             prompt_text=user_payload,
-            system_instruction=ORCHESTRATOR_SYSTEM_INSTRUCTION,
+            system_instruction=system_instruction,
             json_response=True,
             temperature=0.7,
             max_tokens=400
         )
-
+ 
         if raw_res:
             # 1. Try robust JSON extraction via regex
             parsed = None
@@ -121,7 +144,7 @@ async def run_chat_orchestrator(
                     parsed = json.loads(json_match.group(0))
                 except Exception:
                     pass
-
+ 
             if not parsed:
                 res_clean = re.sub(r'```json\s*', '', raw_res)
                 res_clean = re.sub(r'```\s*$', '', res_clean).strip()
@@ -129,7 +152,7 @@ async def run_chat_orchestrator(
                     parsed = json.loads(res_clean)
                 except Exception:
                     pass
-
+ 
             if isinstance(parsed, dict):
                 # Infer action if omitted by model
                 if "action" not in parsed:
@@ -139,7 +162,7 @@ async def run_chat_orchestrator(
                         parsed["action"] = "CREATE_TICKET"
                     elif "conversational_response" in parsed:
                         parsed["action"] = "CONVERSATIONAL"
-
+ 
                 # Check if action is present
                 if parsed.get("action") in ["QUERY_TICKETS", "CREATE_TICKET", "CONVERSATIONAL"]:
                     if has_screenshot and parsed.get("action") == "CONVERSATIONAL":
@@ -151,10 +174,10 @@ async def run_chat_orchestrator(
                         }
                         parsed["dynamic_note"] = "I've drafted a support ticket with your attached screenshot. Please verify the details below."
                     return parsed
-
+ 
     except Exception as err:
         print(f"[ChatOrchestrator] Orchestration parse error: {err}")
-
+ 
     # Fallback Handling: NEVER swallow a query as a greeting!
     if has_screenshot:
         return {
@@ -166,7 +189,7 @@ async def run_chat_orchestrator(
             },
             "dynamic_note": "I've started a new ticket draft with your attached screenshot. Please check the details below."
         }
-
+ 
     # Detect if user message is querying tickets
     is_query = bool(re.search(r'\b(?:tickets?|issues?|show|find|list|count|status|how many|records?|pending|breached)\b', msg_lower))
     if is_query:
@@ -180,7 +203,7 @@ async def run_chat_orchestrator(
         if "high" in msg_lower: detected_prio = "High"
         elif "low" in msg_lower: detected_prio = "Low"
         elif "medium" in msg_lower: detected_prio = "Medium"
-
+ 
         return {
             "action": "QUERY_TICKETS",
             "query_plan": {
@@ -193,7 +216,7 @@ async def run_chat_orchestrator(
                 "semantic_search": clean_msg
             }
         }
-
+ 
     # Detect if user message is reporting an issue / creating a ticket
     is_create = bool(re.search(r'\b(?:create|raise|open|log|dump|crash|error|failed|down|bug|not working)\b', msg_lower))
     if is_create:
@@ -206,7 +229,7 @@ async def run_chat_orchestrator(
             },
             "dynamic_note": "I've started a new ticket draft based on your message. Please check the details below."
         }
-
+ 
     import random
     varied_greetings = [
         "Hello! I am your AMS AI Assistant. How can I help you manage tickets or check system metrics today?",
@@ -218,19 +241,19 @@ async def run_chat_orchestrator(
         "action": "CONVERSATIONAL",
         "conversational_response": random.choice(varied_greetings)
     }
-
-
+ 
+ 
 DYNAMIC_SYNTHESIZER_PROMPT = """You are the Neovatic AMS Intelligence Assistant.
 Write a clear, concise, natural, and business-friendly 1-2 sentence response summarizing the search/ticket results for the user.
-
+ 
 CRITICAL RULES:
 1. ALWAYS answer the user's question directly and concisely in natural language.
 2. Never repeat identical boilerplate or robotic phrases. Vary your sentence structure and wording naturally.
 3. Mention key details naturally (e.g. client, matching count, status, or top module).
 4. Strictly max 2 sentences.
 """
-
-
+ 
+ 
 async def generate_dynamic_query_narrative(
     user_question: str,
     query_plan: Dict[str, Any],
@@ -263,7 +286,7 @@ async def generate_dynamic_query_narrative(
             for r in (sample_records or [])[:3]
         ]
     }
-
+ 
     try:
         narrative = await _call_llm(
             prompt_text=json.dumps(payload, ensure_ascii=False),
@@ -276,8 +299,10 @@ async def generate_dynamic_query_narrative(
             return narrative.strip()
     except Exception as err:
         print(f"[ChatOrchestrator] Dynamic narrative generation error: {err}")
-
+ 
     # Fallback description if LLM is unreachable or truncated
     client_str = f" for client **{query_plan.get('client')}**" if query_plan.get("client") else ""
     status_str = f" with status **{query_plan.get('status')}**" if query_plan.get("status") else ""
     return f"There are **{count}** ticket(s) matching your request{client_str}{status_str}."
+ 
+ 

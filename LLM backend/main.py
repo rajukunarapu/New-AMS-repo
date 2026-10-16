@@ -5,20 +5,12 @@ main.py - FastAPI Application Entry Point for AMS Ticket Intelligence Assistant 
 import os
 import sys
 
-# Load environment variables from web.config before anything else initializes
+# Load environment variables exclusively from web.config before anything else initializes
 try:
     from pyi_env_hook import load_from_web_config
     load_from_web_config()
 except Exception:
     pass
-
-from dotenv import load_dotenv
-# Ensure optional local .env is loaded without overriding web.config
-if getattr(sys, "frozen", False):
-    exe_dir = os.path.dirname(sys.executable)
-    load_dotenv(os.path.join(exe_dir, ".env"), override=False)
-else:
-    load_dotenv(override=False)
 
 import multiprocessing
 from datetime import datetime, timezone
@@ -135,7 +127,7 @@ if __name__ == "__main__":
     if env_port and str(env_port).strip().isdigit():
         valid_env_port = int(str(env_port).strip())
 
-    # Priority: CLI argument > IIS dynamic port > PORT environment variable (web.config / .env) > Default (83)
+    # Priority: CLI argument > IIS dynamic port > PORT environment variable (web.config) > Default (83)
     if args.port:
         port = args.port
     elif valid_iis_port:

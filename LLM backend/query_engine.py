@@ -15,7 +15,11 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import httpx
-from dotenv import load_dotenv
+try:
+    from pyi_env_hook import load_from_web_config
+except Exception:
+    def load_from_web_config(override: bool = False, file_path: str = None) -> bool:
+        return False
 from models.schemas import normalize_ticket_type
 
 try:
@@ -189,7 +193,7 @@ def normalize_group_name(group_input: Optional[str]) -> Optional[str]:
 
     return g_clean
 
-load_dotenv(override=True)
+load_from_web_config(override=True)
 warnings.filterwarnings("ignore")
 
 
@@ -328,7 +332,7 @@ async def _call_model_by_name(model_name: str, prompt_text: str, system_instruct
     Calls a specific model by name via OpenAI-compatible REST API (NVIDIA NIM / OpenRouter)
     or Google Gemini fallback if model_name starts with gemini.
     """
-    load_dotenv(override=True)
+    load_from_web_config(override=True)
     if not model_name:
         return None
 
@@ -396,7 +400,7 @@ async def _call_nvidia(prompt_text, system_instruction=None, json_response=False
     """
     Backward-compatible wrapper for primary model configured via MAIN_MODEL or NVIDIA_MODEL.
     """
-    load_dotenv(override=True)
+    load_from_web_config(override=True)
     model = os.getenv("MAIN_MODEL") or os.getenv("NVIDIA_MODEL") or "nvidia/nemotron-3-super-120b-a12b"
     return await _call_model_by_name(model, prompt_text, system_instruction=system_instruction, json_response=json_response, temperature=temperature, max_tokens=max_tokens)
 
@@ -407,7 +411,7 @@ async def _call_gemini(prompt_text, system_instruction=None, json_response=False
     and automatic model fallback on quota limits.
     """
     global GENAI_CLIENT
-    load_dotenv(override=True)
+    load_from_web_config(override=True)
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
     if api_key and api_key != "your_gemini_api_key":
@@ -464,7 +468,7 @@ async def _call_llm(prompt_text, system_instruction=None, json_response=False, t
        - google/gemma-2-27b-it
     3. Final Safety Net: Google Gemini API / Heuristic Query Engine
     """
-    load_dotenv(override=True)
+    load_from_web_config(override=True)
     main_model = os.getenv("MAIN_MODEL") or os.getenv("NVIDIA_MODEL") or "nvidia/nemotron-3-super-120b-a12b"
 
     fallback_env = os.getenv("FALLBACK_MODELS")

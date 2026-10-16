@@ -4,17 +4,12 @@ LLM backend/config.py - Centralized Configuration for SLA Monitoring Engine & AM
 
 import os
 from typing import Dict, Set
-from dotenv import load_dotenv
-
-# Load environment variables from web.config first
+# Load environment variables exclusively from web.config
 try:
     from pyi_env_hook import load_from_web_config
     load_from_web_config()
 except Exception:
     pass
-
-# Load environment variables from .env file (override=False to preserve web.config values)
-load_dotenv(override=False)
 
 # SLA Credentials
 SLA_EMAIL: str = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL", "")

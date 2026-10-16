@@ -6,17 +6,13 @@ The SLA Monitoring Service is a background engine for tracking ticket SLA deadli
 
 ## 1. Quick Start & Execution
 
-### Environment Setup
+### Configuration Setup
 
-1. Copy `.env.example` to `.env`:
-   ```bash
-   cp .env.example .env
-   ```
-2. Configure credentials in `.env`:
-   ```ini
-   SLA_EMAIL=your_sla_email@neovatic.com
-   SLA_PASSWORD=your_secure_password
-   ```
+Configure credentials and server endpoints in `web.config`:
+```xml
+<environmentVariable name="SLA_EMAIL" value="your_sla_email@neovatic.com" />
+<environmentVariable name="SLA_PASSWORD" value="your_secure_password" />
+```
 
 ### Running the Standalone Service
 
@@ -38,15 +34,15 @@ python -m pytest tests/test_sla_monitoring.py
 
 The service features a **layer-decoupled data source architecture**:
 
-- **Dummy Client (`DummyAMSClient`)**: Active by default (`USE_DUMMY_SLA_CLIENT=true` in `.env`). Returns sample data matching the exact shape returned by `GET /api/Ticket/GetTicketDetails`.
+- **Dummy Client (`DummyAMSClient`)**: Active when `USE_DUMMY_SLA_CLIENT=true` in `web.config`. Returns sample data matching the exact shape returned by `GET /api/Ticket/GetTicketDetails`.
 - **Production API (`AMSApi`)**: To connect to the live AMS API:
-  1. Set `USE_DUMMY_SLA_CLIENT=false` in `.env`.
-  2. Provide live endpoints and credentials in `.env`:
-     ```ini
-     TICKET_DETAILS_API_URL=http://172.16.32.50/api/Ticket/GetTicketDetails
-     TICKET_STEP_REMINDER_API_URL=http://172.16.32.50/api/Ticket/SendTicketStepReminder
-     SLA_EMAIL=actual_user@neovatic.com
-     SLA_PASSWORD=actual_password
+  1. Set `USE_DUMMY_SLA_CLIENT=false` in `web.config`.
+  2. Provide live endpoints and credentials in `web.config`:
+     ```xml
+     <environmentVariable name="TICKET_DETAILS_API_URL" value="http://172.16.32.50/api/Ticket/GetTicketDetails" />
+     <environmentVariable name="TICKET_STEP_REMINDER_API_URL" value="http://172.16.32.50/api/Ticket/SendTicketStepReminder" />
+     <environmentVariable name="SLA_EMAIL" value="actual_user@neovatic.com" />
+     <environmentVariable name="SLA_PASSWORD" value="actual_password" />
      ```
   3. No code changes are required in `sla_monitor_service.py` or `sla_scheduler.py`.
 
@@ -88,8 +84,8 @@ The service features a **layer-decoupled data source architecture**:
 
 | Variable | Description | Default |
 | :--- | :--- | :--- |
-| `SLA_EMAIL` | Authentication email for SLA Service | Required (Set in `.env`) |
-| `SLA_PASSWORD` | Authentication password for SLA Service | Required (Set in `.env`) |
+| `SLA_EMAIL` | Authentication email for SLA Service | Required (Set in `web.config`) |
+| `SLA_PASSWORD` | Authentication password for SLA Service | Required (Set in `web.config`) |
 | `SLA_BASE_URL` | Base URL of AMS API Server | `http://172.16.32.50` |
 | `GET_TICKET_DETAILS_ENDPOINT` | API endpoint for fetching ticket list | `/api/Ticket/GetTicketDetails` |
 | `SEND_TICKET_REMINDER_ENDPOINT` | API endpoint for posting reminder payloads | `/api/Ticket/SendTicketStepReminder` |

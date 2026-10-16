@@ -336,9 +336,15 @@ class ChatService:
  
             action = decision.get("action")
  
-            # --- BRANCH 1: CONVERSATIONAL (Greetings, Capabilities, IT Questions, Small Talk) ---
-            if action == "CONVERSATIONAL":
+            # --- BRANCH 1: CONVERSATIONAL or OUT_OF_DOMAIN (Greetings, Capabilities, Small Talk, Domain Deflections) ---
+            if action in ["CONVERSATIONAL", "OUT_OF_DOMAIN"]:
                 chat_reply = decision.get("conversational_response") or "Hello! How can I assist you with AMS tickets or support today?"
+                # Output Guardrail: prevent code block generation in conversational branch
+                if "```" in chat_reply and any(k in chat_reply.lower() for k in ["```python", "```javascript", "def ", "function()", "import "]):
+                    import random
+                    from services.guardrails import GENERIC_CODE_DEFLECTIONS
+                    chat_reply = random.choice(GENERIC_CODE_DEFLECTIONS)
+
                 return ChatResponse(
                     success=True,
                     response=chat_reply,

@@ -853,8 +853,12 @@ const DeliveryWorkflow = ({
               const hasDays = rec.workingDays !== null && rec.workingDays !== undefined && String(rec.workingDays).trim() !== "" && Number(rec.workingDays) > 0;
               if (hasHours) mappedHours = String(rec.workingHours);
               else if (hasDays) mappedDays = String(rec.workingDays);
+            } else {
+              // For Steps 4 to 10 (FS to VA): Use workingHours property for Timesheet Hours
+              if (rec.workingHours !== null && rec.workingHours !== undefined && String(rec.workingHours).trim() !== "") {
+                mappedHours = String(rec.workingHours);
+              }
             }
-            // For Steps 4 to 10: "Don't map any value to Working Hours from FS step to all remaining steps."
 
             updatedSteps[stepKey] = {
               days: mappedDays,

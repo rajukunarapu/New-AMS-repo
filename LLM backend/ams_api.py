@@ -3,15 +3,21 @@ import re
 import httpx
 import xml.etree.ElementTree as ET
 from typing import Optional, Dict, Any, List, Tuple
-from dotenv import load_dotenv
- 
- 
+try:
+    from pyi_env_hook import load_from_web_config
+except Exception:
+    def load_from_web_config(override: bool = False, file_path: str = None) -> bool:
+        return False
+
+
 def load_web_config(file_path: Optional[str] = None) -> bool:
     """
     Parses environment variables directly from web.config into os.environ.
-    This ensures URLs and configurations stored in web.config are always available,
-    without relying solely on .env.
+    This ensures URLs and configurations stored in web.config are always available.
     """
+    if load_from_web_config(override=False, file_path=file_path):
+        return True
+
     candidates = [
         file_path,
         os.path.join(os.path.dirname(__file__), "web.config"),
@@ -32,11 +38,10 @@ def load_web_config(file_path: Optional[str] = None) -> bool:
             except Exception as e:
                 print(f"[AMSApi] Warning: failed to parse {path}: {e}")
     return False
- 
- 
-# Load configurations from web.config first, followed by .env
+
+
+# Load configurations exclusively from web.config
 load_web_config()
-load_dotenv(override=False)
  
  
 class AMSApi:
@@ -66,9 +71,8 @@ class AMSApi:
         self.token_type = "Bearer"
  
     def reload_env(self):
-        """Reload variables from web.config and .env into os.environ."""
+        """Reload variables from web.config into os.environ."""
         load_web_config()
-        load_dotenv(override=False)
  
     @property
     def email(self):
@@ -209,7 +213,7 @@ class AMSApi:
  
         if not auth_email or auth_email == "your_email" or not auth_password or auth_password == "your_password":
             raise Exception(
-                "Invalid credentials configured. Please enter your actual AMS Email and Password in the sidebar or update the .env file."
+                "Invalid credentials configured. Please enter your actual AMS Email and Password in the sidebar or update the web.config file."
             )
  
         payload = {

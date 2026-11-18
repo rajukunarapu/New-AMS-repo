@@ -135,7 +135,7 @@
 .mlp-avatar-badge {
   width: 28px;
   height: 28px;
-  background: #33557a;
+  background: #043329;
   color: #ffffff;
   border-radius: 50%;
   display: flex;
@@ -1270,7 +1270,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 14px;
-  padding: 2px 0;
+  padding: 15px;
 }
 
 .mlp-ticket-subbar-left {
@@ -3133,8 +3133,19 @@
   border-top: none !important;
 }
 
+.mlp-dw-step-submitted-note {
+  font-size: 12px;
+  color: #15803d;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 12px;
+  margin-bottom: 4px;
+}
+
 .mlp-dw-brd-record-btn {
-  background: #16a34a !important;
+  background: #16a34a ;
   color: #ffffff !important;
   font-weight: 700 !important;
   font-size: 13px !important;
@@ -3480,7 +3491,7 @@
 }
 
 .mlp-dw-primary-btn {
-  background: #16a34a !important;
+  background: #043329 !important;
   color: #ffffff !important;
   border: none !important;
   border-radius: 10px !important;

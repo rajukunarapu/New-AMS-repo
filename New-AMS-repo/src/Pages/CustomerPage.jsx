@@ -9,7 +9,22 @@ import NeoAIFullPage from "../Components/Common/NeoAIFullPage";
 import { getCustomerTickets } from "../Services/GetCustomerTicketsAPI";
 import { getDeliveryWorkflowAPI } from "../Services/GetDeliveryWorkflowAPI";
 import { postCustomerApprovedHours } from "../Services/PostCustomerApprovedHours";
-import { CircularProgress, Alert, Skeleton } from "@mui/material";
+import { postCustomerBRDApproval } from "../Services/PostBRDApprovalAction";
+import {
+  CircularProgress,
+  Alert,
+  Skeleton,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
+} from "@mui/material";
+import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
+import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import Notification from "../Features/ModuleLeadComponents/Notification";
 
 const navItemsList = [
@@ -139,6 +154,333 @@ const hasAssignedConsultant = (t) => {
   return String(consultant).trim().length > 0;
 };
 
+// ── BRD Document Format & MIME Helpers for Customer Portal ──
+const MIME_BY_EXT = {
+  // Images
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  svg: "image/svg+xml",
+  bmp: "image/bmp",
+  ico: "image/x-icon",
+  tiff: "image/tiff",
+  tif: "image/tiff",
+  avif: "image/avif",
+
+  // PDF
+  pdf: "application/pdf",
+
+  // Word Documents
+  doc: "application/msword",
+  docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  dot: "application/msword",
+  dotx: "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+  rtf: "application/rtf",
+
+  // Excel Spreadsheets
+  xls: "application/vnd.ms-excel",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  xlsm: "application/vnd.ms-excel.sheet.macroEnabled.12",
+  csv: "text/csv",
+  tsv: "text/tab-separated-values",
+
+  // PowerPoint Presentations
+  ppt: "application/vnd.ms-powerpoint",
+  pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  pps: "application/vnd.ms-powerpoint",
+  ppsx: "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+
+  // Text & Code
+  txt: "text/plain",
+  log: "text/plain",
+  json: "application/json",
+  xml: "application/xml",
+  html: "text/html",
+  htm: "text/html",
+  css: "text/css",
+  js: "application/javascript",
+  md: "text/markdown",
+
+  // Archives
+  zip: "application/zip",
+  rar: "application/x-rar-compressed",
+  "7z": "application/x-7z-compressed",
+  tar: "application/x-tar",
+  gz: "application/gzip",
+};
+
+const getExtensionForMime = (mime) => {
+  if (!mime) return "bin";
+  const m = String(mime).toLowerCase();
+  for (const [ext, val] of Object.entries(MIME_BY_EXT)) {
+    if (val.toLowerCase() === m) return ext;
+  }
+  if (m.includes("pdf")) return "pdf";
+  if (m.includes("wordprocessingml") || m.includes("docx")) return "docx";
+  if (m.includes("msword")) return "doc";
+  if (m.includes("spreadsheetml") || m.includes("xlsx")) return "xlsx";
+  if (m.includes("ms-excel")) return "xls";
+  if (m.includes("presentationml") || m.includes("pptx")) return "pptx";
+  if (m.includes("ms-powerpoint")) return "ppt";
+  if (m.includes("jpeg")) return "jpg";
+  if (m.includes("png")) return "png";
+  if (m.includes("plain")) return "txt";
+  if (m.includes("csv")) return "csv";
+  if (m.includes("zip")) return "zip";
+  return "bin";
+};
+
+const detectMimeFromBase64 = (b64) => {
+  if (!b64 || typeof b64 !== "string") return "";
+  const clean = b64.replace(/^data:[^;]+;base64,/, "").trim();
+  if (clean.startsWith("/9j/")) return "image/jpeg";
+  if (clean.startsWith("iVBORw0KGgo")) return "image/png";
+  if (clean.startsWith("R0lGOD")) return "image/gif";
+  if (clean.startsWith("UklGR")) return "image/webp";
+  if (clean.startsWith("JVBERi")) return "application/pdf";
+  if (clean.startsWith("PHN2Zy") || clean.startsWith("PD94bW")) return "image/svg+xml";
+  if (clean.startsWith("Qk0")) return "image/bmp";
+  if (clean.startsWith("UEsDB")) {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  if (clean.startsWith("0M8R4KGx")) return "application/msword";
+  if (clean.startsWith("e1xydGY")) return "application/rtf";
+  if (clean.startsWith("UmFyIR")) return "application/x-rar-compressed";
+  return "";
+};
+
+const getBrdContentType = (url, fileName = "") => {
+  if (url && typeof url === "string" && url.startsWith("data:")) {
+    const match = url.match(/^data:([^;]+);/);
+    if (match && match[1] && match[1] !== "application/octet-stream") return match[1];
+  }
+  const cleanName = (fileName || "").trim().toLowerCase();
+  const dotIndex = cleanName.lastIndexOf(".");
+  if (dotIndex !== -1) {
+    const ext = cleanName.substring(dotIndex + 1);
+    if (MIME_BY_EXT[ext]) return MIME_BY_EXT[ext];
+  }
+  if (url && typeof url === "string") {
+    const detected = detectMimeFromBase64(url);
+    if (detected) return detected;
+  }
+  return "application/octet-stream";
+};
+
+const getBrdFormatCategory = (contentType, fileName = "") => {
+  const mime = (contentType || "").toLowerCase();
+  const lowerName = (fileName || "").toLowerCase();
+
+  if (mime.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff|tif|avif)$/i.test(lowerName)) {
+    return "image";
+  }
+  if (mime === "application/pdf" || lowerName.endsWith(".pdf")) {
+    return "pdf";
+  }
+  if (
+    mime.includes("word") ||
+    mime.includes("officedocument.wordprocessingml") ||
+    /\.(doc|docx|dot|dotx|rtf)$/i.test(lowerName)
+  ) {
+    return "word";
+  }
+  if (
+    mime.includes("excel") ||
+    mime.includes("spreadsheetml") ||
+    mime === "text/csv" ||
+    /\.(xls|xlsx|xlsm|csv|tsv)$/i.test(lowerName)
+  ) {
+    return "excel";
+  }
+  if (
+    mime.includes("powerpoint") ||
+    mime.includes("presentationml") ||
+    /\.(ppt|pptx|pps|ppsx)$/i.test(lowerName)
+  ) {
+    return "powerpoint";
+  }
+  if (
+    mime.startsWith("text/") ||
+    mime === "application/json" ||
+    mime === "application/xml" ||
+    /\.(txt|log|json|xml|html|htm|css|js|md)$/i.test(lowerName)
+  ) {
+    return "text";
+  }
+  if (
+    mime.includes("zip") ||
+    mime.includes("compressed") ||
+    mime.includes("tar") ||
+    mime.includes("rar") ||
+    /\.(zip|rar|7z|tar|gz)$/i.test(lowerName)
+  ) {
+    return "archive";
+  }
+  return "generic";
+};
+
+const getBrdFileName = (rec) => {
+  let name = rec?.attachmentName;
+  if (!name && rec?.attachment) {
+    name = String(rec.attachment).split(/[\\/]/).pop();
+  }
+  if (!name) {
+    const url = rec?.attachmentURL;
+    const contentType = getBrdContentType(url, "");
+    const ext = getExtensionForMime(contentType);
+    name = `BRD_Document.${ext}`;
+  }
+  return name;
+};
+
+const getBrdImageUrl = (url, fileName = "") => {
+  if (!url) return "";
+  const s = String(url).trim();
+  if (s.startsWith("data:") || s.startsWith("http://") || s.startsWith("https://") || s.startsWith("blob:")) {
+    return s;
+  }
+  const mime = getBrdContentType(s, fileName);
+  return `data:${mime};base64,${s}`;
+};
+
+const handleDownloadBrdDocument = (url, fileName = "BRD_Document") => {
+  const dataUrl = getBrdImageUrl(url, fileName);
+  if (!dataUrl) return;
+
+  if (dataUrl.startsWith("http://") || dataUrl.startsWith("https://")) {
+    fetch(dataUrl)
+      .then((res) => res.blob())
+      .then((blob) => {
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      })
+      .catch(() => {
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = fileName;
+        link.target = "_blank";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    return;
+  }
+
+  if (dataUrl.startsWith("data:")) {
+    try {
+      const parts = dataUrl.split(",");
+      const byteString = atob(parts[1]);
+      const mimeMatch = parts[0].match(/:(.*?);/);
+      const mimeString = mimeMatch ? mimeMatch[1] : getBrdContentType(dataUrl, fileName);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: mimeString });
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+      return;
+    } catch (err) {
+      console.warn("Blob conversion fallback:", err);
+    }
+  }
+
+  const link = document.createElement("a");
+  link.href = dataUrl;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+};
+
+const getBrdCustomerAction = (rec, ticket, stepsData) => {
+  const checkValue = (v) => {
+    if (v === undefined || v === null) return null;
+    const str = String(v).trim();
+    if (str === "" || str.toLowerCase() === "null" || str.toLowerCase() === "undefined") {
+      return null;
+    }
+    return str;
+  };
+
+  const findInObj = (obj) => {
+    if (!obj || typeof obj !== "object") return null;
+    if (obj.customerActionforBRD !== undefined && obj.customerActionforBRD !== null) {
+      const v = checkValue(obj.customerActionforBRD);
+      if (v) return v;
+    }
+    if (obj.customerActionForBRD !== undefined && obj.customerActionForBRD !== null) {
+      const v = checkValue(obj.customerActionForBRD);
+      if (v) return v;
+    }
+    if (obj.CustomerActionforBRD !== undefined && obj.CustomerActionforBRD !== null) {
+      const v = checkValue(obj.CustomerActionforBRD);
+      if (v) return v;
+    }
+    if (obj.CustomerActionForBRD !== undefined && obj.CustomerActionForBRD !== null) {
+      const v = checkValue(obj.CustomerActionForBRD);
+      if (v) return v;
+    }
+    if (obj.customerAction !== undefined && obj.customerAction !== null) {
+      const v = checkValue(obj.customerAction);
+      if (v) return v;
+    }
+    if (obj.CustomerAction !== undefined && obj.CustomerAction !== null) {
+      const v = checkValue(obj.CustomerAction);
+      if (v) return v;
+    }
+    if (obj.customerActionValue !== undefined && obj.customerActionValue !== null) {
+      const v = checkValue(obj.customerActionValue);
+      if (v) return v;
+    }
+    for (const key of Object.keys(obj)) {
+      const lower = key.toLowerCase();
+      if (lower === "customeractionforbrd" || lower === "customeraction") {
+        const v = checkValue(obj[key]);
+        if (v) return v;
+      }
+    }
+    return null;
+  };
+
+  let val = findInObj(rec);
+  if (!val && ticket) {
+    val = findInObj(ticket);
+  }
+  if (!val && Array.isArray(stepsData)) {
+    const brdStep = stepsData.find((s) => {
+      const dt = String(s?.documentType || "").trim().toLowerCase();
+      return dt === "brd";
+    });
+    if (brdStep) {
+      val = findInObj(brdStep);
+    }
+    if (!val) {
+      for (const s of stepsData) {
+        val = findInObj(s);
+        if (val) break;
+      }
+    }
+  }
+
+  return val || null;
+};
+
 const CustomerPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -157,6 +499,9 @@ const CustomerPage = () => {
   const [customerApprovedHours, setCustomerApprovedHours] = useState({}); // { [ticketId]: string }
   const [submittingHours, setSubmittingHours] = useState({}); // { [ticketId]: boolean }
   const [budAlert, setBudAlert] = useState({}); // { [ticketId]: { type, message } }
+  const [brdAlert, setBrdAlert] = useState({}); // { [ticketId]: { type, message } }
+  const [submittingBrdAction, setSubmittingBrdAction] = useState({}); // { [ticketId]: boolean }
+  const [brdPreviewModal, setBrdPreviewModal] = useState({ open: false, url: "", fileName: "", ticketNo: "" });
 
   const emailParam = location.state?.email || localStorage.getItem("userEmail") || "";
   const { name: userName, initial: userInitial } = getUserInfo(emailParam);
@@ -241,6 +586,26 @@ const CustomerPage = () => {
           stepsData = res.data.steps;
         } else if (res.data.data && Array.isArray(res.data.data)) {
           stepsData = res.data.data;
+        }
+        // If the API returned customerActionforBRD at root level of res.data, forward to BRD step
+        const rootAction =
+          res.data.customerActionforBRD ??
+          res.data.customerActionForBRD ??
+          res.data.CustomerActionforBRD ??
+          res.data.CustomerActionForBRD ??
+          res.data.customerAction ??
+          null;
+        if (rootAction && Array.isArray(stepsData)) {
+          stepsData = stepsData.map((s) => {
+            if (String(s?.documentType || "").trim().toLowerCase() === "brd") {
+              return {
+                ...s,
+                customerActionforBRD: s.customerActionforBRD ?? rootAction,
+                customerActionForBRD: s.customerActionForBRD ?? rootAction,
+              };
+            }
+            return s;
+          });
         }
         setWorkflowCache((prev) => ({ ...prev, [ticketId]: stepsData }));
       } else {
@@ -365,6 +730,66 @@ const CustomerPage = () => {
       }));
     } finally {
       setSubmittingHours((prev) => ({ ...prev, [ticketId]: false }));
+    }
+  };
+
+  const handleBrdApprovalAction = async (ticket, actionValue) => {
+    const ticketId = ticket.TicketId || ticket.ticketNo || ticket.id;
+    const ticketNumber = ticket.ticketNo || ticket.TicketId || ticket.id;
+    if (!ticketNumber) return;
+
+    setSubmittingBrdAction((prev) => ({ ...prev, [ticketId]: true }));
+    setBrdAlert((prev) => ({ ...prev, [ticketId]: null }));
+
+    try {
+      const res = await postCustomerBRDApproval(ticketNumber, "BRD", actionValue);
+      if (res && res.success) {
+        setBrdAlert((prev) => ({
+          ...prev,
+          [ticketId]: {
+            type: "success",
+            message: res.message || "BRD action is submitted successfully.",
+          },
+        }));
+        // Optimistically update workflow cache for instant UI feedback
+        setWorkflowCache((prev) => {
+          const currentSteps = prev[ticketId] || [];
+          const updatedSteps = currentSteps.map((step) => {
+            const dt = String(step?.documentType || "").trim().toLowerCase();
+            if (dt === "brd") {
+              return {
+                ...step,
+                customerActionforBRD: actionValue,
+                customerActionForBRD: actionValue,
+                customerAction: actionValue,
+              };
+            }
+            return step;
+          });
+          return { ...prev, [ticketId]: updatedSteps };
+        });
+        // Refresh workflow to sync latest state from backend
+        await fetchTicketWorkflow(ticketId, true);
+      } else {
+        setBrdAlert((prev) => ({
+          ...prev,
+          [ticketId]: {
+            type: "error",
+            message: res?.message || `Failed to ${actionValue.toLowerCase()} BRD. Please try again.`,
+          },
+        }));
+      }
+    } catch (err) {
+      console.error("Error submitting BRD customer action:", err);
+      setBrdAlert((prev) => ({
+        ...prev,
+        [ticketId]: {
+          type: "error",
+          message: "An error occurred while updating. Please try again.",
+        },
+      }));
+    } finally {
+      setSubmittingBrdAction((prev) => ({ ...prev, [ticketId]: false }));
     }
   };
 
@@ -651,6 +1076,46 @@ const CustomerPage = () => {
                       const isLoading = loadingWorkflow[ticketId];
                       const completedCount = getCompletedStepsCount(ticketId);
 
+                      const brdRec = getLatestStepRecord(stepsData, "BRD");
+                      const budRec = getLatestStepRecord(stepsData, "BUD");
+
+                      const rawBrdAction =
+                        brdRec?.customerActionforBRD !== undefined && brdRec?.customerActionforBRD !== null
+                          ? brdRec.customerActionforBRD
+                          : (brdRec?.customerActionForBRD !== undefined && brdRec?.customerActionForBRD !== null
+                              ? brdRec.customerActionForBRD
+                              : (brdRec?.customerAction !== undefined && brdRec?.customerAction !== null
+                                  ? brdRec.customerAction
+                                  : getBrdCustomerAction(brdRec, ticket, stepsData)));
+
+                      const isBrdActionDone = Boolean(
+                        rawBrdAction !== null &&
+                          rawBrdAction !== undefined &&
+                          String(rawBrdAction).trim() !== "" &&
+                          String(rawBrdAction).trim().toLowerCase() !== "null" &&
+                          String(rawBrdAction).trim().toLowerCase() !== "undefined"
+                      );
+                      const isBrdActionRequired = Boolean(brdRec && !isBrdActionDone);
+
+                      const rawApprovedVal =
+                        budRec?.customerApprovedHours !== undefined &&
+                        budRec?.customerApprovedHours !== null &&
+                        String(budRec?.customerApprovedHours).trim() !== ""
+                          ? budRec.customerApprovedHours
+                          : (budRec?.approvedHours !== undefined &&
+                             budRec?.approvedHours !== null &&
+                             String(budRec?.approvedHours).trim() !== ""
+                              ? budRec.approvedHours
+                              : null);
+
+                      const isBudHoursSubmitted =
+                        rawApprovedVal !== null &&
+                        String(rawApprovedVal).trim() !== "" &&
+                        !isNaN(Number(rawApprovedVal)) &&
+                        Number(rawApprovedVal) > 0;
+
+                      const isBudActionRequired = Boolean(budRec && !isBudHoursSubmitted);
+
                       return (
                         <div key={ticketId} className="cp-ticket-wrapper-card">
                           {/* Main Row Line */}
@@ -661,6 +1126,18 @@ const CustomerPage = () => {
                                 <span className="cp-ticket-title">
                                   {ticket.DescriptionofTicket || ticket.description || "No description provided"}
                                 </span>
+                                {isBrdActionRequired && (
+                                  <span className="cp-action-required-badge cp-action-badge-brd">
+                                    <span className="cp-action-badge-dot" />
+                                    BRD action is required
+                                  </span>
+                                )}
+                                {isBudActionRequired && (
+                                  <span className="cp-action-required-badge cp-action-badge-bud">
+                                    <span className="cp-action-badge-dot" />
+                                    BUD action is required
+                                  </span>
+                                )}
                               </div>
                               <div className="cp-ticket-stage-line">
                                 <span className="cp-ticket-status">
@@ -722,6 +1199,7 @@ const CustomerPage = () => {
                                   const rec = getLatestStepRecord(stepsData, stepDef?.docType);
                                   const isBud = activeStepKey === "bud";
                                   const isTicketAck = activeStepKey === "ticketAck";
+                                  const isBrd = activeStepKey === "brd";
                                   const isStepCompleted = Boolean(rec);
                                   const statusChipLabel = isStepCompleted ? "Completed" : "Pending";
 
@@ -777,6 +1255,17 @@ const CustomerPage = () => {
                                           sx={{ mb: 1.5, fontSize: "12.5px" }}
                                         >
                                           {budAlert[ticketId].message}
+                                        </Alert>
+                                      )}
+
+                                      {/* Alert Feedback for BRD actions */}
+                                      {isBrd && brdAlert[ticketId] && (
+                                        <Alert
+                                          severity={brdAlert[ticketId].type}
+                                          onClose={() => setBrdAlert((prev) => ({ ...prev, [ticketId]: null }))}
+                                          sx={{ mb: 1.5, fontSize: "12.5px" }}
+                                        >
+                                          {brdAlert[ticketId].message}
                                         </Alert>
                                       )}
 
@@ -971,11 +1460,207 @@ const CustomerPage = () => {
                                         </div>
                                       )}
 
+                                      {/* show the step status of consultant action */}
                                       {!rec && (
                                         <p className="cp-step-empty-note">
-                                          No specific record available yet for {stepDef?.label}. Fields shown above are in pending state.
+                                          The consultant has not yet completed the {stepDef?.label} action.
                                         </p>
                                       )}
+
+                                      {/* BRD Document Preview and Customer Approval / Rejection Actions */}
+                                      {isBrd && rec && (
+                                        <>
+                                          {/* Document Card (when attachmentURL is available) or Not Found Card */}
+                                          {rec.attachmentURL ? (
+                                            <div className="cp-brd-doc-box">
+                                              <div className="cp-brd-doc-card">
+                                                <div className="cp-brd-doc-left">
+                                                  {(() => {
+                                                    const url = rec.attachmentURL;
+                                                    const fileName = getBrdFileName(rec);
+                                                    const contentType = getBrdContentType(url, fileName);
+                                                    const category = getBrdFormatCategory(contentType, fileName);
+                                                    const docUrl = getBrdImageUrl(url, fileName);
+
+                                                    return (
+                                                      <>
+                                                        <div
+                                                          className="cp-brd-doc-thumb"
+                                                          onClick={() =>
+                                                            setBrdPreviewModal({
+                                                              open: true,
+                                                              url,
+                                                              fileName,
+                                                              ticketNo: ticket.ticketNo || ticket.TicketId || ticket.id,
+                                                            })
+                                                          }
+                                                          title="Click to view document"
+                                                        >
+                                                          {category === "image" ? (
+                                                            <img
+                                                              src={docUrl}
+                                                              alt={fileName}
+                                                            />
+                                                          ) : category === "pdf" ? (
+                                                            <div className="cp-brd-doc-badge-pdf">
+                                                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                <polyline points="14 2 14 8 20 8" />
+                                                              </svg>
+                                                              <span>PDF</span>
+                                                            </div>
+                                                          ) : category === "word" ? (
+                                                            <div className="cp-brd-doc-badge-doc">
+                                                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                <polyline points="14 2 14 8 20 8" />
+                                                                <line x1="16" y1="13" x2="8" y2="13" />
+                                                                <line x1="16" y1="17" x2="8" y2="17" />
+                                                              </svg>
+                                                              <span>DOC</span>
+                                                            </div>
+                                                          ) : category === "excel" ? (
+                                                            <div className="cp-brd-doc-badge-xls">
+                                                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                <polyline points="14 2 14 8 20 8" />
+                                                                <line x1="8" y1="13" x2="16" y2="13" />
+                                                                <line x1="8" y1="17" x2="16" y2="17" />
+                                                              </svg>
+                                                              <span>XLS</span>
+                                                            </div>
+                                                          ) : category === "powerpoint" ? (
+                                                            <div className="cp-brd-doc-badge-ppt">
+                                                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2410c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                <polyline points="14 2 14 8 20 8" />
+                                                              </svg>
+                                                              <span>PPT</span>
+                                                            </div>
+                                                          ) : category === "text" ? (
+                                                            <div className="cp-brd-doc-badge-txt">
+                                                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                                <polyline points="14 2 14 8 20 8" />
+                                                                <line x1="16" y1="13" x2="8" y2="13" />
+                                                                <line x1="16" y1="17" x2="8" y2="17" />
+                                                              </svg>
+                                                              <span>TXT</span>
+                                                            </div>
+                                                          ) : (
+                                                            <InsertDriveFileOutlined style={{ fontSize: "24px", color: "#64748b" }} />
+                                                          )}
+                                                        </div>
+
+                                                        <div className="cp-brd-doc-info">
+                                                          <span
+                                                            className="cp-brd-doc-name"
+                                                            onClick={() =>
+                                                              setBrdPreviewModal({
+                                                                open: true,
+                                                                url,
+                                                                fileName,
+                                                                ticketNo: ticket.ticketNo || ticket.TicketId || ticket.id,
+                                                              })
+                                                            }
+                                                            title={fileName}
+                                                          >
+                                                            {fileName}
+                                                          </span>
+                                                          <span className="cp-brd-doc-meta">
+                                                            {`Attachment · ${contentType}`}
+                                                          </span>
+                                                        </div>
+                                                      </>
+                                                    );
+                                                  })()}
+                                                </div>
+
+                                                <div className="cp-brd-doc-actions">
+                                                  <button
+                                                    type="button"
+                                                    className="cp-brd-doc-btn-view"
+                                                    onClick={() => {
+                                                      const url = rec.attachmentURL;
+                                                      const fileName = getBrdFileName(rec);
+                                                      setBrdPreviewModal({
+                                                        open: true,
+                                                        url,
+                                                        fileName,
+                                                        ticketNo: ticket.ticketNo || ticket.TicketId || ticket.id,
+                                                      });
+                                                    }}
+                                                    title="View document preview"
+                                                  >
+                                                    <VisibilityOutlined style={{ fontSize: "16px", color: "#475569" }} />
+                                                    View
+                                                  </button>
+                                                  <button
+                                                    type="button"
+                                                    className="cp-brd-doc-btn-download"
+                                                    onClick={() => {
+                                                      const url = rec.attachmentURL;
+                                                      const fileName = getBrdFileName(rec);
+                                                      handleDownloadBrdDocument(url, fileName);
+                                                    }}
+                                                    title="Download document file"
+                                                  >
+                                                    <DownloadOutlined style={{ fontSize: "16px", color: "#ffffff" }} />
+                                                    Download
+                                                  </button>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          ) : (
+                                            <div className="cp-brd-not-found-card">
+                                              <div className="cp-brd-not-found-icon">
+                                                <InsertDriveFileOutlined fontSize="small" />
+                                              </div>
+                                              <div className="cp-brd-not-found-text">
+                                                Screenshot file not found.
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* Customer Action Display if already triggered */}
+                                          {isBrdActionDone && (
+                                            <div className="cp-step-submitted-note cp-brd-submitted-note">
+                                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                                                <polyline points="20 6 9 17 4 12" />
+                                              </svg>
+                                              <span>BRD action is submitted: <strong>{rec?.customerActionforBRD || rec?.customerActionForBRD || rec?.customerAction || rawBrdAction}</strong></span>
+                                            </div>
+                                          )}
+
+                                          {/* BRD Action Buttons: Reject & Approve */}
+                                          <div className="cp-brd-action-row">
+                                            <button
+                                              type="button"
+                                              className="cp-brd-reject-btn"
+                                              disabled={submittingBrdAction[ticketId] || isBrdActionDone}
+                                              onClick={() => handleBrdApprovalAction(ticket, "Reject")}
+                                            >
+                                              {submittingBrdAction[ticketId] ? (
+                                                <CircularProgress size={13} color="inherit" />
+                                              ) : null}
+                                              <span>Reject</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              className="cp-brd-approve-btn"
+                                              disabled={submittingBrdAction[ticketId] || isBrdActionDone}
+                                              onClick={() => handleBrdApprovalAction(ticket, "Approve")}
+                                            >
+                                              {submittingBrdAction[ticketId] ? (
+                                                <CircularProgress size={13} color="inherit" />
+                                              ) : null}
+                                              <span>Approve</span>
+                                            </button>
+                                          </div>
+                                        </>
+                                      )}
+
+
                                     </div>
                                   );
                                 })()
@@ -1004,6 +1689,251 @@ const CustomerPage = () => {
 
       {/* ── Reusable Floating NeoAI Widget (Chat & Compose) ── */}
       <NeoAIChatWidget contextName="Customer Portal" userEmail={emailParam} />
+
+      {/* BRD Document Preview Modal */}
+      <Dialog
+        open={brdPreviewModal.open}
+        onClose={() => setBrdPreviewModal((prev) => ({ ...prev, open: false }))}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          style: {
+            borderRadius: 8,
+            overflow: "hidden",
+            maxHeight: "90vh",
+          },
+        }}
+      >
+        <DialogTitle
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 20px",
+            backgroundColor: "#0f172a",
+            color: "#ffffff",
+            fontSize: "14px",
+            fontWeight: 600,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+            <span>{brdPreviewModal.fileName || "BRD Document"}</span>
+            {brdPreviewModal.ticketNo && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  backgroundColor: "#334155",
+                  color: "#cbd5e1",
+                  fontWeight: 500,
+                }}
+              >
+                {brdPreviewModal.ticketNo}
+              </span>
+            )}
+          </div>
+          <IconButton
+            onClick={() => setBrdPreviewModal((prev) => ({ ...prev, open: false }))}
+            size="small"
+            style={{ color: "#cbd5e1" }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          style={{
+            padding: "20px",
+            backgroundColor: "#f8fafc",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "350px",
+            overflow: "auto",
+          }}
+        >
+          {brdPreviewModal.url ? (
+            (() => {
+              const url = brdPreviewModal.url;
+              const fileName = brdPreviewModal.fileName;
+              const contentType = getBrdContentType(url, fileName);
+              const category = getBrdFormatCategory(contentType, fileName);
+              const docUrl = getBrdImageUrl(url, fileName);
+
+              if (category === "image") {
+                return (
+                  <img
+                    src={docUrl}
+                    alt={fileName}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "70vh",
+                      objectFit: "contain",
+                      borderRadius: "6px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                      backgroundColor: "#ffffff",
+                    }}
+                  />
+                );
+              }
+
+              if (category === "pdf") {
+                return (
+                  <iframe
+                    src={docUrl}
+                    title={fileName}
+                    style={{
+                      width: "100%",
+                      height: "72vh",
+                      border: "none",
+                      borderRadius: "6px",
+                      backgroundColor: "#ffffff",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  />
+                );
+              }
+
+              if (category === "text") {
+                return (
+                  <iframe
+                    src={docUrl}
+                    title={fileName}
+                    style={{
+                      width: "100%",
+                      height: "70vh",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "6px",
+                      backgroundColor: "#ffffff",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  />
+                );
+              }
+
+              const formatMeta = {
+                word: { name: "Microsoft Word Document", badge: "DOC / DOCX", bg: "#dbeafe", text: "#1d4ed8" },
+                excel: { name: "Microsoft Excel Spreadsheet", badge: "XLS / XLSX / CSV", bg: "#dcfce7", text: "#15803d" },
+                powerpoint: { name: "Microsoft PowerPoint Presentation", badge: "PPT / PPTX", bg: "#ffedd5", text: "#c2410c" },
+                archive: { name: "Compressed Archive", badge: "ARCHIVE", bg: "#f3e8ff", text: "#7e22ce" },
+                generic: { name: "Attached Document", badge: "DOCUMENT", bg: "#f1f5f9", text: "#475569" },
+              };
+              const fmt = formatMeta[category] || formatMeta.generic;
+
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "36px 24px",
+                    backgroundColor: "#ffffff",
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                    maxWidth: "520px",
+                    width: "100%",
+                    textAlign: "center",
+                    gap: "16px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "72px",
+                      height: "72px",
+                      borderRadius: "16px",
+                      backgroundColor: fmt.bg,
+                      color: fmt.text,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <InsertDriveFileOutlined style={{ fontSize: "40px" }} />
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 600, color: "#0f172a", wordBreak: "break-all" }}>
+                      {fileName}
+                    </h4>
+                    <div style={{ display: "inline-block", fontSize: "11px", padding: "3px 10px", borderRadius: "12px", backgroundColor: "#f1f5f9", color: "#475569", fontWeight: 600 }}>
+                      {fmt.name} · {contentType}
+                    </div>
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b", lineHeight: 1.5, maxWidth: "400px" }}>
+                    This document format cannot be rendered directly in browser preview. Click the button below to download and open it in your local application.
+                  </p>
+
+                  <Button
+                    onClick={() => handleDownloadBrdDocument(url, fileName)}
+                    variant="contained"
+                    size="medium"
+                    startIcon={<DownloadOutlined />}
+                    style={{
+                      backgroundColor: "#15803d",
+                      color: "#ffffff",
+                      textTransform: "none",
+                      fontWeight: 600,
+                      fontSize: "13px",
+                      padding: "8px 24px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    Download {fileName}
+                  </Button>
+                </div>
+              );
+            })()
+          ) : (
+            <p style={{ color: "#64748b" }}>No document preview available.</p>
+          )}
+        </DialogContent>
+        <DialogActions
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#ffffff",
+            borderTop: "1px solid #e2e8f0",
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ fontSize: "12px", color: "#64748b" }}>
+            {getBrdContentType(brdPreviewModal.url, brdPreviewModal.fileName)}
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <Button
+              onClick={() => handleDownloadBrdDocument(brdPreviewModal.url, brdPreviewModal.fileName)}
+              variant="contained"
+              size="small"
+              startIcon={<DownloadOutlined />}
+              style={{
+                backgroundColor: "#15803d",
+                color: "#ffffff",
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "12px",
+              }}
+            >
+              Download
+            </Button>
+            <Button
+              onClick={() => setBrdPreviewModal((prev) => ({ ...prev, open: false }))}
+              variant="outlined"
+              size="small"
+              style={{
+                borderColor: "#cbd5e1",
+                color: "#475569",
+                textTransform: "none",
+                fontSize: "12px",
+              }}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

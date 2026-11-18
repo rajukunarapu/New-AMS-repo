@@ -247,7 +247,7 @@ const TopBar = ({ setSearchText, searchText, onNotificationClick }) => {
                 {/* Right: Theme toggle & User Avatar with Profile Popover */}
                 <div className="mlp-topbar-right" ref={profileRef}>
                     {/* Toggle Theme */}
-                    <button
+                    {/* <button
                         type="button"
                         className="mlp-icon-btn"
                         title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
@@ -270,7 +270,7 @@ const TopBar = ({ setSearchText, searchText, onNotificationClick }) => {
                                 <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
                             </svg>
                         )}
-                    </button>
+                    </button> */}
 
                     {/* Avatar Badge & Profile Popover Card */}
                     <div className="mlp-avatar-wrapper">

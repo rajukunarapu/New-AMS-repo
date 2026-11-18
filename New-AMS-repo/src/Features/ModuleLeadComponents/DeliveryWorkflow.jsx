@@ -10,7 +10,17 @@ import {
   MenuItem,
   FormControl,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  IconButton,
 } from "@mui/material";
+import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
+import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
+import CloseIcon from "@mui/icons-material/Close";
+import InsertDriveFileOutlined from "@mui/icons-material/InsertDriveFileOutlined";
 import { postTicketAcknowledgement } from "../../Services/PostTicketAcknowledgmentAPI";
 import { getDeliveryWorkflowAPI } from "../../Services/GetDeliveryWorkflowAPI";
 
@@ -45,11 +55,7 @@ const parseDateTimestamp = (dateStr) => {
   if (dateStr instanceof Date) return dateStr.getTime();
   const s = String(dateStr).trim();
 
-  // Try standard parse first
-  const parsed = Date.parse(s);
-  if (!isNaN(parsed)) return parsed;
-
-  // DD-MM-YYYY or DD/MM/YYYY with optional time
+  // 1. DD-MM-YYYY or DD/MM/YYYY with optional time
   const dmy = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
   if (dmy) {
     const day = parseInt(dmy[1], 10);
@@ -61,7 +67,7 @@ const parseDateTimestamp = (dateStr) => {
     return new Date(year, month, day, hour, min, sec).getTime();
   }
 
-  // YYYY-MM-DD or YYYY/MM/DD with optional time
+  // 2. YYYY-MM-DD or YYYY/MM/DD with optional time
   const ymd = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
   if (ymd) {
     const year = parseInt(ymd[1], 10);
@@ -72,6 +78,10 @@ const parseDateTimestamp = (dateStr) => {
     const sec = ymd[6] ? parseInt(ymd[6], 10) : 0;
     return new Date(year, month, day, hour, min, sec).getTime();
   }
+
+  // 3. Fallback standard parse
+  const parsed = Date.parse(s);
+  if (!isNaN(parsed)) return parsed;
 
   return 0;
 };
@@ -172,6 +182,188 @@ const muiDateInputSx = {
     opacity: "1 !important",
     display: "block !important",
   },
+};
+
+const WorkflowDatePicker = ({
+  value,
+  onChange,
+  error = false,
+  disabled = false,
+  minDate,
+  fullWidth = true,
+  placeholder = "dd/mm/yyyy",
+  sx = muiDateInputSx,
+  title,
+}) => {
+  const nativeInputRef = useRef(null);
+
+  // Convert incoming value (DD/MM/YYYY, YYYY-MM-DD, or ISO) to DD/MM/YYYY for display
+  const formattedDisplay = useMemo(() => {
+    if (!value) return "";
+    const s = String(value).trim();
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return s;
+    const ts = parseDateTimestamp(s);
+    if (!ts) return s;
+    const d = new Date(ts);
+    const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const yyyy = d.getFullYear();
+    return `${dd}/${mm}/${yyyy}`;
+  }, [value]);
+
+  const [text, setText] = useState(formattedDisplay);
+
+  useEffect(() => {
+    setText(formattedDisplay);
+  }, [formattedDisplay]);
+
+  // Convert current value to YYYY-MM-DD for native picker
+  const isoValue = useMemo(() => {
+    const target = text || value;
+    if (!target) return "";
+    const ts = parseDateTimestamp(target);
+    if (!ts) return "";
+    const d = new Date(ts);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, [text, value]);
+
+  // Convert minDate to YYYY-MM-DD for native picker
+  const isoMin = useMemo(() => {
+    if (!minDate) return undefined;
+    const ts = parseDateTimestamp(minDate);
+    if (!ts) return undefined;
+    const d = new Date(ts);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, [minDate]);
+
+  const handleNativeChange = (e) => {
+    const raw = e.target.value; // "YYYY-MM-DD"
+    if (!raw) {
+      setText("");
+      if (onChange) onChange({ target: { value: "" } });
+      return;
+    }
+    const parts = raw.split("-");
+    if (parts.length === 3) {
+      const formatted = `${parts[2]}/${parts[1]}/${parts[0]}`;
+      setText(formatted);
+      if (onChange) onChange({ target: { value: formatted } });
+    }
+  };
+
+  const handleTextChange = (e) => {
+    const val = e.target.value;
+    setText(val);
+    if (onChange) onChange(e);
+  };
+
+  const handleBlur = () => {
+    if (text) {
+      const ts = parseDateTimestamp(text);
+      if (ts) {
+        const d = new Date(ts);
+        const dd = String(d.getDate()).padStart(2, "0");
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        const yyyy = d.getFullYear();
+        const formatted = `${dd}/${mm}/${yyyy}`;
+        setText(formatted);
+        if (formatted !== text && onChange) {
+          onChange({ target: { value: formatted } });
+        }
+      }
+    }
+  };
+
+  const openPicker = () => {
+    if (disabled) return;
+    if (nativeInputRef.current?.showPicker) {
+      try {
+        nativeInputRef.current.showPicker();
+      } catch (err) {}
+    }
+  };
+
+  return (
+    <div style={{ position: "relative", width: fullWidth ? "100%" : "auto" }}>
+      <TextField
+        size="small"
+        variant="outlined"
+        value={text}
+        placeholder={placeholder}
+        error={error}
+        disabled={disabled}
+        fullWidth={fullWidth}
+        title={title}
+        onChange={handleTextChange}
+        onBlur={handleBlur}
+        onClick={openPicker}
+        sx={sx}
+        slotProps={{
+          input: {
+            endAdornment: (
+              <div
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "28px",
+                  height: "28px",
+                  flexShrink: 0,
+                  cursor: disabled ? "default" : "pointer",
+                }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#64748b"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  style={{ pointerEvents: "none" }}
+                >
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+                <input
+                  type="date"
+                  ref={nativeInputRef}
+                  value={isoValue}
+                  min={isoMin}
+                  disabled={disabled}
+                  onChange={handleNativeChange}
+                  tabIndex={-1}
+                  aria-label="Pick date"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    height: "100%",
+                    opacity: 0,
+                    cursor: disabled ? "default" : "pointer",
+                    border: "none",
+                    padding: 0,
+                    margin: 0,
+                  }}
+                />
+              </div>
+            ),
+          },
+        }}
+      />
+    </div>
+  );
 };
 
 const STEP_TICKET_STATUS_OPTIONS = {
@@ -342,20 +534,20 @@ const DeliveryWorkflow = ({
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  // Format date helper (MM/DD/YYYY) from ticket createddate
+  // Format date helper (DD/MM/YYYY) from ticket createddate
   const formatCreatedDate = (dateStr) => {
     if (getFormattedCreatedDate) return getFormattedCreatedDate(dateStr);
     if (!dateStr) return "00/00/0000";
     const ts = parseDateTimestamp(dateStr);
     if (!ts) return "00/00/0000";
     const d = new Date(ts);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
+    return `${dd}/${mm}/${yyyy}`;
   };
 
-  // Format date helper (MM/DD/YYYY) for display, returning empty string if no valid date
+  // Format date helper (DD/MM/YYYY) for display, returning empty string if no valid date
   const formatDisplayDate = (dateVal) => {
     if (!dateVal) return "";
     if (typeof dateVal === "string") {
@@ -366,24 +558,17 @@ const DeliveryWorkflow = ({
     const ts = parseDateTimestamp(dateVal);
     if (!ts) return typeof dateVal === "string" ? dateVal : "";
     const d = new Date(ts);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
+    return `${dd}/${mm}/${yyyy}`;
   };
 
   // Short date helper (DD Mon) like "16 Sep"
   const formatDateShort = (dateVal) => {
     if (!dateVal) return "--";
-    let d = new Date(dateVal);
-    if (isNaN(d.getTime())) {
-      if (typeof dateVal === "string" && dateVal.includes("/")) {
-        const parts = dateVal.split("/");
-        if (parts.length === 3) {
-          d = new Date(parts[2], parts[0] - 1, parts[1]);
-        }
-      }
-    }
+    const ts = parseDateTimestamp(dateVal);
+    let d = ts ? new Date(ts) : new Date(dateVal);
     if (isNaN(d.getTime())) return String(dateVal);
     const day = d.getDate();
     const month = d.toLocaleString("en-US", { month: "short" });
@@ -393,7 +578,8 @@ const DeliveryWorkflow = ({
   // Compute end date from start date by adding working days / working hours (skipping weekends, 8 hrs = 1 day)
   const computeEndDate = (startDateStr, workingDaysCount, workingHoursCount) => {
     if (getComputedEndDate) return getComputedEndDate(startDateStr, workingDaysCount, workingHoursCount);
-    let d = new Date(startDateStr);
+    const ts = parseDateTimestamp(startDateStr);
+    let d = ts ? new Date(ts) : new Date(startDateStr);
     if (isNaN(d.getTime())) d = new Date();
     
     let days = 1;
@@ -417,10 +603,10 @@ const DeliveryWorkflow = ({
         remainingDays--;
       }
     }
-    const mm = String(current.getMonth() + 1).padStart(2, "0");
     const dd = String(current.getDate()).padStart(2, "0");
+    const mm = String(current.getMonth() + 1).padStart(2, "0");
     const yyyy = current.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
+    return `${dd}/${mm}/${yyyy}`;
   };
 
   // Helper to render footer statement: "16 Sep → 18 Sep · 3 working days · responsible K. Menon"
@@ -474,6 +660,7 @@ const DeliveryWorkflow = ({
   const [ackAttachmentName, setAckAttachmentName] = useState("");
   const [ackCompleted, setAckCompleted] = useState(false);
   const [brdExpanded, setBrdExpanded] = useState(true);
+  const [brdPreviewOpen, setBrdPreviewOpen] = useState(false);
   const [expandedSteps, setExpandedSteps] = useState({
     step1: true,
     step2: true,
@@ -573,7 +760,7 @@ const DeliveryWorkflow = ({
 
   // Steps 02–10 state with initial dates, valid status names, and attachments
   const [stepsState, setStepsState] = useState({
-    step2: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "" },
+    step2: { days: "", hours: "", responsible: defaultConsultant, status: "", ticketStatus: "", stepStatus: "Pending", endDate: "", attachment: null, attachmentName: "", attachmentURL: "", customerActionforBRD: "" },
     step3: {
       days: "",
       hours: "",
@@ -631,6 +818,12 @@ const DeliveryWorkflow = ({
     const file = e.target.files?.[0];
     if (file) {
       setUploadingFiles((prev) => ({ ...prev, [stepKey]: true }));
+      let fileUrl = "";
+      if (stepKey === "step2") {
+        try {
+          fileUrl = URL.createObjectURL(file);
+        } catch (err) {}
+      }
       setTimeout(() => {
         setStepsState((prev) => ({
           ...prev,
@@ -638,6 +831,7 @@ const DeliveryWorkflow = ({
             ...prev[stepKey],
             attachment: file,
             attachmentName: file.name,
+            ...(stepKey === "step2" ? { attachmentURL: fileUrl } : {}),
             ...(stepKey === "step3" ? { documentStatus: "Yes" } : {}),
           },
         }));
@@ -653,12 +847,269 @@ const DeliveryWorkflow = ({
         ...prev[stepKey],
         attachment: null,
         attachmentName: "",
+        ...(stepKey === "step2" ? { attachmentURL: "" } : {}),
         ...(stepKey === "step3" ? { documentStatus: "No" } : {}),
       },
     }));
     if (fileInputRefs.current[stepKey]) {
       fileInputRefs.current[stepKey].value = "";
     }
+  };
+
+  // BRD Document Preview, MIME & Download Helpers for all document formats
+  const MIME_BY_EXT = {
+    // Images
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    gif: "image/gif",
+    webp: "image/webp",
+    svg: "image/svg+xml",
+    bmp: "image/bmp",
+    ico: "image/x-icon",
+    tiff: "image/tiff",
+    tif: "image/tiff",
+    avif: "image/avif",
+
+    // PDF
+    pdf: "application/pdf",
+
+    // Word Documents
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    dot: "application/msword",
+    dotx: "application/vnd.openxmlformats-officedocument.wordprocessingml.template",
+    rtf: "application/rtf",
+
+    // Excel Spreadsheets
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    xlsm: "application/vnd.ms-excel.sheet.macroEnabled.12",
+    csv: "text/csv",
+    tsv: "text/tab-separated-values",
+
+    // PowerPoint Presentations
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    pps: "application/vnd.ms-powerpoint",
+    ppsx: "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+
+    // Text & Code
+    txt: "text/plain",
+    log: "text/plain",
+    json: "application/json",
+    xml: "application/xml",
+    html: "text/html",
+    htm: "text/html",
+    css: "text/css",
+    js: "application/javascript",
+    md: "text/markdown",
+
+    // Archives
+    zip: "application/zip",
+    rar: "application/x-rar-compressed",
+    "7z": "application/x-7z-compressed",
+    tar: "application/x-tar",
+    gz: "application/gzip",
+  };
+
+  const getExtensionForMime = (mime) => {
+    if (!mime) return "bin";
+    const m = String(mime).toLowerCase();
+    for (const [ext, val] of Object.entries(MIME_BY_EXT)) {
+      if (val.toLowerCase() === m) return ext;
+    }
+    if (m.includes("pdf")) return "pdf";
+    if (m.includes("wordprocessingml") || m.includes("docx")) return "docx";
+    if (m.includes("msword")) return "doc";
+    if (m.includes("spreadsheetml") || m.includes("xlsx")) return "xlsx";
+    if (m.includes("ms-excel")) return "xls";
+    if (m.includes("presentationml") || m.includes("pptx")) return "pptx";
+    if (m.includes("ms-powerpoint")) return "ppt";
+    if (m.includes("jpeg")) return "jpg";
+    if (m.includes("png")) return "png";
+    if (m.includes("plain")) return "txt";
+    if (m.includes("csv")) return "csv";
+    if (m.includes("zip")) return "zip";
+    return "bin";
+  };
+
+  const detectMimeFromBase64 = (b64) => {
+    if (!b64 || typeof b64 !== "string") return "";
+    const clean = b64.replace(/^data:[^;]+;base64,/, "").trim();
+    if (clean.startsWith("/9j/")) return "image/jpeg";
+    if (clean.startsWith("iVBORw0KGgo")) return "image/png";
+    if (clean.startsWith("R0lGOD")) return "image/gif";
+    if (clean.startsWith("UklGR")) return "image/webp";
+    if (clean.startsWith("JVBERi")) return "application/pdf";
+    if (clean.startsWith("PHN2Zy") || clean.startsWith("PD94bW")) return "image/svg+xml";
+    if (clean.startsWith("Qk0")) return "image/bmp";
+    if (clean.startsWith("UEsDB")) {
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    }
+    if (clean.startsWith("0M8R4KGx")) return "application/msword";
+    if (clean.startsWith("e1xydGY")) return "application/rtf";
+    if (clean.startsWith("UmFyIR")) return "application/x-rar-compressed";
+    return "";
+  };
+
+  const getBrdContentType = (url, fileName = "") => {
+    if (url && typeof url === "string" && url.startsWith("data:")) {
+      const match = url.match(/^data:([^;]+);/);
+      if (match && match[1] && match[1] !== "application/octet-stream") return match[1];
+    }
+    const cleanName = (fileName || "").trim().toLowerCase();
+    const dotIndex = cleanName.lastIndexOf(".");
+    if (dotIndex !== -1) {
+      const ext = cleanName.substring(dotIndex + 1);
+      if (MIME_BY_EXT[ext]) return MIME_BY_EXT[ext];
+    }
+    if (url && typeof url === "string") {
+      const detected = detectMimeFromBase64(url);
+      if (detected) return detected;
+    }
+    return "application/octet-stream";
+  };
+
+  const getBrdFormatCategory = (contentType, fileName = "") => {
+    const mime = (contentType || "").toLowerCase();
+    const lowerName = (fileName || "").toLowerCase();
+
+    if (mime.startsWith("image/") || /\.(jpg|jpeg|png|gif|webp|svg|bmp|ico|tiff|tif|avif)$/i.test(lowerName)) {
+      return "image";
+    }
+    if (mime === "application/pdf" || lowerName.endsWith(".pdf")) {
+      return "pdf";
+    }
+    if (
+      mime.includes("word") ||
+      mime.includes("officedocument.wordprocessingml") ||
+      /\.(doc|docx|dot|dotx|rtf)$/i.test(lowerName)
+    ) {
+      return "word";
+    }
+    if (
+      mime.includes("excel") ||
+      mime.includes("spreadsheetml") ||
+      mime === "text/csv" ||
+      /\.(xls|xlsx|xlsm|csv|tsv)$/i.test(lowerName)
+    ) {
+      return "excel";
+    }
+    if (
+      mime.includes("powerpoint") ||
+      mime.includes("presentationml") ||
+      /\.(ppt|pptx|pps|ppsx)$/i.test(lowerName)
+    ) {
+      return "powerpoint";
+    }
+    if (
+      mime.startsWith("text/") ||
+      mime === "application/json" ||
+      mime === "application/xml" ||
+      /\.(txt|log|json|xml|html|htm|css|js|md)$/i.test(lowerName)
+    ) {
+      return "text";
+    }
+    if (
+      mime.includes("zip") ||
+      mime.includes("compressed") ||
+      mime.includes("tar") ||
+      mime.includes("rar") ||
+      /\.(zip|rar|7z|tar|gz)$/i.test(lowerName)
+    ) {
+      return "archive";
+    }
+    return "generic";
+  };
+
+  const getBrdFileName = () => {
+    let name = stepsState.step2?.attachmentName;
+    if (!name && stepsState.step2?.attachment) {
+      name = String(stepsState.step2.attachment).split(/[\\/]/).pop();
+    }
+    if (!name) {
+      const url = stepsState.step2?.attachmentURL;
+      const contentType = getBrdContentType(url, "");
+      const ext = getExtensionForMime(contentType);
+      name = `BRD_Document.${ext}`;
+    }
+    return name;
+  };
+
+  const getBrdImageUrl = (url, fileName = "") => {
+    if (!url) return "";
+    const s = String(url).trim();
+    if (s.startsWith("data:") || s.startsWith("http://") || s.startsWith("https://") || s.startsWith("blob:")) {
+      return s;
+    }
+    const mime = getBrdContentType(s, fileName);
+    return `data:${mime};base64,${s}`;
+  };
+
+  const handleDownloadBrdDocument = () => {
+    const url = stepsState.step2?.attachmentURL;
+    const fileName = getBrdFileName();
+    const dataUrl = getBrdImageUrl(url, fileName);
+    if (!dataUrl) return;
+
+    if (dataUrl.startsWith("http://") || dataUrl.startsWith("https://")) {
+      fetch(dataUrl)
+        .then((res) => res.blob())
+        .then((blob) => {
+          const blobUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = blobUrl;
+          link.download = fileName;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+        })
+        .catch(() => {
+          const link = document.createElement("a");
+          link.href = dataUrl;
+          link.download = fileName;
+          link.target = "_blank";
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        });
+      return;
+    }
+
+    if (dataUrl.startsWith("data:")) {
+      try {
+        const parts = dataUrl.split(",");
+        const byteString = atob(parts[1]);
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mimeString = mimeMatch ? mimeMatch[1] : getBrdContentType(dataUrl, fileName);
+        const ab = new ArrayBuffer(byteString.length);
+        const ia = new Uint8Array(ab);
+        for (let i = 0; i < byteString.length; i++) {
+          ia[i] = byteString.charCodeAt(i);
+        }
+        const blob = new Blob([ab], { type: mimeString });
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+        return;
+      } catch (err) {
+        console.warn("Blob conversion fallback:", err);
+      }
+    }
+
+    const link = document.createElement("a");
+    link.href = dataUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleAckFileChange = (e) => {
@@ -733,8 +1184,8 @@ const DeliveryWorkflow = ({
         newHasRecords.step1 = true;
         newCompleted.step1 = true;
         setAckCompleted(true);
-        setAckCustomerDate(step1Rec.customerAcknowledgement ? formatDateForInput(step1Rec.customerAcknowledgement) : "");
-        setAckEndDate(step1Rec.endDate ? formatDateForInput(step1Rec.endDate) : "");
+        setAckCustomerDate(step1Rec.customerAcknowledgement ? formatDisplayDate(step1Rec.customerAcknowledgement) : "");
+        setAckEndDate(step1Rec.endDate ? formatDisplayDate(step1Rec.endDate) : "");
 
         const hasHours = step1Rec.workingHours !== null && step1Rec.workingHours !== undefined && String(step1Rec.workingHours).trim() !== "" && Number(step1Rec.workingHours) > 0;
         const hasDays = step1Rec.workingDays !== null && step1Rec.workingDays !== undefined && String(step1Rec.workingDays).trim() !== "" && Number(step1Rec.workingDays) > 0;
@@ -802,7 +1253,7 @@ const DeliveryWorkflow = ({
             ? rec.ticketStatus
             : "";
 
-          const mappedEndDate = rec.endDate ? formatDateForInput(rec.endDate) : "";
+          const mappedEndDate = rec.endDate ? formatDisplayDate(rec.endDate) : "";
 
           if (stepKey === "step3") {
             const tech = rec.estimatedTechnicalHours !== null && rec.estimatedTechnicalHours !== undefined ? String(rec.estimatedTechnicalHours) : "";
@@ -837,7 +1288,8 @@ const DeliveryWorkflow = ({
               stepStatus: sStatus,
               endDate: mappedEndDate,
               attachment: null,
-              attachmentName: rec.attachment ? String(rec.attachment).split(/[\\/]/).pop() : "",
+              attachmentName: rec.attachment ? String(rec.attachment).split(/[\\/]/).pop() : (rec.attachmentName || ""),
+              attachmentURL: rec.attachmentURL || rec.attachmentUrl || rec.AttachmentURL || "",
               estimatedTechnicalHours: tech,
               estimatedFunctionalHours: func,
               estimatedTotalHours: total,
@@ -848,11 +1300,33 @@ const DeliveryWorkflow = ({
             // Steps 2 and Steps 4 to 10
             let mappedDays = "";
             let mappedHours = "";
+            let custBrdAction = "";
             if (i === 2) {
               const hasHours = rec.workingHours !== null && rec.workingHours !== undefined && String(rec.workingHours).trim() !== "" && Number(rec.workingHours) > 0;
               const hasDays = rec.workingDays !== null && rec.workingDays !== undefined && String(rec.workingDays).trim() !== "" && Number(rec.workingDays) > 0;
               if (hasHours) mappedHours = String(rec.workingHours);
               else if (hasDays) mappedDays = String(rec.workingDays);
+
+              const rawCustBrdAction =
+                rec.customerActionforBRD ??
+                rec.customerActionForBRD ??
+                rec.CustomerActionforBRD ??
+                rec.CustomerActionForBRD ??
+                rec.customerAction ??
+                rec.CustomerAction ??
+                resp?.data?.customerActionforBRD ??
+                resp?.data?.customerActionForBRD ??
+                selectedWorkflowTicket?.customerActionforBRD ??
+                selectedWorkflowTicket?.customerActionForBRD ??
+                "";
+              if (
+                rawCustBrdAction !== null &&
+                rawCustBrdAction !== undefined &&
+                String(rawCustBrdAction).trim() !== "" &&
+                String(rawCustBrdAction).trim().toLowerCase() !== "null"
+              ) {
+                custBrdAction = String(rawCustBrdAction).trim();
+              }
             } else {
               // For Steps 4 to 10 (FS to VA): Use workingHours property for Timesheet Hours
               if (rec.workingHours !== null && rec.workingHours !== undefined && String(rec.workingHours).trim() !== "") {
@@ -870,7 +1344,9 @@ const DeliveryWorkflow = ({
               endDate: mappedEndDate,
               remarks: rec.remarks || "",
               attachment: null,
-              attachmentName: rec.attachment ? String(rec.attachment).split(/[\\/]/).pop() : "",
+              attachmentName: rec.attachment ? String(rec.attachment).split(/[\\/]/).pop() : (rec.attachmentName || ""),
+              attachmentURL: rec.attachmentURL || rec.attachmentUrl || rec.AttachmentURL || "",
+              ...(i === 2 ? { customerActionforBRD: custBrdAction } : {}),
             };
           }
         } else {
@@ -888,6 +1364,7 @@ const DeliveryWorkflow = ({
               remarks: "",
               attachment: null,
               attachmentName: "",
+              attachmentURL: "",
               estimatedTechnicalHours: "",
               estimatedFunctionalHours: "",
               estimatedTotalHours: "",
@@ -906,6 +1383,7 @@ const DeliveryWorkflow = ({
               remarks: "",
               attachment: null,
               attachmentName: "",
+              attachmentURL: "",
             };
           }
         }
@@ -951,28 +1429,30 @@ const DeliveryWorkflow = ({
     selectedWorkflowTicket?.approvedhours,
   ]);
 
-  // Format dates to MM/DD/YYYY as expected by backend
-  const formatToMMDDYYYY = (val) => {
+  // Format dates to DD/MM/YYYY as expected by backend
+  const formatToDDMMYYYY = (val) => {
     if (!val) {
       const d = new Date();
-      const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
       const yyyy = d.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
+      return `${dd}/${mm}/${yyyy}`;
     }
     if (typeof val === "string" && /^\d{2}\/\d{2}\/\d{4}$/.test(val)) return val;
-    const d = new Date(val);
-    if (isNaN(d.getTime())) return String(val);
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const ts = parseDateTimestamp(val);
+    if (!ts) return typeof val === "string" ? val : "";
+    const d = new Date(ts);
     const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
+    return `${dd}/${mm}/${yyyy}`;
   };
 
   // Get YYYY-MM-DD for datepicker min attribute
   const getMinAckDate = (dateStr) => {
     if (!dateStr) return "0000-00-00";
-    const d = new Date(dateStr);
+    const ts = parseDateTimestamp(dateStr);
+    const d = ts ? new Date(ts) : new Date(dateStr);
     if (isNaN(d.getTime())) return "0000-00-00";
     const yyyy = d.getFullYear();
     const mm = String(d.getMonth() + 1).padStart(2, "0");
@@ -990,7 +1470,7 @@ const DeliveryWorkflow = ({
     const ticketId = selectedWorkflowTicket.ticketNo || selectedWorkflowTicket.txnId;
     let customerAckFormatted = "";
     // End date should be when user clicks on button to perform this step, current date should go
-    let endSlaFormatted = formatToMMDDYYYY(new Date());
+    let endSlaFormatted = formatToDDMMYYYY(new Date());
     let workingDaysVal = "";
     let hoursVal = "";
     let responsibleVal = "";
@@ -1015,9 +1495,13 @@ const DeliveryWorkflow = ({
       }
 
       // Date validation: Customer Acknowledged On must be on or after Acknowledgement Sent On
-      const sentDateRaw = selectedWorkflowTicket?.createddate ? new Date(selectedWorkflowTicket.createddate) : new Date();
-      const customerAckDateObj = new Date(ackCustomerDate);
-      const ackEndDateObj = new Date(ackEndDate);
+      const sentDateTs = selectedWorkflowTicket?.createddate ? parseDateTimestamp(selectedWorkflowTicket.createddate) : Date.now();
+      const customerAckTs = parseDateTimestamp(ackCustomerDate);
+      const ackEndTs = parseDateTimestamp(ackEndDate);
+      
+      const sentDateRaw = new Date(sentDateTs);
+      const customerAckDateObj = new Date(customerAckTs);
+      const ackEndDateObj = new Date(ackEndTs);
       
       const sentDateMidnight = new Date(sentDateRaw.getFullYear(), sentDateRaw.getMonth(), sentDateRaw.getDate()).getTime();
       const ackDateMidnight = new Date(customerAckDateObj.getFullYear(), customerAckDateObj.getMonth(), customerAckDateObj.getDate()).getTime();
@@ -1044,8 +1528,8 @@ const DeliveryWorkflow = ({
       }
       setMissingFields([]);
 
-      customerAckFormatted = formatToMMDDYYYY(ackCustomerDate);
-      endSlaFormatted = formatToMMDDYYYY(ackEndDate);
+      customerAckFormatted = formatToDDMMYYYY(ackCustomerDate);
+      endSlaFormatted = formatToDDMMYYYY(ackEndDate);
       responsibleVal = ackResponsibleBy || defaultConsultant;
       statusVal = "";
       stepStatusVal = "Completed";
@@ -1061,8 +1545,10 @@ const DeliveryWorkflow = ({
       }
 
       // 2. Validate End Date is not earlier than Start Date
-      const startDateRaw = selectedWorkflowTicket?.createddate ? new Date(selectedWorkflowTicket.createddate) : new Date();
-      const endDateObj = new Date(s.endDate);
+      const startDateTs = selectedWorkflowTicket?.createddate ? parseDateTimestamp(selectedWorkflowTicket.createddate) : Date.now();
+      const endDateTs = parseDateTimestamp(s.endDate);
+      const startDateRaw = new Date(startDateTs);
+      const endDateObj = new Date(endDateTs);
       const startDateMidnight = new Date(startDateRaw.getFullYear(), startDateRaw.getMonth(), startDateRaw.getDate()).getTime();
       const endDateMidnight = new Date(endDateObj.getFullYear(), endDateObj.getMonth(), endDateObj.getDate()).getTime();
 
@@ -1075,7 +1561,7 @@ const DeliveryWorkflow = ({
         return;
       }
 
-      endSlaFormatted = formatToMMDDYYYY(s.endDate);
+      endSlaFormatted = formatToDDMMYYYY(s.endDate);
       customerAckFormatted = "";
       responsibleVal = s.responsible || defaultConsultant;
       statusVal = "";
@@ -1690,10 +2176,7 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     CUSTOMER ACKNOWLEDGED ON <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={ackCustomerDate}
                     error={missingFields.includes("Customer Acknowledged On")}
                     onChange={(e) => {
@@ -1702,53 +2185,7 @@ const DeliveryWorkflow = ({
                         setMissingFields((prev) => prev.filter((f) => f !== "Customer Acknowledged On"));
                       }
                     }}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    sx={{
-                      ...muiInputSx,
-                      "& .MuiOutlinedInput-root": {
-                        backgroundColor: "#ffffff !important",
-                        color: "#0f172a !important",
-                        borderRadius: "12px",
-                        boxShadow: "0 1px 2px rgba(0, 0, 0, 0.04)",
-                        "& fieldset": {
-                          borderColor: "#cbd5e1 !important",
-                        },
-                        "&:hover fieldset": {
-                          borderColor: "#94a3b8 !important",
-                        },
-                        "&.Mui-focused fieldset": {
-                          borderColor: "#33557a !important",
-                        },
-                      },
-                      "& input": {
-                        color: "#0f172a !important",
-                        WebkitTextFillColor: "#0f172a !important",
-                      },
-                      "& input::-webkit-calendar-picker-indicator": {
-                        cursor: "pointer",
-                        filter: "none !important",
-                        opacity: "1 !important",
-                        display: "block !important",
-                      },
-                      "& .MuiInputBase-input::-webkit-calendar-picker-indicator": {
-                        cursor: "pointer",
-                        filter: "none !important",
-                        opacity: "1 !important",
-                        display: "block !important",
-                      },
-                    }}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
 
@@ -1812,10 +2249,7 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={ackEndDate || ""}
                     error={missingFields.includes("End Date")}
                     onChange={(e) => {
@@ -1824,21 +2258,7 @@ const DeliveryWorkflow = ({
                         setMissingFields((prev) => prev.filter((f) => f !== "End Date"));
                       }
                     }}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
 
@@ -1889,14 +2309,14 @@ const DeliveryWorkflow = ({
                       {ackAttachmentName}
                     </span>
                   </div>
-                  <button
+                  {/* <button
                     type="button"
                     className="mlp-dw-attached-file-remove"
                     onClick={handleRemoveAckFile}
                     title="Remove attachment"
                   >
                     ×
-                  </button>
+                  </button> */}
                 </div>
               )}
 
@@ -2018,27 +2438,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step2.endDate || ""}
                     onChange={(e) => handleStepChange("step2", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
 
@@ -2111,30 +2514,313 @@ const DeliveryWorkflow = ({
                 </div>
               </div>
 
-              {/* Persistent Attached Document Box for Step 02 */}
-              {stepsState.step2.attachmentName && (
-                <div className="mlp-dw-attached-file-box">
-                  <div className="mlp-dw-attached-file-info">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" />
-                      <polyline points="10 9 9 9 8 9" />
-                    </svg>
-                    <span className="mlp-dw-attached-file-label">Attached Document:</span>
-                    <span className="mlp-dw-attached-file-name" title={stepsState.step2.attachmentName}>
-                      {stepsState.step2.attachmentName}
+              {/* Persistent Attached Document Box for Step 02 (BRD Document Card) */}
+              {stepsState.step2.attachmentURL ? (
+                <div style={{ marginTop: "14px", width: "100%" }}>
+                  <div
+                    style={{
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "6px",
+                      padding: "10px 14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      backgroundColor: "#ffffff",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: "200px", flex: 1 }}>
+                      {(() => {
+                        const url = stepsState.step2.attachmentURL;
+                        const fileName = getBrdFileName();
+                        const contentType = getBrdContentType(url, fileName);
+                        const category = getBrdFormatCategory(contentType, fileName);
+                        const docUrl = getBrdImageUrl(url, fileName);
+
+                        return (
+                          <>
+                            <div
+                              onClick={() => setBrdPreviewOpen(true)}
+                              style={{
+                                width: 44,
+                                height: 44,
+                                borderRadius: 4,
+                                border: "1px solid #cbd5e1",
+                                overflow: "hidden",
+                                cursor: "pointer",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: "#f8fafc",
+                                flexShrink: 0,
+                              }}
+                              title="Click to view document"
+                            >
+                              {category === "image" ? (
+                                <img
+                                  src={docUrl}
+                                  alt={fileName}
+                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                              ) : category === "pdf" ? (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    backgroundColor: "#fee2e2",
+                                    color: "#dc2626",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: 700,
+                                    fontSize: "9.5px",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                  </svg>
+                                  <span>PDF</span>
+                                </div>
+                              ) : category === "word" ? (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    backgroundColor: "#dbeafe",
+                                    color: "#1d4ed8",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: 700,
+                                    fontSize: "9.5px",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                  </svg>
+                                  <span>DOC</span>
+                                </div>
+                              ) : category === "excel" ? (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    backgroundColor: "#dcfce7",
+                                    color: "#15803d",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: 700,
+                                    fontSize: "9.5px",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="8" y1="13" x2="16" y2="13" />
+                                    <line x1="8" y1="17" x2="16" y2="17" />
+                                  </svg>
+                                  <span>XLS</span>
+                                </div>
+                              ) : category === "powerpoint" ? (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    backgroundColor: "#ffedd5",
+                                    color: "#c2410c",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: 700,
+                                    fontSize: "9.5px",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2410c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                  </svg>
+                                  <span>PPT</span>
+                                </div>
+                              ) : category === "text" ? (
+                                <div
+                                  style={{
+                                    width: "100%",
+                                    height: "100%",
+                                    backgroundColor: "#f1f5f9",
+                                    color: "#475569",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontWeight: 700,
+                                    fontSize: "9.5px",
+                                    letterSpacing: "0.5px",
+                                  }}
+                                >
+                                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#475569" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                    <polyline points="14 2 14 8 20 8" />
+                                    <line x1="16" y1="13" x2="8" y2="13" />
+                                    <line x1="16" y1="17" x2="8" y2="17" />
+                                  </svg>
+                                  <span>TXT</span>
+                                </div>
+                              ) : (
+                                <InsertDriveFileOutlined style={{ fontSize: "24px", color: "#64748b" }} />
+                              )}
+                            </div>
+
+                            <div style={{ display: "flex", flexDirection: "column", gap: "2px", overflow: "hidden" }}>
+                              <span
+                                style={{
+                                  fontSize: "13px",
+                                  fontWeight: 600,
+                                  color: "#1e40af",
+                                  cursor: "pointer",
+                                  wordBreak: "break-all",
+                                }}
+                                onClick={() => setBrdPreviewOpen(true)}
+                                title={fileName}
+                              >
+                                {fileName}
+                              </span>
+                              <span style={{ fontSize: "11px", color: "#64748b" }}>
+                                {`Attachment · ${contentType}`}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button
+                        type="button"
+                        onClick={() => setBrdPreviewOpen(true)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          backgroundColor: "#ffffff",
+                          color: "#1e293b",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "4px",
+                          padding: "6px 14px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                        title="View document preview"
+                      >
+                        <VisibilityOutlined style={{ fontSize: "16px", color: "#475569" }} />
+                        View
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleDownloadBrdDocument}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          backgroundColor: "#15803d",
+                          color: "#ffffff",
+                          border: "none",
+                          borderRadius: "4px",
+                          padding: "6px 16px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                        title="Download document file"
+                      >
+                        <DownloadOutlined style={{ fontSize: "16px", color: "#ffffff" }} />
+                        Download
+                      </button>
+                      {stepsState.step2.attachment && (
+                        <button
+                          type="button"
+                          className="mlp-dw-attached-file-remove"
+                          onClick={() => handleRemoveStepFile("step2")}
+                          title="Remove attachment"
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "#94a3b8",
+                            fontSize: "18px",
+                            cursor: "pointer",
+                            padding: "0 4px",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {/* <p style={{ fontSize: "11px", color: "#94a3b8", margin: "6px 0 0" }}>
+                    Documents go out together with the customer reply and stay on the ticket as reference and history.
+                  </p> */}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    marginTop: "14px",
+                    width: "100%",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "4px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    backgroundColor: "#ffffff",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 4,
+                      border: "1px solid #e2e8f0",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      backgroundColor: "#f8fafc",
+                      color: "#94a3b8",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <InsertDriveFileOutlined fontSize="small" />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                    <span style={{ fontSize: "12.5px", fontWeight: 500, color: "#64748b" }}>
+                      Screenshot file not found.
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    className="mlp-dw-attached-file-remove"
-                    onClick={() => handleRemoveStepFile("step2")}
-                    title="Remove attachment"
-                  >
-                    ×
-                  </button>
+                </div>
+              )}
+
+              {stepsState.step2.customerActionforBRD && (
+                <div className="mlp-dw-step-submitted-note">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Customer action is submitted: <strong>{stepsState.step2.customerActionforBRD}</strong></span>
                 </div>
               )}
 
@@ -2350,27 +3036,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step3.endDate || ""}
                     onChange={(e) => handleStepChange("step3", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -2504,6 +3173,15 @@ const DeliveryWorkflow = ({
                 </div>
               )}
 
+              {stepsState.step3.customerApprovedHours && (
+                <div className="mlp-dw-step-submitted-note">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                  <span>Customer action is submitted: <strong>{stepsState.step3.customerApprovedHours} {String(stepsState.step3.customerApprovedHours).toLowerCase().includes("hr") ? "" : "hrs"}</strong></span>
+                </div>
+              )}
+
               <div className="mlp-dw-step-footer mlp-dw-brd-footer">
                 <button
                   type="button"
@@ -2627,27 +3305,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step4.endDate || ""}
                     onChange={(e) => handleStepChange("step4", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -2891,27 +3552,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step5.endDate || ""}
                     onChange={(e) => handleStepChange("step5", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3155,27 +3799,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step6.endDate || ""}
                     onChange={(e) => handleStepChange("step6", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3419,27 +4046,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step7.endDate || ""}
                     onChange={(e) => handleStepChange("step7", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3683,27 +4293,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step8.endDate || ""}
                     onChange={(e) => handleStepChange("step8", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -3947,27 +4540,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step9.endDate || ""}
                     onChange={(e) => handleStepChange("step9", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -4211,27 +4787,10 @@ const DeliveryWorkflow = ({
                   <label className="mlp-dw-field-lbl">
                     END DATE <span style={{ color: "#ef4444" }}>*</span>
                   </label>
-                  <TextField
-                    type="date"
-                    size="small"
-                    variant="outlined"
+                  <WorkflowDatePicker
                     value={stepsState.step10.endDate || ""}
                     onChange={(e) => handleStepChange("step10", "endDate", e.target.value)}
-                    onClick={(e) => {
-                      if (e.target.showPicker) {
-                        try {
-                          e.target.showPicker();
-                        } catch (err) {}
-                      }
-                    }}
-                    fullWidth
-                    sx={muiDateInputSx}
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        min: getMinAckDate(selectedWorkflowTicket?.createddate),
-                      },
-                    }}
+                    minDate={selectedWorkflowTicket?.createddate}
                   />
                 </div>
                 <div className="mlp-dw-field-group mlp-dw-field-responsible">
@@ -4561,6 +5120,251 @@ const DeliveryWorkflow = ({
           {toastMessage}
         </Alert>
       </Snackbar>
+
+      {/* BRD Document Preview Modal */}
+      <Dialog
+        open={brdPreviewOpen}
+        onClose={() => setBrdPreviewOpen(false)}
+        maxWidth="md"
+        fullWidth
+        PaperProps={{
+          style: {
+            borderRadius: 8,
+            overflow: "hidden",
+            maxHeight: "90vh",
+          },
+        }}
+      >
+        <DialogTitle
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "12px 20px",
+            backgroundColor: "#0f172a",
+            color: "#ffffff",
+            fontSize: "14px",
+            fontWeight: 600,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", overflow: "hidden" }}>
+            <span>{getBrdFileName()}</span>
+            {selectedWorkflowTicket?.ticketNo && (
+              <span
+                style={{
+                  fontSize: "11px",
+                  padding: "2px 8px",
+                  borderRadius: "4px",
+                  backgroundColor: "#334155",
+                  color: "#cbd5e1",
+                  fontWeight: 500,
+                }}
+              >
+                {selectedWorkflowTicket.ticketNo}
+              </span>
+            )}
+          </div>
+          <IconButton
+            onClick={() => setBrdPreviewOpen(false)}
+            size="small"
+            style={{ color: "#cbd5e1" }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
+        <DialogContent
+          style={{
+            padding: "20px",
+            backgroundColor: "#f8fafc",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            minHeight: "350px",
+            overflow: "auto",
+          }}
+        >
+          {stepsState.step2.attachmentURL ? (
+            (() => {
+              const url = stepsState.step2.attachmentURL;
+              const fileName = getBrdFileName();
+              const contentType = getBrdContentType(url, fileName);
+              const category = getBrdFormatCategory(contentType, fileName);
+              const docUrl = getBrdImageUrl(url, fileName);
+
+              if (category === "image") {
+                return (
+                  <img
+                    src={docUrl}
+                    alt={fileName}
+                    style={{
+                      maxWidth: "100%",
+                      maxHeight: "70vh",
+                      objectFit: "contain",
+                      borderRadius: "6px",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
+                      backgroundColor: "#ffffff",
+                    }}
+                  />
+                );
+              }
+
+              if (category === "pdf") {
+                return (
+                  <iframe
+                    src={docUrl}
+                    title={fileName}
+                    style={{
+                      width: "100%",
+                      height: "72vh",
+                      border: "none",
+                      borderRadius: "6px",
+                      backgroundColor: "#ffffff",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  />
+                );
+              }
+
+              if (category === "text") {
+                return (
+                  <iframe
+                    src={docUrl}
+                    title={fileName}
+                    style={{
+                      width: "100%",
+                      height: "70vh",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "6px",
+                      backgroundColor: "#ffffff",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  />
+                );
+              }
+
+              const formatMeta = {
+                word: { name: "Microsoft Word Document", badge: "DOC / DOCX", bg: "#dbeafe", text: "#1d4ed8" },
+                excel: { name: "Microsoft Excel Spreadsheet", badge: "XLS / XLSX / CSV", bg: "#dcfce7", text: "#15803d" },
+                powerpoint: { name: "Microsoft PowerPoint Presentation", badge: "PPT / PPTX", bg: "#ffedd5", text: "#c2410c" },
+                archive: { name: "Compressed Archive", badge: "ARCHIVE", bg: "#f3e8ff", text: "#7e22ce" },
+                generic: { name: "Attached Document", badge: "DOCUMENT", bg: "#f1f5f9", text: "#475569" },
+              };
+              const fmt = formatMeta[category] || formatMeta.generic;
+
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    padding: "36px 24px",
+                    backgroundColor: "#ffffff",
+                    borderRadius: "10px",
+                    border: "1px solid #e2e8f0",
+                    boxShadow: "0 4px 16px rgba(0,0,0,0.06)",
+                    maxWidth: "520px",
+                    width: "100%",
+                    textAlign: "center",
+                    gap: "16px",
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "72px",
+                      height: "72px",
+                      borderRadius: "16px",
+                      backgroundColor: fmt.bg,
+                      color: fmt.text,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <InsertDriveFileOutlined style={{ fontSize: "40px" }} />
+                  </div>
+
+                  <div>
+                    <h4 style={{ margin: "0 0 6px 0", fontSize: "16px", fontWeight: 600, color: "#0f172a", wordBreak: "break-all" }}>
+                      {fileName}
+                    </h4>
+                    <div style={{ display: "inline-block", fontSize: "11px", padding: "3px 10px", borderRadius: "12px", backgroundColor: "#f1f5f9", color: "#475569", fontWeight: 600 }}>
+                      {fmt.name} · {contentType}
+                    </div>
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b", lineHeight: 1.5, maxWidth: "400px" }}>
+                    This document format cannot be rendered directly in browser preview. Click the button below to download and open it in your local application.
+                  </p>
+
+                  <Button
+                    onClick={handleDownloadBrdDocument}
+                    variant="contained"
+                    size="medium"
+                    startIcon={<DownloadOutlined />}
+                    style={{
+                      backgroundColor: "#15803d",
+                      color: "#ffffff",
+                      textTransform: "none",
+                      fontWeight: 600,
+                      fontSize: "13px",
+                      padding: "8px 24px",
+                      borderRadius: "6px",
+                    }}
+                  >
+                    Download {fileName}
+                  </Button>
+                </div>
+              );
+            })()
+          ) : (
+            <p style={{ color: "#64748b" }}>No document preview available.</p>
+          )}
+        </DialogContent>
+        <DialogActions
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#ffffff",
+            borderTop: "1px solid #e2e8f0",
+            display: "flex",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ fontSize: "12px", color: "#64748b" }}>
+            {getBrdContentType(stepsState.step2.attachmentURL, getBrdFileName())}
+          </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <Button
+              onClick={handleDownloadBrdDocument}
+              variant="contained"
+              size="small"
+              startIcon={<DownloadOutlined />}
+              style={{
+                backgroundColor: "#15803d",
+                color: "#ffffff",
+                textTransform: "none",
+                fontWeight: 600,
+                fontSize: "12px",
+              }}
+            >
+              Download
+            </Button>
+            <Button
+              onClick={() => setBrdPreviewOpen(false)}
+              variant="outlined"
+              size="small"
+              style={{
+                borderColor: "#cbd5e1",
+                color: "#475569",
+                textTransform: "none",
+                fontSize: "12px",
+              }}
+            >
+              Close
+            </Button>
+          </div>
+        </DialogActions>
+      </Dialog>
 
         {/* Card 5: Rules of the flow */}
         {/* <div className="mlp-dw-side-card">

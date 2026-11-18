@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { Skeleton } from "@mui/material";
-import "../Styles/ModuleLeadPage.css";
+// import "../Styles/ModuleLeadPage.css";
 import "../Styles/ConsultantPage.css";
 import { ticketsAPI } from "../Services/TicketsAPI";
 import { getEmployeesAPI } from "../Services/GetEmployeesAPI";
@@ -318,17 +318,27 @@ const ConsultantPage = () => {
   const selectedWorkflowTicket = workflowTickets[workflowTicketIdx] || consultantAssignedTickets[0] || null;
 
   const getFormattedCreatedDate = (dateStr) => {
-    if (!dateStr) return "08/30/2026";
+    if (!dateStr) return "30/08/2026";
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return "08/30/2026";
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    if (isNaN(d.getTime())) return "30/08/2026";
     const dd = String(d.getDate()).padStart(2, "0");
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
     const yyyy = d.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
+    return `${dd}/${mm}/${yyyy}`;
   };
 
   const getComputedEndDate = (startDateStr, workingDaysCount, workingHoursCount) => {
     let d = new Date(startDateStr);
+    if (isNaN(d.getTime()) && typeof startDateStr === "string") {
+      const parts = startDateStr.split(/[-/]/);
+      if (parts.length === 3) {
+        if (parts[0].length === 4) {
+          d = new Date(parts[0], parts[1] - 1, parts[2]);
+        } else {
+          d = new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+      }
+    }
     if (isNaN(d.getTime())) d = new Date();
     let days = 1;
     const hasHours = workingHoursCount !== null && workingHoursCount !== undefined && String(workingHoursCount).trim() !== "" && Number(workingHoursCount) > 0;
@@ -351,10 +361,10 @@ const ConsultantPage = () => {
         remainingDays--;
       }
     }
-    const mm = String(current.getMonth() + 1).padStart(2, "0");
     const dd = String(current.getDate()).padStart(2, "0");
+    const mm = String(current.getMonth() + 1).padStart(2, "0");
     const yyyy = current.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
+    return `${dd}/${mm}/${yyyy}`;
   };
 
   const toPriorityPayloadString = (p) => {

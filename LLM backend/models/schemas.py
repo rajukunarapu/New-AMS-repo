@@ -2,57 +2,58 @@
 models/schemas.py - Exact Pydantic models for API request and response.
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Union
 from pydantic import BaseModel, Field, field_validator
-
 
 # --- Strict Allowed Ticket Types ---
 VALID_TICKET_TYPES = [
-    "Change Request",
-    "S PO",
     "Incident",
-    "Service Request"
+    "Change Request",
+    "Service request",
+    "S PO"
 ]
 
 
-def normalize_ticket_type(candidate: Optional[str]) -> str:
+def normalize_ticket_type(candidate: Optional[Any]) -> str:
     """
-    Normalizes candidate ticket type to one of the strict allowed types:
-    - "Change Request"
-    - "S PO"
+    Normalizes candidate ticket type to one of the strict authoritative types:
     - "Incident"
-    - "Service Request"
+    - "Change Request"
+    - "Service request"
+    - "S PO"
     Defaults to "Incident" if missing, unrecognized, or blank.
     """
-    if not candidate or not str(candidate).strip():
+    if candidate is None:
         return "Incident"
 
-    c_clean = str(candidate).strip()
-    c_lower = c_clean.lower()
+    clean_str = str(candidate).strip()
+    if not clean_str:
+        return "Incident"
 
-    # Direct match (case-insensitive)
+    lower = clean_str.lower()
+
+    # Exact match
     for vt in VALID_TICKET_TYPES:
-        if c_lower == vt.lower():
+        if lower == vt.lower():
             return vt
 
-    # Change Request variations (CR, Change, Request for Change)
-    if "change request" in c_lower or c_lower == "cr" or "change" in c_lower or "rfc" in c_lower:
-        return "Change Request"
-
-    # S PO variations (S PO, SPO, S-PO, PO, Purchase Order)
-    import re
-    if re.search(r'\b(?:s\s*po|spo|s-po)\b', c_lower) or "purchase order" in c_lower:
+    # S PO check
+    if lower in ["s po", "spo", "s-po", "service po", "standing po", "3160"]:
         return "S PO"
 
-    # Service Request variations (SR, Service, Request)
-    if "service request" in c_lower or c_lower == "sr" or "service" in c_lower:
-        return "Service Request"
+    # Change Request check
+    if any(k in lower for k in ["change request", "change", "enhancement", "modification", "cr", "new feature", "2092"]):
+        return "Change Request"
 
-    # Incident variations (Incident, Bug, Issue, Problem, Error, Fault)
-    if any(k in c_lower for k in ["incident", "bug", "issue", "problem", "error", "fault"]):
+    # Service Request check
+    if any(k in lower for k in ["service request", "service", "access", "sr", "2093"]):
+        return "Service request"
+
+    # Incident check
+    if any(k in lower for k in ["incident", "bug", "error", "fault", "issue", "crash", "problem", "dump", "2091"]):
         return "Incident"
 
-    # Fallback default
+    # Default
     return "Incident"
 
 
@@ -84,12 +85,12 @@ class TicketCreateRequest(BaseModel):
     ClientName: Optional[str] = Field(None, description="Swagger PascalCase alias")
     ams: Optional[str] = Field(None, description="AMS system/instance name", example="AMS")
     AMS: Optional[str] = Field(None, description="Swagger PascalCase alias")
-    typeofticket: Optional[str] = Field(
+    typeofticket: Optional[Union[str, int]] = Field(
         default="Incident",
-        description="Type of ticket. Allowed values: 'Change Request', 'S PO', 'Incident', 'Service Request'",
+        description="Type of ticket (Incident, Change Request, Service request, S PO)",
         example="Incident"
     )
-    Typeofticket: Optional[str] = Field(None, description="Swagger PascalCase alias")
+    Typeofticket: Optional[Union[str, int]] = Field(None, description="Swagger PascalCase alias")
     priority: Optional[str] = Field(None, description="Priority: 'Low', 'Medium', 'High', or 'Very High'", example="High")
     Priority: Optional[str] = Field(None, description="Swagger PascalCase alias")
     reportedon: Optional[str] = Field(None, description="Reported date-time in ISO format", example="2026-09-03T10:30:00")
@@ -110,6 +111,8 @@ class TicketCreateRequest(BaseModel):
     @field_validator("typeofticket", "Typeofticket", mode="before")
     @classmethod
     def validate_type_of_ticket(cls, v):
+        if v is None:
+            return "Incident"
         return normalize_ticket_type(v)
 
 

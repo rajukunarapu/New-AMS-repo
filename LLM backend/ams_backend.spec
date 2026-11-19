@@ -5,6 +5,7 @@ a = Analysis(
     pathex=['.'],
     binaries=[],
     datas=[
+        ('.env', '.'),
         ('web.config', '.'),
         ('Module_Router.txt', '.'),
         ('SLA_SERVICE_README.md', '.'),

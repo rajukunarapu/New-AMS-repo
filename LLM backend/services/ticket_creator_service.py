@@ -20,6 +20,19 @@ from ams_api import AMSApi
 from Module_Router import assign_group, GROUPS
 from query_engine import _call_llm
 from models.schemas import VALID_TICKET_TYPES, normalize_ticket_type
+from services.classification_config import (
+    TICKET_TYPE_CHANGE_REQUEST,
+    TICKET_TYPE_INCIDENT,
+    TICKET_TYPE_S_PO,
+    TICKET_TYPE_SERVICE_REQUEST,
+    VALID_TICKET_TYPES,
+    resolve_authoritative_ticket_type,
+    adjust_priority_for_ticket_type,
+    check_priority_adjustment,
+    ALLOWED_PRIORITIES_BY_TYPE,
+    PRIORITY_DISPLAY_MAPPING
+)
+from services.classification_service import TicketClassifier
 
 
 SCHEMA_FIELDS = [
@@ -284,14 +297,18 @@ async def is_explicit_query_prompt(prompt: str, history: Optional[List[Dict[str,
 
 def infer_ticket_type_from_text(text: Optional[str]) -> Optional[str]:
     """
-    Infers the ticket type ('Change Request', 'S PO', 'Service Request', 'Incident')
+    Infers the ticket type ('Change Request', 'Service request', 'Incident', 'S PO')
     from problem description or prompt text.
     """
     if not text or not str(text).strip():
         return None
     t_lower = str(text).lower()
 
-    # 1. Change Request
+    # 1. S PO
+    if re.search(r'\b(?:s\s*po|standing\s*p(?:urchase\s*)?o(?:rder)?|s-po)\b', t_lower):
+        return "S PO"
+
+    # 2. Change Request
     if any(re.search(pat, t_lower) for pat in [
         r'\bchange\s*request\b', r'\bcr\b', r'\brequest\s+for\s+change\b',
         r'\bnew\s+feature\b', r'\benhancement\b', r'\bmodify\b', r'\bcustomization\b',
@@ -299,27 +316,20 @@ def infer_ticket_type_from_text(text: Optional[str]) -> Optional[str]:
     ]):
         return "Change Request"
 
-    # 2. S PO (Purchase Order / Purchase Requisition)
+    # 3. Service request
     if any(re.search(pat, t_lower) for pat in [
-        r'\b(?:s\s*po|spo|s-po)\b', r'\bpurchase\s*order\b', r'\bpo\s+creation\b',
-        r'\bprocurement\s+order\b', r'\bvendor\s+po\b', r'\bpr\b', r'\bpurchase\s*requisition\b'
-    ]):
-        return "S PO"
-
-    # 3. Service Request
-    if any(re.search(pat, t_lower) for pat in [
-        r'\bservice\s*request\b', r'\bsr\b', r'\brequest\s+for\s+access\b',
+        r'\bservice\s*request\b', r'\bservicerequest\b', r'\bsr\b', r'\brequest\s+for\s+access\b',
         r'\baccess\s+request\b', r'\bpassword\s+reset\b', r'\buser\s+creation\b',
         r'\bpermission\s+request\b', r'\bhow\s+to\b', r'\bguidance\b', r'\bprovisioning\b',
         r'\binstall\b', r'\bsetup\b'
     ]):
-        return "Service Request"
+        return "Service request"
 
     # 4. Incident
     if any(re.search(pat, t_lower) for pat in [
         r'\bincident\b', r'\bbug\b', r'\berror\b', r'\bfailure\b', r'\bcrash\b',
         r'\bnot\s+working\b', r'\bdump\b', r'\bfault\b', r'\bdown\b', r'\bbroken\b',
-        r'\bissue\b', r'\bproblem\b'
+        r'\bissue\b', r'\bproblem\b', r'\bpo\b', r'\bpurchase\s*order\b'
     ]):
         return "Incident"
 
@@ -555,9 +565,12 @@ async def extract_fields_with_llm(prompt: str, current_draft: Dict[str, Any], kn
         "Your goal is to understand complex, novel, and natural language user prompts and extract structured ticket fields into JSON.\n\n"
         "EXTRACTION RULES:\n"
         "1. METADATA EXTRACTION:\n"
-        "   - priority: Extract priority/severity phrases anywhere in prompt (e.g. 'low priority', 'consider it low priority', 'very high', 'p1', 'critical', 'p2', 'high') and map to strictly one of ['Low', 'Medium', 'High', 'Very High'].\n"
+        "   - priority: Extract priority/severity phrases anywhere in prompt. Strictly align with ticket type rules:\n"
+        "     * Change Request: ONLY 'Low' (P4 - Low).\n"
+        "     * Incident: 'Very High' (P1), 'High' (P2), or 'Medium' (P3) (No Low allowed; defaults to Medium).\n"
+        "     * Service Request / S PO: 'High' (P2), 'Medium' (P3), or 'Low' (P4) (No Very High allowed; defaults to Low).\n"
         "   - clientName: Extract client or company name (e.g. 'AAB', 'Alekya homes', 'Balaji', 'Karamtara', 'ATG'). Match against known clients if possible or extract novel client names.\n"
-        "   - typeofticket: Must strictly be one of ['Change Request', 'S PO', 'Incident', 'Service Request']. Defaults to 'Incident'. (Infer 'S PO' for PO/MIRO/procurement, 'Service Request' for access/request/dashboard provisioning, 'Incident' for errors/bugs/down time).\n"
+        "   - typeofticket: Must strictly be one of ['Change Request', 'Service Request', 'Incident']. Defaults to 'Incident'. (Infer 'Change Request' for modifications/enhancements, 'Service Request' for access/request/dashboard provisioning, 'Incident' for errors/bugs/down time/issues).\n"
         "   - assigntogroup: Infer module or team if mentioned (e.g. SAP-SAC, SAP-MM, SAP-AI, SAP-FICO, Support).\n\n"
         "2. DESCRIPTION REWRITING & SYNTHESIS FROM WHOLE PROMPT:\n"
         "   - Understand the entire prompt's intent to identify the underlying technical issue reported.\n"
@@ -574,7 +587,7 @@ async def extract_fields_with_llm(prompt: str, current_draft: Dict[str, Any], kn
 Available fields in schema:
 - clientName: Registered client or company name (string or null). Match against known clients if possible: {json.dumps(all_clients[:30])}
 - ams: System/instance name (defaults to "AMS" if not specified)
-- typeofticket: MUST strictly be one of: "Change Request", "S PO", "Incident", "Service Request". Defaults to "Incident". (string or null)
+- typeofticket: MUST strictly be one of: "Change Request", "Service Request", "Incident". Defaults to "Incident". (string or null)
 - priority: "Low", "Medium", "High", or "Critical" / "Very High" (string or null)
 - reportedon: Date or timestamp in ISO format (YYYY-MM-DDTHH:MM:SS) if mentioned, else null
 - reportedontime: Time string (HH:MM:SS) if mentioned, else null
@@ -589,10 +602,10 @@ Input: "i can't able to create dashboards and kpis for client AAB in sap analyti
 Output: {{"clientName": "AAB", "priority": "Low", "typeofticket": "Service Request", "descriptionofTicket": "Unable to create dashboards and KPIs in SAP Analytics Cloud.", "assigntogroup": "SAP-SAC"}}
 
 Input: "create a ticket for client Alekya homes where i cannot able to process purchase order in MIRO. consider it as low priority."
-Output: {{"clientName": "Alekya homes", "priority": "Low", "typeofticket": "S PO", "descriptionofTicket": "Unable to process purchase order in MIRO.", "assigntogroup": "SAP-MM"}}
+Output: {{"clientName": "Alekya homes", "priority": "Low", "typeofticket": "Incident", "descriptionofTicket": "Unable to process purchase order in MIRO.", "assigntogroup": "SAP-MM"}}
 
 Input: "create ticket for client AAB, prority is low and issue is purchase order not processing"
-Output: {{"clientName": "AAB", "priority": "Low", "typeofticket": "S PO", "descriptionofTicket": "Purchase order not processing.", "assigntogroup": "SAP-MM"}}
+Output: {{"clientName": "AAB", "priority": "Low", "typeofticket": "Incident", "descriptionofTicket": "Purchase order not processing.", "assigntogroup": "SAP-MM"}}
 
 Input: "issue is joule icon missing and proirity is very high"
 Output: {{"clientName": null, "priority": "Very High", "typeofticket": "Incident", "descriptionofTicket": "Joule icon is missing.", "assigntogroup": "SAP-AI"}}
@@ -817,18 +830,18 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
     if m_scr:
         draft["screenshort"] = m_scr.group(1).strip()
 
-    # 8. Type of Ticket - Strictly: Change Request, S PO, Incident, Service Request
+    # 8. Type of Ticket - Strictly: Change Request, S PO, Incident, Service request
     m_type = re.search(r'\b(?:type\s*(?:of\s*ticket)?|category)\s*[:=]\s*([A-Za-z0-9\s\-_]+)', p, re.IGNORECASE)
     if m_type:
-        draft["typeofticket"] = normalize_ticket_type(m_type.group(1).strip())
+        draft["typeofticket"] = resolve_authoritative_ticket_type(m_type.group(1).strip())
         draft["_typeofticket_source"] = "user"
     else:
         inferred = infer_ticket_type_from_text(p) or infer_ticket_type_from_text(draft.get("descriptionofTicket"))
         if inferred:
-            draft["typeofticket"] = inferred
+            draft["typeofticket"] = resolve_authoritative_ticket_type(inferred)
             draft["_typeofticket_source"] = "auto"
         elif draft.get("typeofticket"):
-            draft["typeofticket"] = normalize_ticket_type(draft.get("typeofticket"))
+            draft["typeofticket"] = resolve_authoritative_ticket_type(draft.get("typeofticket"))
 
     return draft
 
@@ -904,17 +917,32 @@ async def finalize_draft_fields(
     if not res.get("reportedontime"):
         res["reportedontime"] = now.strftime("%H:%M:%S")
 
-    # If typeofticket is not explicitly set, infer from description of ticket or default to "Incident"
-    if not res.get("typeofticket"):
-        inferred = infer_ticket_type_from_text(res.get("descriptionofTicket"))
-        if inferred:
-            res["typeofticket"] = inferred
-            res["_typeofticket_source"] = "auto"
-        else:
-            res["typeofticket"] = "Incident"
-            res["_typeofticket_source"] = "default"
+    # Resolve authoritative ticket type and ID using semantic classification
+    if not res.get("typeofticket") or res.get("_typeofticket_source") in ["auto", "default", None]:
+        desc_text = res.get("descriptionofTicket") or ""
+        cls_result = await TicketClassifier.classify_ticket_intent(
+            user_message=desc_text,
+            active_draft=res
+        )
+        res["typeofticket"] = cls_result["ticketType"]
+        res["_typeofticket_source"] = "auto"
+        res["_typeofticket_confidence"] = cls_result.get("confidence")
+        res["_typeofticket_reason"] = cls_result.get("reason")
+        if cls_result.get("requiresClarification"):
+            res["_clarification_question"] = cls_result.get("clarificationQuestion")
     else:
-        res["typeofticket"] = normalize_ticket_type(res.get("typeofticket"))
+        res["typeofticket"] = resolve_authoritative_ticket_type(res.get("typeofticket"))
+
+    # Enforce authoritative priority matrix according to ticket type
+    # (Change Request: Low only; Incident: Very High, High, Medium; Service Request & S PO: High, Medium, Low)
+    user_explicit = bool(res.get("_user_explicit_priority") or res.get("_priority_source") == "user")
+    cand_prio = res.get("_user_explicit_priority") or res.get("priority")
+    adj_prio, prio_reason = check_priority_adjustment(cand_prio, res.get("typeofticket"), is_explicit_request=user_explicit)
+    res["priority"] = adj_prio
+    if prio_reason:
+        res["_priority_adjustment_note"] = prio_reason
+    elif user_explicit:
+        res["_priority_adjustment_note"] = None
 
     if not res.get("ams"):
         res["ams"] = "AMS"
@@ -947,9 +975,12 @@ def get_missing_core_fields(draft: Dict[str, Any]) -> List[str]:
     if not desc or str(desc).strip().lower() in ["", "none", "null", "none provided", "undefined", "unknown", "*not provided*"]:
         missing.append("descriptionofTicket")
         
-    prio = draft.get("priority")
-    if not prio or str(prio).strip().lower() in ["", "none", "null", "none provided", "undefined", "unknown", "*not provided*"]:
-        missing.append("priority")
+    # For Change Requests, priority is strictly fixed to 'Low' (P4) and never missing
+    t_type = resolve_authoritative_ticket_type(draft.get("typeofticket"))
+    if t_type != TICKET_TYPE_CHANGE_REQUEST:
+        prio = draft.get("priority")
+        if not prio or str(prio).strip().lower() in ["", "none", "null", "none provided", "undefined", "unknown", "*not provided*"]:
+            missing.append("priority")
         
     return missing
 
@@ -1002,12 +1033,22 @@ async def analyze_user_intent_on_draft(
                 if resolved_c:
                     return "modify", {"clientName": resolved_c}
             elif pending_field == "priority":
-                if any(w in msg_lower for w in ["low", "minor"]):
-                    return "modify", {"priority": "Low"}
-                elif any(w in msg_lower for w in ["high", "critical", "p1", "p2"]):
-                    return "modify", {"priority": "High"}
+                cand_prio = None
+                if any(w in msg_lower for w in ["low", "minor", "p4"]):
+                    cand_prio = "Low"
+                elif any(w in msg_lower for w in ["very high", "critical", "p1"]):
+                    cand_prio = "Very High"
+                elif any(w in msg_lower for w in ["high", "p2"]):
+                    cand_prio = "High"
                 elif any(w in msg_lower for w in ["medium", "med", "p3"]):
-                    return "modify", {"priority": "Medium"}
+                    cand_prio = "Medium"
+                adjusted, reason = check_priority_adjustment(cand_prio or msg_clean, current_draft.get("typeofticket"), is_explicit_request=True)
+                mods = {"priority": adjusted, "_priority_source": "user"}
+                if reason:
+                    mods["_priority_adjustment_note"] = reason
+                else:
+                    mods["_priority_adjustment_note"] = None
+                return "modify", mods
             elif pending_field == "descriptionofTicket":
                 clean_msg = clean_user_message_text(msg_clean, current_draft.get("screenshort"))
                 if len(clean_msg) > 3:
@@ -1068,7 +1109,7 @@ Respond with a JSON object:
     "assigntogroup": null or updated_value,
     "reportedby": null or updated_value,
     "remarks": null or updated_value,
-    "typeofticket": null or updated_value (Allowed values ONLY: "Change Request", "S PO", "Incident", "Service Request")
+    "typeofticket": null or updated_value (Allowed values ONLY: "Incident", "Change Request", "Service request", "S PO")
   }}
 }}
 """
@@ -1086,7 +1127,29 @@ Respond with a JSON object:
             if "screenshort" in mod_fields and current_draft.get("screenshort"):
                 mod_fields.pop("screenshort", None)
             if "typeofticket" in mod_fields and mod_fields["typeofticket"]:
-                mod_fields["typeofticket"] = normalize_ticket_type(mod_fields["typeofticket"])
+                resolved_type = resolve_authoritative_ticket_type(mod_fields["typeofticket"])
+                mod_fields["typeofticket"] = resolved_type
+                mod_fields["_typeofticket_source"] = "user"
+                # Re-adjust priority according to the authoritative priority matrix
+                active_prio = mod_fields.get("priority") or current_draft.get("priority")
+                user_explicit = bool(mod_fields.get("priority"))
+                adj_prio, reason = check_priority_adjustment(active_prio, resolved_type, is_explicit_request=user_explicit)
+                mod_fields["priority"] = adj_prio
+                if reason:
+                    mod_fields["_priority_adjustment_note"] = reason
+                elif user_explicit:
+                    mod_fields["_priority_adjustment_note"] = None
+            elif "priority" in mod_fields and mod_fields["priority"]:
+                adj_prio, reason = check_priority_adjustment(
+                    mod_fields["priority"],
+                    current_draft.get("typeofticket"),
+                    is_explicit_request=True
+                )
+                mod_fields["priority"] = adj_prio
+                if reason:
+                    mod_fields["_priority_adjustment_note"] = reason
+                else:
+                    mod_fields["_priority_adjustment_note"] = None
             if "descriptionofTicket" in mod_fields and mod_fields["descriptionofTicket"]:
                 if current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
                     if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', msg_clean, re.IGNORECASE) or "description" in msg_clean.lower()):
@@ -1129,7 +1192,29 @@ Respond with a JSON object:
     mod_extracted = heuristic_field_extractor(msg_clean, current_draft, known_clients or [])
     cleaned_mods = {k: v for k, v in mod_extracted.items() if v is not None}
     if "typeofticket" in cleaned_mods:
-        cleaned_mods["typeofticket"] = normalize_ticket_type(cleaned_mods["typeofticket"])
+        resolved_type = resolve_authoritative_ticket_type(cleaned_mods["typeofticket"])
+        cleaned_mods["typeofticket"] = resolved_type
+        cleaned_mods["_typeofticket_source"] = "user"
+        # Re-adjust priority according to ticket priority matrix
+        active_prio = cleaned_mods.get("priority") or current_draft.get("priority")
+        user_explicit = bool(cleaned_mods.get("priority"))
+        adj_prio, reason = check_priority_adjustment(active_prio, resolved_type, is_explicit_request=user_explicit)
+        cleaned_mods["priority"] = adj_prio
+        if reason:
+            cleaned_mods["_priority_adjustment_note"] = reason
+        elif user_explicit:
+            cleaned_mods["_priority_adjustment_note"] = None
+    elif "priority" in cleaned_mods:
+        adj_prio, reason = check_priority_adjustment(
+            cleaned_mods["priority"],
+            current_draft.get("typeofticket"),
+            is_explicit_request=True
+        )
+        cleaned_mods["priority"] = adj_prio
+        if reason:
+            cleaned_mods["_priority_adjustment_note"] = reason
+        else:
+            cleaned_mods["_priority_adjustment_note"] = None
 
     if current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
         if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', msg_clean, re.IGNORECASE) or "description" in msg_clean.lower()):
@@ -1152,7 +1237,7 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
     field_labels = [
         ("Client Name", "clientName", "Registered customer / client name"),
         ("AMS Instance", "ams", "AMS system name"),
-        ("Type of Ticket", "typeofticket", "Allowed: Change Request | S PO | Incident | Service Request"),
+        ("Type of Ticket", "typeofticket", "Allowed: Incident | Change Request | Service request | S PO"),
         ("Priority", "priority", "Severity / Priority level"),
         ("Reported On", "reportedon", "Reported ISO date-time"),
         ("Reported Time", "reportedontime", "Reported time"),
@@ -1165,10 +1250,14 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
 
     lines = [
         "### AMS Ticket Creation Preview\n",
+    ]
+    if draft.get("_priority_adjustment_note"):
+        lines.append(f"> ⚠️ **Priority Policy Notice:** {draft['_priority_adjustment_note']}\n")
+    lines.extend([
         "Please review the extracted ticket fields below:\n",
         "| Field | Value | Status |",
         "| :--- | :--- | :--- |"
-    ]
+    ])
 
     for label, key, desc in field_labels:
         val = draft.get(key)
@@ -1190,19 +1279,21 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
                 val_display = f"`{val}`"
             elif key == "typeofticket":
                 src = draft.get("_typeofticket_source")
+                conf = draft.get("_typeofticket_confidence")
                 if src == "auto":
-                    status_str = "*Auto-classified*"
+                    status_str = f"*Auto-classified ({int(conf * 100)}%)*" if conf else "*Auto-classified*"
                 elif src == "user":
-                    status_str = "*Provided*"
+                    status_str = "*Confirmed*"
                 else:
                     status_str = "*Default*"
-                val_display = f"`{val}`"
+                val_display = f"**`{val}`**"
             elif key == "assigntogroup":
                 status_str = "*Auto-routed*"
                 val_display = f"**`{val}`**"
             elif key == "priority":
                 status_str = "*Ready*"
-                val_display = f"**`{val}`**"
+                prio_code = PRIORITY_DISPLAY_MAPPING.get(val, val)
+                val_display = f"**`{val}`** ({prio_code})" if prio_code != val else f"**`{val}`**"
             elif key == "screenshort":
                 val_str = str(val).strip()
                 if val_str.startswith("data:image/"):
@@ -1233,12 +1324,15 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
         lines.append("")
         next_field_prompt = missing_fields[0]
         lines.append(f"**Next Step**: Please enter the value for **{next_field_prompt}** (or provide multiple missing fields in your reply).")
-    else:
-        lines.append("---")
-        lines.append("**All required details are complete.**")
+    if draft.get("_clarification_question"):
+        lines.append(f"> ℹ️ **Classification Note:** {draft['_clarification_question']}")
         lines.append("")
-        lines.append("Would you like to proceed with creating this ticket, or would you like to make any modifications?")
-        lines.append("*(You can say **\"Yes, go ahead\"**, **\"Proceed\"**, **\"Looks good\"**, **\"Create it\"**, or tell me what to change)*")
+
+    lines.append("---")
+    lines.append("**All required details are complete.**")
+    lines.append("")
+    lines.append("Would you like to proceed with creating this ticket, or would you like to make any modifications?")
+    lines.append("*(You can say **\"Yes, go ahead\"**, **\"Proceed\"**, **\"Looks good\"**, **\"Create it\"**, or tell me what to change)*")
 
     return "\n".join(lines)
 
@@ -1246,11 +1340,20 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
 async def submit_ticket_to_ams(draft: Dict[str, Any], ams: AMSApi) -> Dict[str, Any]:
     """
     Calls AMS live API /api/Ticket/CreateTicket with the finalized payload (async).
+    Maps Typeofticket to the authoritative category name:
+    - "Incident"
+    - "Change Request"
+    - "Service request"
+    - "S PO"
     """
+    type_name = resolve_authoritative_ticket_type(
+        draft.get("Typeofticket") or draft.get("typeofticket")
+    )
+
     payload = {
         "ClientName": draft.get("ClientName") or draft.get("clientName"),
         "AMS": draft.get("AMS") or draft.get("ams") or "AMS",
-        "Typeofticket": normalize_ticket_type(draft.get("Typeofticket") or draft.get("typeofticket")),
+        "Typeofticket": type_name,
         "Priority": draft.get("Priority") or draft.get("priority"),
         "Reportedon": draft.get("Reportedon") or draft.get("reportedon"),
         "Reportedontime": draft.get("Reportedontime") or draft.get("reportedontime"),
@@ -1261,7 +1364,7 @@ async def submit_ticket_to_ams(draft: Dict[str, Any], ams: AMSApi) -> Dict[str, 
         "Assigntogroup": draft.get("Assigntogroup") or draft.get("assigntogroup"),
         "clientName": draft.get("clientName") or draft.get("ClientName"),
         "ams": draft.get("ams") or draft.get("AMS") or "AMS",
-        "typeofticket": normalize_ticket_type(draft.get("typeofticket") or draft.get("Typeofticket")),
+        "typeofticket": type_name,
         "priority": draft.get("priority") or draft.get("Priority"),
         "reportedon": draft.get("reportedon") or draft.get("Reportedon"),
         "reportedontime": draft.get("reportedontime") or draft.get("Reportedontime"),

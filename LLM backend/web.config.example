@@ -35,6 +35,9 @@
         <environmentVariable name="TICKET_STEP_REMINDER_API_URL" value="http://localhost/api/Ticket/SendTicketStepReminder" />
         <environmentVariable name="SLA_MONITOR_INTERVAL_MINUTES" value="1" />
         <environmentVariable name="SLA_REMINDER_THRESHOLD_MINUTES" value="30" />
+        <environmentVariable name="BUSINESS_START_HOUR" value="9" />
+        <environmentVariable name="BUSINESS_END_HOUR" value="17" />
+        <environmentVariable name="LOW_MED_REMINDER_HOUR" value="16" />
         <environmentVariable name="SLA_DB_PATH" value="data/sla_tracker.db" />
         <environmentVariable name="SLA_LOG_DIR" value="logs" />
 

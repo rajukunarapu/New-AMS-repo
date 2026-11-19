@@ -569,7 +569,7 @@ const TicketDetailsPage = ({
               <div className="mlp-td-overview-grid">
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">TICKET</span>
-                  <span className="mlp-td-value">{selectedTicket.ticketNo}</span>
+                  <span className="mlp-td-value mlp-td-ticket-badge">{selectedTicket.ticketNo}</span>
                 </div>
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">CUSTOMER</span>
@@ -577,7 +577,7 @@ const TicketDetailsPage = ({
                 </div>
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">MODULE</span>
-                  <span className="mlp-td-value">{selectedTicket.module || "-"}</span>
+                  <span className="mlp-td-value mlp-td-module-badge">{selectedTicket.module || "-"}</span>
                 </div>
 
                 <div className="mlp-td-field">
@@ -609,15 +609,32 @@ const TicketDetailsPage = ({
 
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">PRIORITY</span>
-                  <span className="mlp-td-value">{selectedTicket.priority || "-"}</span>
+                  <span
+                    className={`mlp-td-value mlp-td-priority-badge priority-${String(
+                      selectedTicket.priority || ""
+                    )
+                      .toLowerCase()
+                      .trim()}`}
+                  >
+                    {selectedTicket.priority || "-"}
+                  </span>
                 </div>
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">SOURCE CHANNEL</span>
-                  <span className="mlp-td-value">{selectedTicket.createdEmails || "—"}</span>
+                  <span className="mlp-td-value mlp-td-channel-value">{selectedTicket.createdEmails || "—"}</span>
                 </div>
                 <div className="mlp-td-field">
                   <span className="mlp-td-label">TICKET STATUS</span>
-                  <span className="mlp-td-value">{selectedTicket.ticketStatus || "-"}</span>
+                  <span
+                    className={`mlp-td-value mlp-td-status-badge status-${String(
+                      selectedTicket.ticketStatus || ""
+                    )
+                      .toLowerCase()
+                      .trim()
+                      .replace(/\s+/g, "-")}`}
+                  >
+                    {selectedTicket.ticketStatus || "-"}
+                  </span>
                 </div>
               </div>
 

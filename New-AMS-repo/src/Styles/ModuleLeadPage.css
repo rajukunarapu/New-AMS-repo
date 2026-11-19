@@ -1469,73 +1469,187 @@
 
 /* ── Card 1: Ticket Overview (Clean 3-column layout) ── */
 .mlp-td-overview-name {
-  font-size: 15.5px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #2f4367;
+  margin: 0 0 16px;
+  line-height: 1.45;
+  letter-spacing: -0.015em;
 }
 
 .mlp-td-divider {
   height: 1px;
-  background: #f1f5f9;
-  margin: 12px 0;
+  background: #e2e8f0;
+  margin: 16px 0 20px;
 }
 
 .mlp-td-overview-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 14px 20px;
+  gap: 18px 24px;
 }
 
 .mlp-td-field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 5px;
 }
 
 .mlp-td-label {
-  font-size: 9.5px;
-  font-weight: 600;
-  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  line-height: 1.2;
 }
 
 .mlp-td-value {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 600;
   color: #1e293b;
+  line-height: 1.4;
+  word-break: break-word;
 }
 
 .mlp-td-subvalue {
-  font-size: 10.5px;
+  font-size: 11px;
   color: #64748b;
+  line-height: 1.35;
+}
+
+/* Specific Overview Badges & Values */
+.mlp-td-ticket-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1d4ed8;
+  background: #eff6ff;
+  border: 1px solid #dbeafe;
+  padding: 3px 10px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.mlp-td-module-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 2.5px 10px;
+  border-radius: 6px;
+}
+
+.mlp-td-priority-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2.5px 10px;
+  border-radius: 9999px;
+  text-transform: capitalize;
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.mlp-td-priority-badge.priority-high,
+.mlp-td-priority-badge.priority-urgent,
+.mlp-td-priority-badge.priority-critical {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fee2e2;
+}
+
+.mlp-td-priority-badge.priority-medium {
+  color: #b45309;
+  background: #fffbeb;
+  border-color: #fef3c7;
+}
+
+.mlp-td-priority-badge.priority-low {
+  color: #15803d;
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+.mlp-td-status-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 2.5px 10px;
+  border-radius: 9999px;
+  text-transform: capitalize;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  color: #334155;
+}
+
+.mlp-td-status-badge.status-created,
+.mlp-td-status-badge.status-new {
+  color: #0369a1;
+  background: #f0f9ff;
+  border-color: #e0f2fe;
+}
+
+.mlp-td-status-badge.status-assigned,
+.mlp-td-status-badge.status-inprogress,
+.mlp-td-status-badge.status-in-progress {
+  color: #d97706;
+  background: #fffbeb;
+  border-color: #fef3c7;
+}
+
+.mlp-td-status-badge.status-completed,
+.mlp-td-status-badge.status-closed,
+.mlp-td-status-badge.status-resolved {
+  color: #16a34a;
+  background: #f0fdf4;
+  border-color: #dcfce7;
+}
+
+.mlp-td-channel-value {
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  word-break: break-all;
 }
 
 /* SLA Bar inside Overview */
 .mlp-td-sla-box {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid #f1f5f9;
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid #e2e8f0;
 }
 
 .mlp-td-sla-row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   margin-bottom: 8px;
 }
 
 .mlp-td-sla-title {
-  font-size: 11px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   color: #475569;
-  min-width: 28px;
+  letter-spacing: 0.05em;
+  min-width: 32px;
 }
 
 .mlp-td-sla-track {
   flex: 1;
-  height: 6px;
+  height: 8px;
   background: #e2e8f0;
   border-radius: 999px;
   overflow: hidden;
@@ -1544,13 +1658,14 @@
 
 .mlp-td-sla-fill {
   height: 100%;
-  background: #3b82f6;
+  background: linear-gradient(90deg, #059669, #10b981);
   border-radius: 999px;
 }
 
 .mlp-td-sla-text {
-  font-size: 11px;
-  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  color: #475569;
   white-space: nowrap;
 }
 
@@ -3163,7 +3278,7 @@
 }
 
 .mlp-dw-brd-record-btn:hover:not(:disabled) {
-  background: #15803d !important;
+  background: #15803d ;
   transform: none !important;
   box-shadow: 0 3px 8px rgba(22, 163, 74, 0.35) !important;
 }

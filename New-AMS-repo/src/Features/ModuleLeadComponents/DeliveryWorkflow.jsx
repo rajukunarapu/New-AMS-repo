@@ -1134,6 +1134,14 @@ const DeliveryWorkflow = ({
 
   // Dynamic array of 10 deduplicated records against the current ticket
   const [workflowStepRecords, setWorkflowStepRecords] = useState([]);
+  const [workflowApiTypeOfTicket, setWorkflowApiTypeOfTicket] = useState(
+    selectedWorkflowTicket?.typeofTicket ||
+      selectedWorkflowTicket?.typeOfTicket ||
+      selectedWorkflowTicket?.typeof_ticket ||
+      selectedWorkflowTicket?.ticketType ||
+      selectedWorkflowTicket?.type ||
+      ""
+  );
 
   // Fetch workflow steps data from API and map deduplicated latest records
   const fetchWorkflowData = async (ticketId, fallbackTicket) => {
@@ -1141,6 +1149,24 @@ const DeliveryWorkflow = ({
     try {
       const resp = await getDeliveryWorkflowAPI(ticketId);
       const stepsData = resp?.data?.steps || (Array.isArray(resp?.data) ? resp.data : []);
+
+      // Extract typeofTicket from DeliveryWorkflow API response
+      const apiType =
+        resp?.data?.typeofTicket ||
+        resp?.data?.typeOfTicket ||
+        resp?.data?.typeof_ticket ||
+        resp?.data?.ticketType ||
+        (Array.isArray(stepsData) && stepsData.find((s) => s && (s.typeofTicket || s.typeOfTicket || s.typeof_ticket))?.typeofTicket) ||
+        (Array.isArray(stepsData) && stepsData.find((s) => s && (s.typeofTicket || s.typeOfTicket || s.typeof_ticket))?.typeOfTicket) ||
+        (Array.isArray(stepsData) && stepsData[0]?.typeofTicket) ||
+        (Array.isArray(stepsData) && stepsData[0]?.typeOfTicket) ||
+        fallbackTicket?.typeofTicket ||
+        fallbackTicket?.typeOfTicket ||
+        fallbackTicket?.typeof_ticket ||
+        "";
+      if (apiType) {
+        setWorkflowApiTypeOfTicket(apiType);
+      }
 
       const defaultName =
         fallbackTicket?.name ||
@@ -1409,11 +1435,24 @@ const DeliveryWorkflow = ({
       if (!isNewTicket && prevTicketIdRef.current !== null) return;
       prevTicketIdRef.current = currentTicketId;
 
+      const initialType =
+        selectedWorkflowTicket.typeofTicket ||
+        selectedWorkflowTicket.typeOfTicket ||
+        selectedWorkflowTicket.typeof_ticket ||
+        selectedWorkflowTicket.ticketType ||
+        selectedWorkflowTicket.type ||
+        "";
+      if (initialType) {
+        setWorkflowApiTypeOfTicket(initialType);
+      }
+
       fetchWorkflowData(currentTicketId, selectedWorkflowTicket);
     }
   }, [
     selectedWorkflowTicket?.ticketNo,
     selectedWorkflowTicket?.txnId,
+    selectedWorkflowTicket?.typeofTicket,
+    selectedWorkflowTicket?.typeOfTicket,
     selectedWorkflowTicket?.name,
     selectedWorkflowTicket?.responsibleBy,
     selectedWorkflowTicket?.ResponsibleBy,
@@ -1767,36 +1806,82 @@ const DeliveryWorkflow = ({
     return "pending";
   };
 
-  // Helper renderer for step status badge (Completed / Not Performed / Pending)
+  // Determine if a step is Mandatory or Optional based on typeofTicket property from Deliveryworkflow API
+  const getStepRequirementType = (stepKey) => {
+    const rawType = String(
+      workflowApiTypeOfTicket ||
+        selectedWorkflowTicket?.typeofTicket ||
+        selectedWorkflowTicket?.typeOfTicket ||
+        selectedWorkflowTicket?.typeof_ticket ||
+        selectedWorkflowTicket?.ticketType ||
+        selectedWorkflowTicket?.type ||
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const isIncident = rawType.includes("incid");
+    const isServiceRequest = rawType.includes("service");
+
+    if (isIncident) {
+      // Incident:
+      // Required: TicketAcknowledgment (step1), Technical Specification (step5), Configuration (step6), Internal testing (step7), Submission (step9), Validation & Acceptance (step10)
+      // Optional: BRD (step2), BUD (step3), FS (step4), User Manual (step8)
+      if (["step2", "step3", "step4", "step8"].includes(stepKey)) {
+        return "Optional";
+      }
+      return "Mandatory";
+    }
+
+    if (isServiceRequest) {
+      // Service Request:
+      // Required: TicketAcknowledgment (step1), BUD (step3), FS (step4), TS (step5), Configuration (step6), Internal Testing (step7), User.manual (step8), Submission (step9), Validation & Acceptance (step10)
+      // Optional: BRD (step2)
+      if (stepKey === "step2") {
+        return "Optional";
+      }
+      return "Mandatory";
+    }
+
+    // Change Request (or default): All 10 steps are Mandatory
+    return "Mandatory";
+  };
+
+  // Helper renderer for step status badge (Completed / Not Performed / Pending) & Requirement tag (Mandatory / Optional)
   const renderStepBadge = (stepKey) => {
     const status = getStepPerformanceStatus(stepKey);
-    if (status === "completed") {
-      return (
-        <span
-          className="mlp-dw-step-badge-completed"
-          style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}
-        >
-          Completed
-        </span>
-      );
-    }
-    if (status === "skipped") {
-      return (
-        <span
-          className="mlp-dw-step-badge-skipped"
-          style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }}
-        >
-          Not Performed
-        </span>
-      );
-    }
+    const reqType = getStepRequirementType(stepKey);
+    const isMandatory = reqType === "Mandatory";
+
     return (
-      <span
-        className="mlp-dw-step-badge-pending"
-        style={{ background: "#fefce8", color: "#a16207", border: "1px solid #fef08a" }}
-      >
-        Pending
-      </span>
+      <div className="mlp-dw-step-top-actions">
+        <span className={`mlp-dw-step-req-badge ${isMandatory ? "mandatory" : "optional"}`}>
+          <span className="mlp-dw-step-req-dot" />
+          {reqType}
+        </span>
+        {status === "completed" ? (
+          <span
+            className="mlp-dw-step-badge-completed"
+            style={{ background: "#ecfdf5", color: "#047857", border: "1px solid #a7f3d0" }}
+          >
+            Completed
+          </span>
+        ) : status === "skipped" ? (
+          <span
+            className="mlp-dw-step-badge-skipped"
+            style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }}
+          >
+            Not Performed
+          </span>
+        ) : (
+          <span
+            className="mlp-dw-step-badge-pending"
+            style={{ background: "#fefce8", color: "#a16207", border: "1px solid #fef08a" }}
+          >
+            Pending
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -1918,7 +2003,10 @@ const DeliveryWorkflow = ({
                   <Skeleton variant="text" width="55%" height={28} sx={{ borderRadius: "4px" }} />
                   <Skeleton variant="text" width="28%" height={18} sx={{ marginTop: "4px", borderRadius: "4px" }} />
                 </div>
-                <Skeleton variant="rectangular" width={48} height={24} sx={{ borderRadius: "6px" }} />
+                <div className="mlp-dw-tsc-badges">
+                  <Skeleton variant="rectangular" width={65} height={24} sx={{ borderRadius: "6px" }} />
+                  <Skeleton variant="rectangular" width={48} height={24} sx={{ borderRadius: "6px" }} />
+                </div>
               </div>
               <div className="mlp-dw-tsc-footer">
                 <Skeleton variant="text" width="22%" height={16} sx={{ borderRadius: "4px" }} />
@@ -1935,18 +2023,29 @@ const DeliveryWorkflow = ({
                     Current ticket · {currentActiveStepObj.name}
                   </p>
                 </div>
-                {selectedWorkflowTicket && (
-                  <span
-                    className={`mlp-tc-priority ${
-                      getPriorityClass ? getPriorityClass(selectedWorkflowTicket.priority) : "p4"
-                    }`}
-                    style={{ padding: "4px 10px", fontSize: "12px", borderRadius: "6px" }}
-                  >
-                    {formatPriorityCode
-                      ? formatPriorityCode(selectedWorkflowTicket.priority)
-                      : selectedWorkflowTicket.priority || "P4"}
-                  </span>
-                )}
+                <div className="mlp-dw-tsc-badges">
+                  {selectedWorkflowTicket && (
+                    <span className="mlp-dw-tsc-type-badge">
+                      {selectedWorkflowTicket?.typeofTicket ||
+                        selectedWorkflowTicket?.typeOfTicket ||
+                        selectedWorkflowTicket?.typeof_ticket ||
+                        selectedWorkflowTicket?.ticketType ||
+                        selectedWorkflowTicket?.type ||
+                        "-"}
+                    </span>
+                  )}
+                  {selectedWorkflowTicket && (
+                    <span
+                      className={`mlp-tc-priority mlp-dw-tsc-priority-badge ${
+                        getPriorityClass ? getPriorityClass(selectedWorkflowTicket.priority) : "p4"
+                      }`}
+                    >
+                      {formatPriorityCode
+                        ? formatPriorityCode(selectedWorkflowTicket.priority)
+                        : selectedWorkflowTicket.priority || "P4"}
+                    </span>
+                  )}
+                </div>
               </div>
               <div className="mlp-dw-tsc-footer">
                 Stage {currentActiveStepObj.num} of 10 · {isCurrentStepDone ? "Complete" : "In Progress"}
@@ -2072,7 +2171,10 @@ const DeliveryWorkflow = ({
                     <Skeleton variant="rectangular" width={160} height={22} sx={{ borderRadius: "4px" }} />
                     <Skeleton variant="rectangular" width={80} height={22} sx={{ borderRadius: "4px" }} />
                   </div>
-                  <Skeleton variant="rectangular" width={75} height={24} sx={{ borderRadius: "9999px" }} />
+                  <div className="mlp-dw-step-top-actions">
+                    <Skeleton variant="rectangular" width={70} height={22} sx={{ borderRadius: "12px" }} />
+                    <Skeleton variant="rectangular" width={75} height={24} sx={{ borderRadius: "9999px" }} />
+                  </div>
                 </div>
                 <Skeleton variant="text" width="70%" height={16} sx={{ borderRadius: "4px", margin: "4px 0" }} />
                 <div className="mlp-dw-form-row">

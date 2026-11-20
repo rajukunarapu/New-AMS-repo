@@ -409,6 +409,7 @@ const TicketDetailsPage = ({
             <Skeleton variant="rounded" width={40} height={24} sx={{ borderRadius: "999px" }} />
             <Skeleton variant="rounded" width={75} height={24} sx={{ borderRadius: "999px" }} />
             <Skeleton variant="rounded" width={65} height={24} sx={{ borderRadius: "999px" }} />
+            <Skeleton variant="rounded" width={70} height={24} sx={{ borderRadius: "999px" }} />
             <Skeleton variant="text" width={120} height={20} />
             <Skeleton variant="text" width={110} height={20} />
           </div>
@@ -423,6 +424,14 @@ const TicketDetailsPage = ({
             <span className="mlp-subbar-pill">{selectedPriorityCode}</span>
             <span className="mlp-subbar-pill">{selectedTicket.ticketStatus || "-"}</span>
             <span className="mlp-subbar-pill">{selectedTicket.module || "-"}</span>
+            <span className="mlp-subbar-pill mlp-subbar-ticket-type">
+              {selectedTicket.typeofTicket ||
+                selectedTicket.typeOfTicket ||
+                selectedTicket.typeof_ticket ||
+                selectedTicket.ticketType ||
+                selectedTicket.type ||
+                "-"}
+            </span>
             <span className="mlp-subbar-text">
               {selectedTicket.clientName || "-"}
             </span>
@@ -940,8 +949,8 @@ const TicketDetailsPage = ({
                   <div
                     style={{
                       border: "1px solid #fecaca",
-                      backgroundColor: "#fff1f2",
-                      color: "#991b1b",
+                      backgroundColor: "rgb(229 231 206)",
+                      color: "rgb(27 76 153)",
                       padding: "8px 12px",
                       borderRadius: "4px",
                       fontWeight: 600,
@@ -957,7 +966,7 @@ const TicketDetailsPage = ({
                         width: "16px",
                         height: "16px",
                         borderRadius: "50%",
-                        backgroundColor: "#ef4444",
+                        backgroundColor: "rgb(68 109 239)",
                         color: "#ffffff",
                         display: "inline-flex",
                         alignItems: "center",

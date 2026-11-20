@@ -654,6 +654,38 @@ body,
   color: #f8fafc !important;
 }
 
+[data-theme="dark"] .mlp-subbar-pill.mlp-subbar-ticket-type {
+  background-color: rgba(37, 99, 235, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .mlp-dw-tsc-type-badge {
+  background-color: rgba(37, 99, 235, 0.15) !important;
+  border-color: rgba(59, 130, 246, 0.3) !important;
+  color: #93c5fd !important;
+}
+
+[data-theme="dark"] .mlp-dw-step-req-badge.mandatory {
+  background-color: rgba(245, 158, 11, 0.15) !important;
+  color: #fcd34d !important;
+  border-color: rgba(245, 158, 11, 0.3) !important;
+}
+
+[data-theme="dark"] .mlp-dw-step-req-badge.mandatory .mlp-dw-step-req-dot {
+  background-color: #f59e0b !important;
+}
+
+[data-theme="dark"] .mlp-dw-step-req-badge.optional {
+  background-color: #1e293b !important;
+  color: #cbd5e1 !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .mlp-dw-step-req-badge.optional .mlp-dw-step-req-dot {
+  background-color: #94a3b8 !important;
+}
+
 [data-theme="dark"] .mlp-subbar-text {
   color: #94a3b8 !important;
 }

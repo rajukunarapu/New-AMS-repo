@@ -22,11 +22,12 @@ except Exception:
 SLA_EMAIL: str = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL", "")
 SLA_PASSWORD: str = os.getenv("SLA_PASSWORD") or os.getenv("AMS_PASSWORD", "")
 
-# Base URL (loaded from web.config SLA_BASE_URL, AMS_BASE_URL, or HOST)
+# Base URL (loaded from web.config SLA_BASE_URL, AMS_BASE_URL, or HOST + AMS_PORT)
+AMS_PORT: str = os.getenv("AMS_PORT", "91")
 SLA_BASE_URL: str = (
     os.getenv("SLA_BASE_URL")
     or os.getenv("AMS_BASE_URL")
-    or (f"http://{os.getenv('HOST', '127.0.0.1')}" if not os.getenv("HOST", "").startswith("http") else os.getenv("HOST"))
+    or f"http://{os.getenv('HOST', '172.16.33.217')}:{AMS_PORT}"
 ).rstrip("/")
 
 GET_TICKET_DETAILS_ENDPOINT: str = os.getenv("GET_TICKET_DETAILS_ENDPOINT", "/api/Ticket/GetTicketDetails")

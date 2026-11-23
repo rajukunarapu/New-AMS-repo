@@ -52,6 +52,7 @@ class AMSApi:
     def __init__(self, email=None, password=None):
         self._email = email
         self._password = password
+        self._base_url = None
         self._auth_url = None
         self._ticket_url = None
         self._ticket_status_url = None
@@ -67,6 +68,22 @@ class AMSApi:
         """Reload variables from web.config into os.environ."""
         load_web_config()
  
+    @property
+    def base_url(self):
+        if self._base_url:
+            return self._base_url.rstrip("/")
+        self.reload_env()
+        configured = (
+            os.getenv("AMS_BASE_URL")
+            or os.getenv("SLA_BASE_URL")
+            or f"http://{os.getenv('HOST', '172.16.33.217')}:{os.getenv('AMS_PORT', '91')}"
+        )
+        return configured.rstrip("/")
+
+    @base_url.setter
+    def base_url(self, value):
+        self._base_url = value
+
     @property
     def email(self):
         if self._email and self._email != "your_email":
@@ -153,7 +170,7 @@ class AMSApi:
         if self._client_names_url:
             return self._client_names_url
         self.reload_env()
-        return os.getenv("AMS_CLIENT_NAMES_URL"or f"{self.base_url}/api/Ticket/GetClientNames")
+        return os.getenv("AMS_CLIENT_NAMES_URL") or f"{self.base_url}/api/Ticket/GetClientNames"
  
     @client_names_url.setter
     def client_names_url(self, value):

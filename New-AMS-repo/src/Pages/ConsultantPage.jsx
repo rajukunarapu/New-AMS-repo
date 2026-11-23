@@ -1057,7 +1057,11 @@ const ConsultantPage = () => {
       </div>
 
       {/* ── Reusable Floating NeoAI Widget (Chat & Compose) ── */}
-      <NeoAIChatWidget contextName="Consultant Workspace" userEmail={emailParam} />
+      <NeoAIChatWidget
+        contextName="Consultant Workspace"
+        userEmail={emailParam}
+        onOpenFullPage={() => handleNavClick("neoai")}
+      />
     </div>
   );
 };

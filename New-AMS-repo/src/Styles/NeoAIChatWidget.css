@@ -81,6 +81,29 @@
   gap: 6px;
 }
 
+.neoai-online-pulse {
+  width: 7px;
+  height: 7px;
+  background-color: #22c55e;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  animation: neoaiPulse 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+  margin-right: 2px;
+}
+
+@keyframes neoaiPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 5px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
 .neoai-indicator-square {
   width: 9px;
   height: 9px;
@@ -127,6 +150,16 @@
   color: #0f172a;
 }
 
+.neoai-fullpage-icon-btn {
+  color: #475569;
+}
+
+.neoai-fullpage-icon-btn:hover {
+  background: #e0e7ff;
+  color: #2563eb;
+  transform: scale(1.08);
+}
+
 /* ── Chat Body ── */
 .neoai-card-body {
   padding: 14px 16px;
@@ -164,22 +197,67 @@
 .neoai-suggestion-btn {
   background: #ffffff;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: 8px;
   padding: 10px 14px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   color: #1e293b;
   text-align: left;
   cursor: pointer;
-  transition: all 0.15s ease;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  position: relative;
+  overflow: hidden;
 }
 
 .neoai-suggestion-btn:hover {
   background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
-  transform: translateX(2px);
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  transform: translateX(4px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.08);
+}
+
+.neoai-suggestion-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #475569;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.neoai-suggestion-btn:hover .neoai-suggestion-icon-wrap {
+  background: #dbeafe;
+  color: #2563eb;
+  transform: scale(1.05);
+}
+
+.neoai-suggestion-text {
+  flex: 1;
+  line-height: 1.35;
+}
+
+.neoai-suggestion-arrow {
+  color: #94a3b8;
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+}
+
+.neoai-suggestion-btn:hover .neoai-suggestion-arrow {
+  opacity: 1;
+  transform: translateX(0);
+  color: #2563eb;
 }
 
 /* Messages List */
@@ -275,6 +353,107 @@ body.dark-theme .neoai-message-bubble.thinking,
   align-self: flex-end;
 }
 
+/* ── Interactive Message Actions & Reactions ── */
+.neoai-message-bottom-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 4px;
+}
+
+.neoai-msg-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.neoai-msg-action-btn {
+  background: transparent;
+  border: none;
+  font-size: 10.5px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.neoai-msg-action-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.neoai-msg-reactions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.neoai-reaction-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.neoai-reaction-btn:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.neoai-reaction-btn.active {
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+/* ── Quick Follow-up Chips ── */
+.neoai-quick-followups {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px 6px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.neoai-quick-followups::-webkit-scrollbar {
+  display: none;
+}
+
+.neoai-followup-chip {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 4px 11px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.neoai-followup-chip:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(37, 99, 235, 0.1);
+}
+
 /* ── Chat Footer ── */
 .neoai-card-footer {
   padding: 10px 14px;
@@ -302,11 +481,18 @@ body.dark-theme .neoai-message-bubble.thinking,
   color: #0f172a;
 }
 
-.neoai-chat-input {
+.neoai-input-wrap {
   flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.neoai-chat-input {
+  width: 100%;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  padding: 7px 12px;
+  padding: 7px 28px 7px 12px;
   font-size: 12px;
   color: #0f172a;
   outline: none;
@@ -316,6 +502,28 @@ body.dark-theme .neoai-message-bubble.thinking,
 .neoai-chat-input:focus {
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.neoai-input-clear-btn {
+  position: absolute;
+  right: 6px;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s ease;
+}
+
+.neoai-input-clear-btn:hover {
+  background: #e2e8f0;
+  color: #334155;
 }
 
 .neoai-ask-btn {
@@ -511,4 +719,137 @@ body.dark-theme .neoai-message-bubble.thinking,
 
 .neoai-attachment-chip-remove:hover {
   background: rgba(30, 64, 175, 0.12);
+}
+
+/* ── Drag & Drop Overlay ── */
+.neoai-floating-popover.dragging {
+  border: 2px dashed #3b82f6 !important;
+}
+
+.neoai-drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(239, 246, 255, 0.94);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.neoai-drag-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #2563eb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ── Bottom Trigger Button Pulse ── */
+.neoai-trigger-pulse {
+  width: 7px;
+  height: 7px;
+  background: #34d399;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.7);
+  animation: neoaiTriggerGlow 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes neoaiTriggerGlow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0.8);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(52, 211, 153, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(52, 211, 153, 0);
+  }
+}
+
+/* ── Dark Theme Overrides for Interactive Elements ── */
+body.dark-theme .neoai-fullpage-icon-btn,
+[data-theme="dark"] .neoai-fullpage-icon-btn {
+  color: #94a3b8;
+}
+
+body.dark-theme .neoai-fullpage-icon-btn:hover,
+[data-theme="dark"] .neoai-fullpage-icon-btn:hover {
+  background: #1e293b;
+  color: #60a5fa;
+}
+
+body.dark-theme .neoai-suggestion-btn,
+[data-theme="dark"] .neoai-suggestion-btn {
+  background: #1e293b;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+body.dark-theme .neoai-suggestion-btn:hover,
+[data-theme="dark"] .neoai-suggestion-btn:hover {
+  background: #334155;
+  border-color: #60a5fa;
+  color: #93c5fd;
+}
+
+body.dark-theme .neoai-suggestion-icon-wrap,
+[data-theme="dark"] .neoai-suggestion-icon-wrap {
+  background: #0f172a;
+  color: #94a3b8;
+}
+
+body.dark-theme .neoai-quick-followups,
+[data-theme="dark"] .neoai-quick-followups {
+  background: #0f172a;
+  border-color: #1e293b;
+}
+
+body.dark-theme .neoai-followup-chip,
+[data-theme="dark"] .neoai-followup-chip {
+  background: #1e293b;
+  border-color: #334155;
+  color: #cbd5e1;
+}
+
+body.dark-theme .neoai-followup-chip:hover,
+[data-theme="dark"] .neoai-followup-chip:hover {
+  background: #334155;
+  border-color: #60a5fa;
+  color: #93c5fd;
+}
+
+body.dark-theme .neoai-msg-action-btn,
+[data-theme="dark"] .neoai-msg-action-btn {
+  color: #94a3b8;
+}
+
+body.dark-theme .neoai-msg-action-btn:hover,
+[data-theme="dark"] .neoai-msg-action-btn:hover {
+  background: #1e293b;
+  color: #f8fafc;
+}
+
+body.dark-theme .neoai-reaction-btn,
+[data-theme="dark"] .neoai-reaction-btn {
+  color: #64748b;
+}
+
+body.dark-theme .neoai-reaction-btn:hover,
+[data-theme="dark"] .neoai-reaction-btn:hover {
+  background: #1e293b;
+  color: #cbd5e1;
+}
+
+body.dark-theme .neoai-input-clear-btn:hover,
+[data-theme="dark"] .neoai-input-clear-btn:hover {
+  background: #334155;
+  color: #f8fafc;
 }

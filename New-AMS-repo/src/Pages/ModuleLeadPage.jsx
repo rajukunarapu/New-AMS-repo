@@ -860,7 +860,11 @@ const ModuleLeadPage = () => {
       </div>
 
       {/* ── Reusable Floating NeoAI Widget (Chat & Compose) ── */}
-      <NeoAIChatWidget contextName="Support Dashboard · Module Lead" userEmail={emailParam} />
+      <NeoAIChatWidget
+        contextName="Support Dashboard · Module Lead"
+        userEmail={emailParam}
+        onOpenFullPage={() => handleNavClick("neoai")}
+      />
     </div>
   );
 };

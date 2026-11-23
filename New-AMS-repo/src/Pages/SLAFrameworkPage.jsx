@@ -411,7 +411,11 @@ const SLAFrameworkPage = () => {
       </div>
 
       {/* ── Reusable Floating NeoAI Widget (Chat & Compose) ── */}
-      <NeoAIChatWidget contextName="SLA Framework · Live Service" userEmail={emailParam} />
+      <NeoAIChatWidget
+        contextName="SLA Framework · Live Service"
+        userEmail={emailParam}
+        onOpenFullPage={() => setActiveNav("neoai")}
+      />
     </div>
   );
 };

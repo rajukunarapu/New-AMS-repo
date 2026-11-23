@@ -2020,7 +2020,7 @@ const DeliveryWorkflow = ({
                     {selectedWorkflowTicket?.ticketNo || "Ticket"} — {selectedWorkflowTicket?.description || selectedWorkflowTicket?.remarks || "No description provided"}
                   </h2>
                   <p className="mlp-dw-tsc-subtitle">
-                    Current ticket · {currentActiveStepObj.name}
+                    Current ticket · {currentActiveStepObj.name} Step
                   </p>
                 </div>
                 <div className="mlp-dw-tsc-badges">

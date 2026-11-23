@@ -43,7 +43,7 @@ const Notification = ({ currentNav, roleName }) => {
       </div>
 
       <div>
-        <h1 className="mlp-page-title" style={{ margin: "0 0 4px", fontSize: "22px", fontWeight: 700, color: "#0f172a" }}>
+        <h1 className="mlp-page-title" style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: 700, color: "#0f172a" }}>
           {currentNav?.label || "Notifications"}
         </h1>
         <p className="mlp-page-subtitle" style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>

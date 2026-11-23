@@ -550,7 +550,11 @@ const AdministratorPage = () => {
       </div>
 
       {/* ── Reusable Floating NeoAI Widget (Chat & Compose) ── */}
-      <NeoAIChatWidget contextName="Platform Administrator Console" userEmail={emailParam} />
+      <NeoAIChatWidget
+        contextName="Platform Administrator Console"
+        userEmail={emailParam}
+        onOpenFullPage={() => setActiveNav("neoai")}
+      />
     </div>
   );
 };

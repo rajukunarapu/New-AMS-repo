@@ -157,7 +157,7 @@ const NeoAIFullPage = ({ roleName }) => {
           <span className="cons-breadcrumb-sep">›</span>
           <span className="cons-breadcrumb-curr">NEOAI</span>
         </div>
-        <h1 className="neoai-fullpage-title">NeOAI</h1>
+        <h1 className="neoai-fullpage-title">NeoAI</h1>
         <p className="neoai-fullpage-subtitle">
           Ask about tickets, customers and past fixes in plain language. Answers cite where they came from, and an unsupported question gets "no answer" rather than a guess.
         </p>

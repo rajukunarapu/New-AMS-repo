@@ -1688,7 +1688,11 @@ const CustomerPage = () => {
       </div>
 
       {/* ── Reusable Floating NeoAI Widget (Chat & Compose) ── */}
-      <NeoAIChatWidget contextName="Customer Portal" userEmail={emailParam} />
+      <NeoAIChatWidget
+        contextName="Customer Portal"
+        userEmail={emailParam}
+        onOpenFullPage={() => setActiveNav("neoai")}
+      />
 
       {/* BRD Document Preview Modal */}
       <Dialog

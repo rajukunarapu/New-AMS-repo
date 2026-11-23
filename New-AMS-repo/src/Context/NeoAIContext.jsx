@@ -3,9 +3,9 @@ import { sendAIChatQuery } from "../Services/AIChatService";
  
 export const DEFAULT_SUGGESTIONS = [
   "Which tickets are high priority?",
-  "Show me open incidents for Karamtara",
   "What is our SLA compliance this month?",
-  "Has FB60 error happened before?",
+  "What are the most common issues reported?",
+  "Can you summarize the last 5 tickets?",
 ];
  
 export const KNOWLEDGE_RESPONSES = {};

@@ -731,7 +731,11 @@ const ExecutiveSponsorPage = () => {
       </div>
 
       {/* ── Reusable Floating NeoAI Widget (Chat & Compose) ── */}
-      <NeoAIChatWidget contextName="Executive Dashboard" userEmail={emailParam} />
+      <NeoAIChatWidget
+        contextName="Executive Dashboard"
+        userEmail={emailParam}
+        onOpenFullPage={() => setActiveNav("neoai")}
+      />
     </div>
   );
 };

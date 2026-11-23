@@ -13,10 +13,15 @@ Tests all requirements & confirmed business rules:
 """
 
 import os
+import sys
 import pytest
 import tempfile
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
+
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
 
 from config import BRD_DOC_TYPE, FS_DOC_TYPE
 from services.sla_reminder_store import SLATracker
@@ -228,7 +233,7 @@ def test_05_breach_handling_and_overrun_tracking(temp_db):
     assert res["reminders_sent"] == 1
     posted = mock_client.posted_reminders[0]
 
-    assert "Overdue by 60 Mins" in posted["timeRemaining"]
+    assert "Overdue by 1 hrs" in posted["timeRemaining"]
 
     row = SLATracker.get_row("TICK-BREACH", db_path=temp_db)
     assert row["sla_status"] == "SLA_BREACHED"
@@ -262,7 +267,7 @@ def test_06_skip_finished_closed_tickets(temp_db):
 
 
 def test_07_inprocess_status_gating(temp_db):
-    """Test 7: Only tickets with ticketStaus == 'Inprocess' are monitored; others are ignored."""
+    """Test 7: Active in-process statuses ('Inprocess', 'In Proc: ...') are monitored; 'WCA: ...' and others are paused."""
     sample_tickets = [
         {
             "ticketId": "TICK-INPROCESS",
@@ -270,6 +275,30 @@ def test_07_inprocess_status_gating(temp_db):
             "customerApprovedHours": 5.0,
             "documentType": BRD_DOC_TYPE,
             "ticketStaus": "Inprocess",
+            "reportedontime": "10:00:00:000",
+        },
+        {
+            "ticketId": "SUD2611109",
+            "priority": 4,
+            "customerApprovedHours": 6.0,
+            "documentType": BRD_DOC_TYPE,
+            "ticketStaus": "In Proc: Functional Analysis",
+            "reportedontime": "10:00:00:000",
+        },
+        {
+            "ticketId": "TICK-TECH-DEV",
+            "priority": 4,
+            "customerApprovedHours": 8.0,
+            "documentType": BRD_DOC_TYPE,
+            "ticketStaus": "In Proc: Technical Development",
+            "reportedontime": "10:00:00:000",
+        },
+        {
+            "ticketId": "TICK-WCA-PAUSED",
+            "priority": 4,
+            "customerApprovedHours": 5.0,
+            "documentType": BRD_DOC_TYPE,
+            "ticketStaus": "WCA: Customer Clarification",
             "reportedontime": "10:00:00:000",
         },
         {
@@ -287,14 +316,20 @@ def test_07_inprocess_status_gating(temp_db):
     res = run_sla_monitoring_cycle(ams_client=mock_client, current_time=now, db_path=temp_db)
 
     assert res["success"] is True
-    assert res["total_tickets"] == 2
-    assert res["reminders_sent"] == 1  # Only TICK-INPROCESS sent!
+    assert res["total_tickets"] == 5
+    assert res["reminders_sent"] == 3  # Only TICK-INPROCESS, SUD2611109, and TICK-TECH-DEV sent!
 
     row_inp = SLATracker.get_row("TICK-INPROCESS", db_path=temp_db)
+    row_sud = SLATracker.get_row("SUD2611109", db_path=temp_db)
+    row_dev = SLATracker.get_row("TICK-TECH-DEV", db_path=temp_db)
+    row_wca = SLATracker.get_row("TICK-WCA-PAUSED", db_path=temp_db)
     row_pen = SLATracker.get_row("TICK-PENDING", db_path=temp_db)
 
     assert row_inp is not None
-    assert row_pen is None  # TICK-PENDING not written to SQLite!
+    assert row_sud is not None
+    assert row_dev is not None
+    assert row_wca is None  # TICK-WCA-PAUSED paused (not written/sent)
+    assert row_pen is None  # TICK-PENDING paused
 
 
 def test_08_updated_approved_hours_recalculates_deadline(temp_db):
@@ -480,4 +515,70 @@ def test_13_resolve_latest_step_name():
     assert resolve_latest_step_name({}, default_step="BUD") == "BUD"
     assert resolve_latest_step_name({"steps": []}, default_step="BUD") == "BUD"
     assert resolve_latest_step_name({"steps": [{"documentType": None}]}, default_step="DEFAULT") == "DEFAULT"
+
+
+def test_14_sla_paused_status_transition(temp_db):
+    """Test 14: Tracked ticket moving to 'WCA: ...' updates DB sla_status to 'SLA_PAUSED' and pauses reminders."""
+    ticket_id = "TICK-PAUSE-TEST"
+
+    # Cycle 1: Ticket is active Inprocess -> tracked as WITHIN_SLA
+    t_cycle1 = [
+        {
+            "ticketId": ticket_id,
+            "priority": 4,
+            "customerApprovedHours": 5.0,
+            "documentType": BRD_DOC_TYPE,
+            "ticketStaus": "Inprocess",
+            "reportedontime": "10:00:00:000",
+        }
+    ]
+    client1 = MockAMSClient(dummy_tickets=t_cycle1)
+    now1 = datetime(2026, 10, 5, 10, 30, 0)
+    res1 = run_sla_monitoring_cycle(ams_client=client1, current_time=now1, db_path=temp_db)
+    assert res1["reminders_sent"] == 1
+
+    row1 = SLATracker.get_row(ticket_id, db_path=temp_db)
+    assert row1 is not None
+    assert row1["sla_status"] == "WITHIN_SLA"
+
+    # Cycle 2: Status changes to customer-waiting 'WCA: Customer Approval' -> sla_status becomes SLA_PAUSED
+    t_cycle2 = [
+        {
+            "ticketId": ticket_id,
+            "priority": 4,
+            "customerApprovedHours": 5.0,
+            "documentType": BRD_DOC_TYPE,
+            "ticketStaus": "WCA: Customer Approval",
+            "reportedontime": "10:00:00:000",
+        }
+    ]
+    client2 = MockAMSClient(dummy_tickets=t_cycle2)
+    now2 = datetime(2026, 10, 5, 11, 35, 0)  # > 1 hour later (would normally trigger P4 reminder)
+    res2 = run_sla_monitoring_cycle(ams_client=client2, current_time=now2, db_path=temp_db)
+    assert res2["reminders_sent"] == 0  # PAUSED, no reminder sent!
+
+    row2 = SLATracker.get_row(ticket_id, db_path=temp_db)
+    assert row2 is not None
+    assert row2["sla_status"] == "SLA_PAUSED"
+
+    # Cycle 3: Customer approves, moves to 'In Proc: Technical Development' -> resumes monitoring
+    t_cycle3 = [
+        {
+            "ticketId": ticket_id,
+            "priority": 4,
+            "customerApprovedHours": 5.0,
+            "documentType": BRD_DOC_TYPE,
+            "ticketStaus": "In Proc: Technical Development",
+            "reportedontime": "10:00:00:000",
+        }
+    ]
+    client3 = MockAMSClient(dummy_tickets=t_cycle3)
+    now3 = datetime(2026, 10, 5, 11, 40, 0)
+    res3 = run_sla_monitoring_cycle(ams_client=client3, current_time=now3, db_path=temp_db)
+    assert res3["reminders_sent"] == 1  # Resumed!
+
+    row3 = SLATracker.get_row(ticket_id, db_path=temp_db)
+    assert row3 is not None
+    assert row3["sla_status"] == "WITHIN_SLA"
+
 

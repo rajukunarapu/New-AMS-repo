@@ -369,7 +369,12 @@ class ChatService:
                 for k, v in extracted_fields.items():
                     if v is not None and str(v).strip():
                         initial_draft[k] = v
- 
+
+                # Tag if user explicitly specified a priority in message
+                m_prio = re.search(r'\b(?:very\s+high|critical|high|medium|med|moderate|low|minor|trivial|p1|p2|p3|p4)\b', request.message, re.IGNORECASE)
+                if m_prio:
+                    initial_draft["_user_explicit_priority"] = m_prio.group(0)
+
                 # Customer client cannot be overridden by extraction
                 if is_customer and customer_client:
                     initial_draft["clientName"] = customer_client

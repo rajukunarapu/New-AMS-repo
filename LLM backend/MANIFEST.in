@@ -1,4 +1,4 @@
-include web.config
+include .env
 include *.py
 include *.txt
 include *.md

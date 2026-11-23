@@ -14,17 +14,17 @@ import json
 from typing import Dict, Any, List, Optional
 from query_engine import _call_llm
 from services.guardrails import check_fast_guardrail
- 
- 
+
+
 ORCHESTRATOR_SYSTEM_INSTRUCTION = """You are the enterprise AI Assistant and Master Dispatcher for Neovatic AMS (Application Management Services).
 Analyze the user's message semantically and output a single JSON decision with one of four actions:
- 
+
 ACTIONS:
 1. "CONVERSATIONAL":
    - Use for greetings, pleasantries, questions about your identity, capabilities, or how Neovatic AMS works.
    - "conversational_response": Write a fresh, engaging, context-aware, helpful natural response specifically tailored to what the user said.
    - CRITICAL: Never repeat robotic canned templates. Vary your vocabulary and phrasing naturally each time. Keep within 1-3 sentences.
- 
+
 2. "OUT_OF_DOMAIN":
    - Use when the user asks about topics outside Neovatic AMS support operations:
      * General world knowledge (e.g., weather, sports, news, cooking, travel, celebrities).
@@ -32,16 +32,17 @@ ACTIONS:
      * Non-work casual entertainment or personal advice.
    - "conversational_response": A warm, polite, and engaging deflection. Politely state that you are specialized as the Neovatic AMS assistant for support tickets and system operations. Proactively guide/ask them how you can help with their AMS tickets, SLA metrics, or logging an issue.
    - CRITICAL: Keep it polite and conversational—do not be harsh or robotic. NEVER generate generic code snippets, weather reports, or general essays.
- 
+
 3. "CREATE_TICKET":
-   - Use when the user describes a technical problem, transaction dump, system failure, bug, access request, or asks to raise/open/log a ticket, or attached an error screenshot.
+   - Use when the user describes a technical problem, transaction dump, system failure, bug, access request, development or enhancement request, S PO request, or asks to raise/open/log a ticket, or attached an error screenshot.
    - "ticket_fields": {
        "clientName": "<client name mentioned or matched, or null>",
-       "priority": "<High|Medium|Low based on urgency/impact, default Medium>",
+       "priority": "<Strictly follow Priority Matrix: Change Request is ONLY Low (P4); Incident is Very High (P1), High (P2), or Medium (P3) (no Low); Service request / S PO is High (P2), Medium (P3), or Low (P4) (no Very High)>",
+       "typeofticket": "<Incident|Change Request|Service request|S PO based on user intent>",
        "descriptionofTicket": "<clear technical summary of the reported issue>"
      }
    - "dynamic_note": "<A 1-sentence friendly, varied dynamic confirmation that the issue has been captured in a draft>"
- 
+
 4. "QUERY_TICKETS":
    - Use when the user wants to search, inspect, filter, count, list, or check the status/metrics of existing tickets.
    - "query_plan": {
@@ -53,7 +54,7 @@ ACTIONS:
        "aggregation": "<count|list|detail or null>",
        "semantic_search": "<search terms or feature keywords e.g. Joule, invoice, dump>"
      }
- 
+
 OUTPUT FORMAT (STRICT JSON ONLY):
 {
   "action": "CONVERSATIONAL" | "OUT_OF_DOMAIN" | "CREATE_TICKET" | "QUERY_TICKETS",
@@ -102,7 +103,7 @@ async def run_chat_orchestrator(
     clean_msg = str(user_message or "").strip()
     msg_lower = clean_msg.lower()
     has_screenshot = bool(incoming_screenshot and str(incoming_screenshot).strip().lower() not in ["none", "null", ""])
- 
+
     # Fast Guardrail Pre-Check (Zero Latency & Zero Token Cost)
     if not has_screenshot:
         is_ood, ood_reply = check_fast_guardrail(clean_msg)
@@ -111,7 +112,7 @@ async def run_chat_orchestrator(
                 "action": "OUT_OF_DOMAIN",
                 "conversational_response": ood_reply
             }
- 
+
     user_payload_dict = {
         "user_message": clean_msg if clean_msg else "(User attached an image without text)" if has_screenshot else "Hello",
         "has_screenshot": has_screenshot,
@@ -235,14 +236,18 @@ STRICT CUSTOMER ISOLATION POLICY:
             }
         }
  
-    # Detect if user message is reporting an issue / creating a ticket
-    is_create = bool(re.search(r'\b(?:create|raise|open|log|dump|crash|error|failed|down|bug|not working)\b', msg_lower))
+    # Detect if user message is reporting an issue / requesting change / creating a ticket
+    is_create = bool(re.search(r'\b(?:create|raise|open|log|dump|crash|error|failed|down|bug|not working|additional\s+field|new\s+report|develop\s+new|enhancement|change\s*request|access\s+request|password\s+reset|s\s*po)\b', msg_lower))
     if is_create:
+        from services.classification_config import resolve_authoritative_ticket_type
+        from services.classification_service import TicketClassifier
+        fallback_cls = TicketClassifier._heuristic_semantic_classification(clean_msg)
         return {
             "action": "CREATE_TICKET",
             "ticket_fields": {
                 "clientName": None,
                 "priority": "High" if "high" in msg_lower else "Medium",
+                "typeofticket": fallback_cls.get("ticketType", "Incident"),
                 "descriptionofTicket": clean_msg
             },
             "dynamic_note": "I've started a new ticket draft based on your message. Please check the details below."
@@ -322,6 +327,5 @@ async def generate_dynamic_query_narrative(
     client_str = f" for client **{query_plan.get('client')}**" if query_plan.get("client") else ""
     status_str = f" with status **{query_plan.get('status')}**" if query_plan.get("status") else ""
     return f"There are **{count}** ticket(s) matching your request{client_str}{status_str}."
- 
  
  

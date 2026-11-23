@@ -3,21 +3,14 @@ import re
 import httpx
 import xml.etree.ElementTree as ET
 from typing import Optional, Dict, Any, List, Tuple
-try:
-    from pyi_env_hook import load_from_web_config
-except Exception:
-    def load_from_web_config(override: bool = False, file_path: str = None) -> bool:
-        return False
-
-
+ 
+ 
 def load_web_config(file_path: Optional[str] = None) -> bool:
     """
     Parses environment variables directly from web.config into os.environ.
-    This ensures URLs and configurations stored in web.config are always available.
+    This ensures URLs and configurations stored in web.config are always available,
+    without relying solely on .env.
     """
-    if load_from_web_config(override=False, file_path=file_path):
-        return True
-
     candidates = [
         file_path,
         os.path.join(os.path.dirname(__file__), "web.config"),
@@ -38,9 +31,9 @@ def load_web_config(file_path: Optional[str] = None) -> bool:
             except Exception as e:
                 print(f"[AMSApi] Warning: failed to parse {path}: {e}")
     return False
-
-
-# Load configurations exclusively from web.config
+ 
+ 
+# Load configurations from web.config
 load_web_config()
  
  
@@ -59,6 +52,7 @@ class AMSApi:
     def __init__(self, email=None, password=None):
         self._email = email
         self._password = password
+        self._base_url = None
         self._auth_url = None
         self._ticket_url = None
         self._ticket_status_url = None
@@ -74,6 +68,22 @@ class AMSApi:
         """Reload variables from web.config into os.environ."""
         load_web_config()
  
+    @property
+    def base_url(self):
+        if self._base_url:
+            return self._base_url.rstrip("/")
+        self.reload_env()
+        configured = (
+            os.getenv("AMS_BASE_URL")
+            or os.getenv("SLA_BASE_URL")
+            or f"http://{os.getenv('HOST', '172.16.33.217')}:{os.getenv('AMS_PORT', '91')}"
+        )
+        return configured.rstrip("/")
+
+    @base_url.setter
+    def base_url(self, value):
+        self._base_url = value
+
     @property
     def email(self):
         if self._email and self._email != "your_email":
@@ -160,7 +170,7 @@ class AMSApi:
         if self._client_names_url:
             return self._client_names_url
         self.reload_env()
-        return os.getenv("AMS_CLIENT_NAMES_URL"or f"{self.base_url}/api/Ticket/GetClientNames")
+        return os.getenv("AMS_CLIENT_NAMES_URL") or f"{self.base_url}/api/Ticket/GetClientNames"
  
     @client_names_url.setter
     def client_names_url(self, value):
@@ -213,7 +223,7 @@ class AMSApi:
  
         if not auth_email or auth_email == "your_email" or not auth_password or auth_password == "your_password":
             raise Exception(
-                "Invalid credentials configured. Please enter your actual AMS Email and Password in the sidebar or update the web.config file."
+                "Invalid credentials configured. Please enter your actual AMS Email and Password in the sidebar or update the .env file."
             )
  
         payload = {
@@ -625,20 +635,22 @@ class AMSApi:
         # Extract values using either PascalCase or camelCase/lowercase key names
         client_name = payload.get("ClientName") or payload.get("clientName") or ""
         ams_name = payload.get("AMS") or payload.get("ams") or "AMS"
-        type_of_ticket = payload.get("Typeofticket") or payload.get("typeofticket") or "Incident"
+        raw_type = payload.get("Typeofticket") or payload.get("typeofticket") or "Incident"
+        from services.classification_config import resolve_authoritative_ticket_type, adjust_priority_for_ticket_type
+        type_of_ticket = resolve_authoritative_ticket_type(raw_type)
        
-        # Priority normalization to match strict AMS database values
-        raw_prio = str(payload.get("Priority") or payload.get("priority") or "Low").strip().lower()
-        if "very high" in raw_prio or "critical" in raw_prio or raw_prio in ["p1", "1"]:
+        # Priority normalization to match strict AMS database values and enforce Ticket Priority matrix
+        raw_prio = payload.get("Priority") or payload.get("priority")
+        adjusted_prio = adjust_priority_for_ticket_type(raw_prio, type_of_ticket)
+
+        if adjusted_prio == "Very High":
             priority_val = "Very High (Production Impacted)"
-        elif "high" in raw_prio or raw_prio in ["p2", "2"]:
+        elif adjusted_prio == "High":
             priority_val = "High (Business Impacted)"
-        elif "med" in raw_prio or raw_prio in ["p3", "3"]:
+        elif adjusted_prio == "Medium":
             priority_val = "Medium"
-        elif "low" in raw_prio or raw_prio in ["p4", "4"]:
-            priority_val = "Low"
         else:
-            priority_val = "High (Business Impacted)" if "high" in raw_prio else "Low"
+            priority_val = "Low"
  
         reported_on = payload.get("Reportedon") or payload.get("reportedon") or ""
         reported_on_time = payload.get("Reportedontime") or payload.get("reportedontime") or ""
@@ -668,7 +680,7 @@ class AMSApi:
         form_data = {
             "ClientName": str(client_name),
             "AMS": str(ams_name) if ams_name else "AMS",
-            "Typeofticket": str(type_of_ticket) if type_of_ticket else "Incident",
+            "Typeofticket": str(type_of_ticket),
             "Priority": str(priority_val) if priority_val else "Low",
             "Reportedon": str(reported_on),
             "Reportedontime": str(reported_on_time),

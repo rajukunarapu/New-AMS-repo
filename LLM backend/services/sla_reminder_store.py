@@ -255,6 +255,28 @@ class SLATracker:
             )
 
     @classmethod
+    def set_sla_status(
+        cls,
+        ticket_id: str,
+        sla_status: str = "SLA_PAUSED",
+        db_path: Optional[str] = None
+    ):
+        """Updates sla_status for an existing tracked ticket (e.g. 'SLA_PAUSED')."""
+        target_path = resolve_db_path(db_path)
+        t_id_lower = str(ticket_id).strip().lower()
+        now_str = datetime.now().isoformat()
+
+        with get_db_transaction(target_path) as conn:
+            conn.execute(
+                """
+                UPDATE sla_tracker SET
+                    sla_status = ?, updated_at = ?
+                WHERE LOWER(ticket_id) = ?
+                """,
+                (sla_status, now_str, t_id_lower),
+            )
+
+    @classmethod
     def mark_completed(cls, ticket_id: str, db_path: Optional[str] = None):
         """Wrapper calling delete_ticket to hard-delete closed tickets."""
         cls.delete_ticket(ticket_id, db_path)

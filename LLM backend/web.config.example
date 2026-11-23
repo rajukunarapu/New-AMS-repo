@@ -17,24 +17,20 @@
         <environmentVariable name="PORT" value="8080" />
         <environmentVariable name="HOST" value="0.0.0.0" />
 
-        <!-- AMS Base and API Endpoints -->
-        <environmentVariable name="AMS_BASE_URL" value="http://localhost" />
-        <environmentVariable name="AMS_AUTH_URL" value="http://localhost/api/Auth/login" />
-        <environmentVariable name="AMS_TICKET_URL" value="http://localhost/api/Ticket" />
-        <environmentVariable name="AMS_TICKET_STATUS_URL" value="http://localhost/api/Ticket/Status" />
-        <environmentVariable name="AMS_TICKET_CREATE_URL" value="http://localhost/api/Ticket/CreateTicket" />
+        <!-- AMS Backend Configuration (Default Port 91) -->
+        <environmentVariable name="AMS_PORT" value="91" />
+        <environmentVariable name="AMS_BASE_URL" value="http://localhost:91" />
 
         <!-- SLA Credentials -->
         <environmentVariable name="SLA_EMAIL" value="your-email@example.com" />
         <environmentVariable name="SLA_PASSWORD" value="your-password" />
 
-        <!-- SLA Monitoring Configurations & Endpoints -->
-        <environmentVariable name="SLA_BASE_URL" value="http://localhost" />
-        <environmentVariable name="TICKET_DETAILS_API_URL" value="http://localhost/api/Ticket/GetTicketDetails" />
-        <environmentVariable name="TICKET_STEPS_API_URL" value="http://localhost/api/Ticket/GetTicketSteps" />
-        <environmentVariable name="TICKET_STEP_REMINDER_API_URL" value="http://localhost/api/Ticket/SendTicketStepReminder" />
+        <!-- SLA Monitoring Configurations -->
         <environmentVariable name="SLA_MONITOR_INTERVAL_MINUTES" value="1" />
         <environmentVariable name="SLA_REMINDER_THRESHOLD_MINUTES" value="30" />
+        <environmentVariable name="BUSINESS_START_HOUR" value="9" />
+        <environmentVariable name="BUSINESS_END_HOUR" value="17" />
+        <environmentVariable name="LOW_MED_REMINDER_HOUR" value="16" />
         <environmentVariable name="SLA_DB_PATH" value="data/sla_tracker.db" />
         <environmentVariable name="SLA_LOG_DIR" value="logs" />
 

@@ -5,10 +5,10 @@ main.py - FastAPI Application Entry Point for AMS Ticket Intelligence Assistant 
 import os
 import sys
 
-# Load environment variables exclusively from web.config before anything else initializes
+# Load environment variables from web.config before anything else initializes
 try:
     from pyi_env_hook import load_from_web_config
-    load_from_web_config()
+    load_from_web_config(override=True)
 except Exception:
     pass
 
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     if env_port and str(env_port).strip().isdigit():
         valid_env_port = int(str(env_port).strip())
 
-    # Priority: CLI argument > IIS dynamic port > PORT environment variable (web.config) > Default (83)
+    # Priority: CLI argument > IIS dynamic port > PORT environment variable (web.config / .env) > Default (8000)
     if args.port:
         port = args.port
     elif valid_iis_port:
@@ -135,7 +135,7 @@ if __name__ == "__main__":
     elif valid_env_port:
         port = valid_env_port
     else:
-        port = 83
+        port = 8000
 
     # Host binding priority: CLI arg > HOST env var (web.config) > (127.0.0.1 if IIS dynamic port else 0.0.0.0)
     env_host = os.getenv("HOST")

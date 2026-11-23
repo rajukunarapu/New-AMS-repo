@@ -1,9 +1,9 @@
 import Axios from "axios";
- 
+
 const getBaseUrl = () => {
-  return import.meta.env.VITE_AI_CHATBOT_API_URL
+  return import.meta.env.VITE_AI_CHATBOT_API_URL || "http://172.16.33.217:92/api";
 };
- 
+
 /**
  * Send natural language query to FastAPI LLM Chatbot
  * @param {Object} params
@@ -18,7 +18,7 @@ export async function sendAIChatQuery({ username, message, bearerToken, sessionI
   try {
     const baseUrl = getBaseUrl();
     const token = bearerToken || localStorage.getItem("token") || localStorage.getItem("jwt") || "";
- 
+
     const payload = {
       username: username || localStorage.getItem("userEmail") || localStorage.getItem("email") || localStorage.getItem("neo_email") || "user@neovatic.com",
       message: message,
@@ -28,7 +28,7 @@ export async function sendAIChatQuery({ username, message, bearerToken, sessionI
       history: history || null,
       screenshort: screenshort || null,
     };
- 
+
     const response = await Axios.post(`${baseUrl}/chat`, payload, {
       headers: {
         "Content-Type": "application/json",
@@ -36,7 +36,7 @@ export async function sendAIChatQuery({ username, message, bearerToken, sessionI
       },
       timeout: 60000, // 60 second timeout for LLM generation
     });
- 
+
     return {
       success: response.data?.success ?? true,
       response: response.data?.response || "No response text received.",
@@ -48,7 +48,7 @@ export async function sendAIChatQuery({ username, message, bearerToken, sessionI
     };
   } catch (error) {
     console.error("Error calling AI Chatbot service:", error);
- 
+
     let errorMsg = "Unable to connect to AI Assistant backend service.";
     if (error.response?.data?.detail) {
       errorMsg = typeof error.response.data.detail === "string"
@@ -61,7 +61,7 @@ export async function sendAIChatQuery({ username, message, bearerToken, sessionI
     } else if (error.message && error.message !== "Network Error") {
       errorMsg = error.message;
     }
- 
+
     return {
       success: false,
       response: `Error: ${errorMsg}`,
@@ -73,7 +73,7 @@ export async function sendAIChatQuery({ username, message, bearerToken, sessionI
     };
   }
 }
- 
+
 /**
  * Predict assignment group for a ticket issue description
  */
@@ -91,7 +91,7 @@ export async function routeModule(description) {
     return { description, assigned_group: "SAP-GENERAL" };
   }
 }
- 
+
 /**
  * Create ticket directly via AI chatbot endpoint
  */

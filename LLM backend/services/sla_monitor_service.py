@@ -32,6 +32,8 @@ from config import (
     PRIORITY_REMINDER_INTERVALS_HOURS,
     PRIORITY_NAMES,
     ACTIVE_TICKET_STATUS,
+    ACTIVE_IN_PROCESS_STATUSES,
+    is_active_in_process_status,
     CLOSED_TICKET_STATUSES,
     SLA_EMAIL,
     SLA_PASSWORD,
@@ -416,18 +418,34 @@ async def run_sla_monitoring_cycle_async(
         for ticket_id, rows in grouped_tickets.items():
             processed_tickets += 1
             try:
-                ticket_status = str(rows[0]["ticket_status"] or "").strip().lower()
- 
+                raw_status = str(rows[0]["ticket_status"] or "").strip()
+                ticket_status = raw_status.lower()
+
                 # Rule 1: If ticket is closed/completed, hard DELETE from SQLite store
                 if ticket_status in CLOSED_TICKET_STATUSES:
-                    logger.debug(f"Ticket '{ticket_id}' status is '{rows[0]['ticket_status']}' (Closed/Completed). Deleting from tracker DB.")
+                    logger.debug(f"Ticket '{ticket_id}' status is '{raw_status}' (Closed/Completed). Deleting from tracker DB.")
                     await asyncio.to_thread(SLATracker.delete_ticket, ticket_id, target_db)
                     skipped_count += 1
                     continue
- 
-                # Rule 2: Only tickets with ticketStaus == ACTIVE_TICKET_STATUS ('inprocess') are tracked
-                if ticket_status != ACTIVE_TICKET_STATUS:
-                    logger.debug(f"Ticket '{ticket_id}' status is '{rows[0]['ticket_status']}' (not '{ACTIVE_TICKET_STATUS}'). Skipping monitoring.")
+
+                # Rule 2: Active in-process stages (monitored for SLA) vs Customer waiting stages (WCA: so and so)
+                # Monitored: 'Inprocess', 'In Proc: Functional Analysis', 'In Proc: Technical Development',
+                #            'In Proc: Technical Design', 'In Proc: Functional Testing', or any 'In Proc: ...'
+                # Other than that (e.g. 'WCA: ...', 'Pending', etc.): Paused on customer side
+                if not is_active_in_process_status(raw_status):
+                    logger.debug(
+                        f"Ticket '{ticket_id}' status is '{raw_status}' (Customer side waiting / WCA). "
+                        f"SLA monitoring paused."
+                    )
+                    # If ticket was tracked in SQLite DB, set sla_status to 'SLA_PAUSED'
+                    existing_row = await asyncio.to_thread(SLATracker.get_row, ticket_id, target_db)
+                    if existing_row:
+                        await asyncio.to_thread(
+                            SLATracker.set_sla_status,
+                            ticket_id,
+                            "SLA_PAUSED",
+                            target_db
+                        )
                     skipped_count += 1
                     continue
  
@@ -501,7 +519,8 @@ async def run_sla_monitoring_cycle_async(
                     sla_status = "SLA_BREACHED"
                     overrun_seconds = (now - sla_deadline).total_seconds()
                     overrun_mins = int(round(overrun_seconds / 60.0))
-                    overrun_str = f"Overdue by {overrun_mins} Mins"
+                    overdue_formatted = format_time_remaining(overrun_mins)
+                    overrun_str = f"Overdue by {overdue_formatted}"
                     rem_mins = 0
                     time_remaining_str = "0 Mins"
                 else:
@@ -556,8 +575,8 @@ async def run_sla_monitoring_cycle_async(
                         f"Falling back to default step '{step_name_val}'."
                     )
  
-                # 2. Format timeRemaining payload (hours + mins if >= 60 mins)
-                time_remaining_payload = format_time_remaining(rem_mins)
+                # 2. Format timeRemaining payload (overdue duration if breached, or hours + mins remaining)
+                time_remaining_payload = overrun_str if is_breached else format_time_remaining(rem_mins)
  
                 payload = {
                     "consultantName": consultant_name or "",

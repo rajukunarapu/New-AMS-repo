@@ -3,12 +3,12 @@ import os
 import re
 import time
 import httpx
+
 try:
     from pyi_env_hook import load_from_web_config
-    load_from_web_config()
+    load_from_web_config(override=True)
 except Exception:
-    def load_from_web_config(override: bool = False, file_path: str = None) -> bool:
-        return False
+    pass
 
 # Complete list of valid assignment groups in AMS
 GROUPS = [
@@ -247,8 +247,6 @@ async def assign_group(description: str) -> str:
     rule_group = _classify_with_rules(description.strip())
     if rule_group and rule_group != "Support" and rule_group != "SAP":
         return rule_group
-
-    load_from_web_config(override=True)
 
     # Primary: OpenAI / OpenRouter / NVIDIA API
     nvidia_key = os.getenv("NVIDIA_API_KEY") or os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")

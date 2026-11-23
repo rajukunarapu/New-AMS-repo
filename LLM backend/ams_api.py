@@ -3,7 +3,6 @@ import re
 import httpx
 import xml.etree.ElementTree as ET
 from typing import Optional, Dict, Any, List, Tuple
-from dotenv import load_dotenv
  
  
 def load_web_config(file_path: Optional[str] = None) -> bool:
@@ -34,9 +33,8 @@ def load_web_config(file_path: Optional[str] = None) -> bool:
     return False
  
  
-# Load configurations from web.config first, followed by .env
+# Load configurations from web.config
 load_web_config()
-load_dotenv(override=False)
  
  
 class AMSApi:
@@ -66,9 +64,8 @@ class AMSApi:
         self.token_type = "Bearer"
  
     def reload_env(self):
-        """Reload variables from web.config and .env into os.environ."""
+        """Reload variables from web.config into os.environ."""
         load_web_config()
-        load_dotenv(override=False)
  
     @property
     def email(self):

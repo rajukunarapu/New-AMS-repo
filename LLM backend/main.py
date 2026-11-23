@@ -8,17 +8,9 @@ import sys
 # Load environment variables from web.config before anything else initializes
 try:
     from pyi_env_hook import load_from_web_config
-    load_from_web_config()
+    load_from_web_config(override=True)
 except Exception:
     pass
-
-from dotenv import load_dotenv
-# Ensure optional local .env is loaded without overriding web.config
-if getattr(sys, "frozen", False):
-    exe_dir = os.path.dirname(sys.executable)
-    load_dotenv(os.path.join(exe_dir, ".env"), override=False)
-else:
-    load_dotenv(override=False)
 
 import multiprocessing
 from datetime import datetime, timezone

@@ -6,15 +6,17 @@ import os
 from typing import Dict, Set, Optional
 from dotenv import load_dotenv
 
-# Load environment variables from web.config first
+# Centralized Configuration for SLA Monitoring Engine & AMS Service.
+# Environment variables are loaded directly from web.config.
+import os
+from typing import Dict, Set, Optional
+
+# Load environment variables directly from web.config as authoritative source
 try:
     from pyi_env_hook import load_from_web_config
-    load_from_web_config()
+    load_from_web_config(override=True)
 except Exception:
     pass
-
-# Load environment variables from .env file (override=False to preserve web.config values)
-load_dotenv(override=False)
 
 # SLA Credentials
 SLA_EMAIL: str = os.getenv("SLA_EMAIL") or os.getenv("AMS_EMAIL", "")

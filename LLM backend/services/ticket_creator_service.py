@@ -726,32 +726,40 @@ def heuristic_field_extractor(prompt: str, current_draft: Dict[str, Any], known_
     m_prio_before = re.search(r'\b(?:very\s+high|critical|high|medium|med|moderate|low|minor|trivial|p1|p2|p3|p4)\s+(?:priority|prio|proirity|prority|prioriti|prioity)\b', p, re.IGNORECASE)
     m_prio_label = re.search(r'\b(?:priority|prio|proirity|prority|prioriti|prioity)\s*[:=]?\s*(?:is\s+)?([A-Za-z0-9\s]+)', p, re.IGNORECASE)
     
+    found_prio = None
     if m_prio_before:
         val = m_prio_before.group(0).lower()
         if "crit" in val or "very high" in val or "p1" in val:
-            draft["priority"] = "Very High"
+            found_prio = "Very High"
         elif "high" in val or "p2" in val:
-            draft["priority"] = "High"
+            found_prio = "High"
         elif "med" in val or "p3" in val:
-            draft["priority"] = "Medium"
+            found_prio = "Medium"
         elif "low" in val or "p4" in val:
-            draft["priority"] = "Low"
+            found_prio = "Low"
     elif m_prio_label:
         val = m_prio_label.group(1).strip().lower()
         if "crit" in val or "very high" in val or "p1" in val:
-            draft["priority"] = "Very High"
+            found_prio = "Very High"
         elif "high" in val or "p2" in val:
-            draft["priority"] = "High"
+            found_prio = "High"
         elif "med" in val or "p3" in val:
-            draft["priority"] = "Medium"
+            found_prio = "Medium"
         elif "low" in val or "p4" in val:
-            draft["priority"] = "Low"
-    
-    if not draft.get("priority"):
+            found_prio = "Low"
+    else:
         for pat, norm in prio_patterns:
             if re.search(pat, p_lower):
-                draft["priority"] = norm
-                break
+                # If message is short (e.g. "high", "change to high") or explicitly refers to priority change
+                if len(p.split()) <= 6 or re.search(r'\b(?:priority|prio|proirity|prority|change|make|set|update|level)\b', p_lower):
+                    found_prio = norm
+                    break
+                elif not draft.get("priority"):
+                    found_prio = norm
+                    break
+
+    if found_prio:
+        draft["priority"] = found_prio
 
     # 3. Description
     # Check if current draft already has a valid non-empty description
@@ -1042,8 +1050,13 @@ async def analyze_user_intent_on_draft(
                     cand_prio = "High"
                 elif any(w in msg_lower for w in ["medium", "med", "p3"]):
                     cand_prio = "Medium"
-                adjusted, reason = check_priority_adjustment(cand_prio or msg_clean, current_draft.get("typeofticket"), is_explicit_request=True)
-                mods = {"priority": adjusted, "_priority_source": "user"}
+                cand_val = cand_prio or msg_clean
+                adjusted, reason = check_priority_adjustment(cand_val, current_draft.get("typeofticket"), is_explicit_request=True)
+                mods = {
+                    "priority": adjusted,
+                    "_priority_source": "user",
+                    "_user_explicit_priority": cand_val
+                }
                 if reason:
                     mods["_priority_adjustment_note"] = reason
                 else:
@@ -1132,20 +1145,26 @@ Respond with a JSON object:
                 mod_fields["_typeofticket_source"] = "user"
                 # Re-adjust priority according to the authoritative priority matrix
                 active_prio = mod_fields.get("priority") or current_draft.get("priority")
-                user_explicit = bool(mod_fields.get("priority"))
+                user_explicit = bool(mod_fields.get("priority") or current_draft.get("_user_explicit_priority") or current_draft.get("_priority_source") == "user")
                 adj_prio, reason = check_priority_adjustment(active_prio, resolved_type, is_explicit_request=user_explicit)
                 mod_fields["priority"] = adj_prio
+                if user_explicit:
+                    mod_fields["_user_explicit_priority"] = adj_prio
+                    mod_fields["_priority_source"] = "user"
                 if reason:
                     mod_fields["_priority_adjustment_note"] = reason
                 elif user_explicit:
                     mod_fields["_priority_adjustment_note"] = None
             elif "priority" in mod_fields and mod_fields["priority"]:
+                raw_req_prio = mod_fields["priority"]
                 adj_prio, reason = check_priority_adjustment(
-                    mod_fields["priority"],
+                    raw_req_prio,
                     current_draft.get("typeofticket"),
                     is_explicit_request=True
                 )
                 mod_fields["priority"] = adj_prio
+                mod_fields["_priority_source"] = "user"
+                mod_fields["_user_explicit_priority"] = raw_req_prio
                 if reason:
                     mod_fields["_priority_adjustment_note"] = reason
                 else:
@@ -1189,7 +1208,7 @@ Respond with a JSON object:
         return "cancel", {}
 
     # Check heuristic extractor first with active current_draft
-    mod_extracted = heuristic_field_extractor(msg_clean, current_draft, known_clients or [])
+    mod_extracted = heuristic_field_extractor(msg_clean, {}, known_clients or [])
     cleaned_mods = {k: v for k, v in mod_extracted.items() if v is not None}
     if "typeofticket" in cleaned_mods:
         resolved_type = resolve_authoritative_ticket_type(cleaned_mods["typeofticket"])
@@ -1197,20 +1216,26 @@ Respond with a JSON object:
         cleaned_mods["_typeofticket_source"] = "user"
         # Re-adjust priority according to ticket priority matrix
         active_prio = cleaned_mods.get("priority") or current_draft.get("priority")
-        user_explicit = bool(cleaned_mods.get("priority"))
+        user_explicit = bool(cleaned_mods.get("priority") or current_draft.get("_user_explicit_priority") or current_draft.get("_priority_source") == "user")
         adj_prio, reason = check_priority_adjustment(active_prio, resolved_type, is_explicit_request=user_explicit)
         cleaned_mods["priority"] = adj_prio
+        if user_explicit:
+            cleaned_mods["_user_explicit_priority"] = adj_prio
+            cleaned_mods["_priority_source"] = "user"
         if reason:
             cleaned_mods["_priority_adjustment_note"] = reason
         elif user_explicit:
             cleaned_mods["_priority_adjustment_note"] = None
     elif "priority" in cleaned_mods:
+        raw_req_prio = cleaned_mods["priority"]
         adj_prio, reason = check_priority_adjustment(
-            cleaned_mods["priority"],
+            raw_req_prio,
             current_draft.get("typeofticket"),
             is_explicit_request=True
         )
         cleaned_mods["priority"] = adj_prio
+        cleaned_mods["_priority_source"] = "user"
+        cleaned_mods["_user_explicit_priority"] = raw_req_prio
         if reason:
             cleaned_mods["_priority_adjustment_note"] = reason
         else:

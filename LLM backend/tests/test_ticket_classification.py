@@ -36,6 +36,7 @@ from services.classification_config import (
     ALLOWED_PRIORITIES_BY_TYPE
 )
 from services.classification_service import TicketClassifier
+from services.ticket_creator_service import analyze_user_intent_on_draft, finalize_draft_fields
 
 
 class TestAuthoritativeTicketTypes(unittest.TestCase):
@@ -272,6 +273,88 @@ class TestTicketPriorityMatrix(unittest.TestCase):
         self.assertIn("Service request", reason)
 
 
+
+
+class TestDraftPriorityModification(unittest.IsolatedAsyncioTestCase):
+    """Verifies user modification of priority on ticket drafts adhering to the priority policy."""
+
+    async def test_modify_incident_priority_from_medium_to_very_high(self):
+        draft = {
+            "clientName": "AAB",
+            "typeofticket": "Incident",
+            "priority": "Medium",
+            "_user_explicit_priority": "Medium",
+            "_priority_source": "user",
+            "descriptionofTicket": "Database connection refused"
+        }
+        intent, mods = await analyze_user_intent_on_draft("change priority to Very High", draft)
+        self.assertEqual(intent, "modify")
+        self.assertEqual(mods.get("priority"), "Very High")
+        
+        merged = {**draft, **mods}
+        finalized = await finalize_draft_fields(merged)
+        self.assertEqual(finalized["priority"], "Very High")
+        self.assertEqual(finalized["_user_explicit_priority"], "Very High")
+        self.assertIsNone(finalized.get("_priority_adjustment_note"))
+
+    async def test_modify_incident_priority_to_disallowed_low_adjusts_to_medium(self):
+        draft = {
+            "clientName": "AAB",
+            "typeofticket": "Incident",
+            "_typeofticket_source": "user",
+            "priority": "High",
+            "_user_explicit_priority": "High",
+            "_priority_source": "user",
+            "descriptionofTicket": "Database connection refused"
+        }
+        intent, mods = await analyze_user_intent_on_draft("change priority to Low", draft)
+        self.assertEqual(intent, "modify")
+        # Disallowed on Incident, adjusts to Medium
+        self.assertEqual(mods.get("priority"), "Medium")
+        self.assertIsNotNone(mods.get("_priority_adjustment_note"))
+        
+        merged = {**draft, **mods}
+        finalized = await finalize_draft_fields(merged)
+        self.assertEqual(finalized["priority"], "Medium")
+        self.assertIn("do not support **Low** priority", finalized["_priority_adjustment_note"])
+
+    async def test_modify_change_request_priority_to_disallowed_high_adjusts_to_low(self):
+        draft = {
+            "clientName": "AAB",
+            "typeofticket": "Change Request",
+            "_typeofticket_source": "user",
+            "priority": "Low",
+            "_user_explicit_priority": "Low",
+            "_priority_source": "user",
+            "descriptionofTicket": "Add export button to report"
+        }
+        intent, mods = await analyze_user_intent_on_draft("set priority to High", draft)
+        self.assertEqual(intent, "modify")
+        self.assertEqual(mods.get("priority"), "Low")
+        self.assertIsNotNone(mods.get("_priority_adjustment_note"))
+        
+        merged = {**draft, **mods}
+        finalized = await finalize_draft_fields(merged)
+        self.assertEqual(finalized["priority"], "Low")
+        self.assertIn("only allow **P4 - Low** priority", finalized["_priority_adjustment_note"])
+
+    async def test_modify_service_request_priority_from_low_to_medium(self):
+        draft = {
+            "clientName": "AAB",
+            "typeofticket": "Service request",
+            "priority": "Low",
+            "_user_explicit_priority": "Low",
+            "_priority_source": "user",
+            "descriptionofTicket": "Provision SAP user account"
+        }
+        intent, mods = await analyze_user_intent_on_draft("make priority Medium", draft)
+        self.assertEqual(intent, "modify")
+        self.assertEqual(mods.get("priority"), "Medium")
+        
+        merged = {**draft, **mods}
+        finalized = await finalize_draft_fields(merged)
+        self.assertEqual(finalized["priority"], "Medium")
+        self.assertIsNone(finalized.get("_priority_adjustment_note"))
 
 
 def run_benchmark():

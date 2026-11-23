@@ -519,7 +519,8 @@ async def run_sla_monitoring_cycle_async(
                     sla_status = "SLA_BREACHED"
                     overrun_seconds = (now - sla_deadline).total_seconds()
                     overrun_mins = int(round(overrun_seconds / 60.0))
-                    overrun_str = f"Overdue by {overrun_mins} Mins"
+                    overdue_formatted = format_time_remaining(overrun_mins)
+                    overrun_str = f"Overdue by {overdue_formatted}"
                     rem_mins = 0
                     time_remaining_str = "0 Mins"
                 else:

@@ -233,7 +233,7 @@ def test_05_breach_handling_and_overrun_tracking(temp_db):
     assert res["reminders_sent"] == 1
     posted = mock_client.posted_reminders[0]
 
-    assert "Overdue by 60 Mins" in posted["timeRemaining"]
+    assert "Overdue by 1 hrs" in posted["timeRemaining"]
 
     row = SLATracker.get_row("TICK-BREACH", db_path=temp_db)
     assert row["sla_status"] == "SLA_BREACHED"

@@ -7,6 +7,7 @@ from typing import Dict, Any, List, Optional
 from ams_api import AMSApi
 from query_engine import process_ticket_query
 from models.schemas import ChatRequest, ChatResponse
+from services.chat_orchestrator import sanitize_and_prune_history
 from services.ticket_creator_service import (
     TicketSessionManager,
     is_ticket_creation_prompt,
@@ -55,6 +56,9 @@ class ChatService:
         token = request.Bearer.replace("Bearer ", "").strip()
         session_key = TicketSessionManager.get_session_key(request.username, request.session_id)
         active_draft = request.ticket_draft or TicketSessionManager.get_draft(session_key)
+
+        # Sanitize and prune conversation history (sliding window of max 6 turns, strips Base64 images & massive table dumps)
+        request.history = sanitize_and_prune_history(request.history, max_turns=6, max_char_len=400)
  
         # Extract screenshot centrally from request or ticket_draft
         incoming_screenshot = (

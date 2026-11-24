@@ -1,15 +1,16 @@
 """
-services/guardrails.py - Domain Guardrail & Conversational Steering Service for AMS Assistant.
+services/guardrails.py - Domain Guardrail, Conversational Steering, & Narrative Grounding Service.
 
 Maintains enterprise boundary while preserving natural warmth, engagement, and interactivity:
 1. Fast heuristic detection of out-of-domain requests (weather, general world trivia, generic coding tutorials).
 2. Dynamic, varied, and polite deflection responses that proactively steer the user back to AMS operations.
 3. Safe preservation of real technical error reports (e.g., system dump, script failure, SAP errors).
+4. Post-generation grounding and fact-checking on ticket search narratives against actual database records.
 """
 
 import re
 import random
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List, Dict, Any
 
 
 # Pattern definitions for Out-of-Domain topics
@@ -91,3 +92,55 @@ def check_fast_guardrail(message: str) -> Tuple[bool, Optional[str]]:
         return True, random.choice(GENERAL_TRIVIA_DEFLECTIONS)
 
     return False, None
+
+
+def verify_and_ground_ticket_narrative(
+    narrative: str,
+    count: int,
+    sample_records: Optional[List[Dict[str, Any]]] = None,
+    query_plan: Optional[Dict[str, Any]] = None
+) -> str:
+    """
+    Enforces post-generation grounding and fact-checking on ticket search narratives:
+    1. Zero-count guardrail: Prevents hallucinating tickets when zero records match.
+    2. Ticket ID validation: Ensures any ticket ID cited in the narrative actually exists in the matching records.
+    3. Grounded fallback: Provides clean, factual response if model hallucinated identifiers or contradicted count.
+    """
+    plan = query_plan or {}
+    sample_list = sample_records or []
+
+    # 1. Zero-count guard: If count is 0, never let narrative say tickets were found or cite IDs
+    if count == 0:
+        client_part = f" for client **{plan.get('client')}**" if plan.get("client") else ""
+        status_part = f" with status **{plan.get('status')}**" if plan.get("status") else ""
+        priority_part = f" and priority **{plan.get('priority')}**" if plan.get("priority") else ""
+        return f"No matching tickets were found in AMS{client_part}{status_part}{priority_part}."
+
+    if not narrative:
+        client_desc = f" for **{plan.get('client')}**" if plan.get("client") else ""
+        return f"Found **{count}** ticket(s) matching your criteria{client_desc}."
+
+    clean_narrative = str(narrative).strip()
+
+    # 2. Ticket ID validation: Extract potential ticket IDs (e.g. ATG2608001, KMT12345, etc.)
+    valid_ticket_ids = set()
+    for rec in sample_list:
+        if isinstance(rec, dict):
+            for k in ["ticketNo", "ticketId", "id", "ticket_no"]:
+                val = rec.get(k)
+                if val:
+                    valid_ticket_ids.add(str(val).strip().upper())
+
+    # Find ticket-like identifiers mentioned in the narrative
+    found_ids = set(re.findall(r'\b[A-Z]{2,6}\d{3,8}\b', clean_narrative))
+    if valid_ticket_ids and found_ids:
+        hallucinated_ids = [tid for tid in found_ids if tid.upper() not in valid_ticket_ids]
+        if hallucinated_ids:
+            for hid in hallucinated_ids:
+                clean_narrative = re.sub(rf'\b{re.escape(hid)}\b', '', clean_narrative)
+            clean_narrative = re.sub(r'\s{2,}', ' ', clean_narrative).strip()
+            if len(clean_narrative) < 20:
+                client_desc = f" for **{plan.get('client')}**" if plan.get("client") else ""
+                clean_narrative = f"Found **{count}** ticket(s) matching your request{client_desc}."
+
+    return clean_narrative

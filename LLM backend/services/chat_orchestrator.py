@@ -13,7 +13,7 @@ import re
 import json
 from typing import Dict, Any, List, Optional
 from query_engine import _call_llm
-from services.guardrails import check_fast_guardrail
+from services.guardrails import check_fast_guardrail, verify_and_ground_ticket_narrative
 
 
 ORCHESTRATOR_SYSTEM_INSTRUCTION = """You are the enterprise AI Assistant and Master Dispatcher for Neovatic AMS (Application Management Services).
@@ -44,16 +44,40 @@ ACTIONS:
    - "dynamic_note": "<A 1-sentence friendly, varied dynamic confirmation that the issue has been captured in a draft>"
 
 4. "QUERY_TICKETS":
-   - Use when the user wants to search, inspect, filter, count, list, or check the status/metrics of existing tickets.
+   - Use when the user wants to search, inspect, filter, count, list, summarize, or check the status/metrics of existing tickets.
    - "query_plan": {
        "client": "<client name e.g. ATG, Karamtara, or null>",
        "status": "<Open|Closed|Pending|In Progress or null>",
        "priority": "<High|Medium|Low or null>",
        "group_or_module": "<ONLY if user specifically names a known functional group like SAP-FICO, SAP-MM, SAP-SD, SAP-BASIS, SAP-ABAP, RPA; for topics, technologies, or features like Joule, invoice, PO, leave this null and put in semantic_search>",
        "ticket_no": "<ticket ID e.g. ATG2608001, or null>",
-       "aggregation": "<count|list|detail or null>",
-       "semantic_search": "<search terms or feature keywords e.g. Joule, invoice, dump>"
+       "aggregation": "<count|list|detail|summary or null>",
+       "limit": <integer limit when user asks for a specific count e.g. 'last 5', 'top 10', 'first 3', or null>,
+       "semantic_search": "<search terms or feature keywords e.g. Joule, invoice, dump; leave null if user simply wants to summarize/list recent tickets>"
      }
+
+LIMIT & RECENT TICKETS INSTRUCTIONS:
+- When user asks for recent, last, latest, top, or first N tickets (e.g. 'summarize the last 5 tickets', 'show latest 10 tickets'):
+  * Set "limit": N (e.g. 5).
+  * If the user asked to "summarize" or for a "summary", set "aggregation": "summary".
+  * Do NOT put "summarize", "last 5", or "tickets" in "semantic_search" (leave semantic_search null unless they filter by a specific feature/topic like 'last 5 invoice tickets').
+
+FOLLOW-UP QUERY RESOLUTION & CONTEXT CONTINUITY:
+- If the user's message is a follow-up query referring to previous results (e.g. using 'these', 'those', 'them', 'which of them', 'filter by', 'only open', 'show open ones', 'how many are high priority', 'what about high priority'):
+  1. Inspect the recent conversation to find established query context (e.g., client name, module, or status).
+  2. Inherit the prior 'client' or other relevant scope into 'query_plan' unless the user explicitly introduces a new client or changes scope.
+  3. Combine the new constraint (e.g., priority="High", status="Open") with the inherited scope.
+- If the message is a new standalone question or explicitly specifies its own client, do NOT inherit old constraints.
+
+
+TICKET ATTRIBUTE & FIELD INQUIRIES (CRITICAL):
+- When the user asks for specific attributes, details, or fields of a ticket:
+  * e.g., 'who reported that', 'who is the reporter', 'who is assigned to it', 'what is the description', 'when was it logged', 'which priority is it', 'what is the status of it'.
+  * ACTION MUST BE: "QUERY_TICKETS"
+  * In 'query_plan':
+    - If referring to a ticket from previous turns with pronouns ('that', 'it', 'this ticket', 'the ticket') or context, resolve and set "ticket_no" to that referenced ticket ID (e.g. 'Vec2611112').
+    - Set "aggregation": "detail"
+  * NEVER classify inquiries about ticket fields or attributes as "CONVERSATIONAL".
 
 OUTPUT FORMAT (STRICT JSON ONLY):
 {
@@ -66,23 +90,79 @@ OUTPUT FORMAT (STRICT JSON ONLY):
 """
  
  
-def _sanitize_history_context(history: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, str]]:
-    """Sanitizes chat history to the last 2 turns (max 200 chars per message), stripping heavy Base64 data."""
+def sanitize_and_prune_history(
+    history: Optional[List[Dict[str, Any]]],
+    max_turns: int = 6,
+    max_char_len: int = 400
+) -> List[Dict[str, Any]]:
+    """
+    Sanitizes conversation history for semantic efficiency, speed, and hallucination prevention:
+    1. Keeps only the last `max_turns` entries (e.g. 6 entries = last 3 user/assistant turns).
+    2. Strips out Base64 images, inline data URIs, and raw HTML img tags.
+    3. Truncates massive markdown tables, ticket record dumps, and raw JSON arrays from previous turns 
+       so LLM prompts stay focused on conversational intent rather than past raw data dumps.
+    """
     if not history:
         return []
+
     cleaned = []
-    for item in history[-4:]:
-        if isinstance(item, dict):
-            text = str(item.get("text") or item.get("content") or item.get("query") or "")
-            text = re.sub(r'<img[^>]*src="data:image[^>]*>', '[Image]', text, flags=re.IGNORECASE)
-            text = re.sub(r'data:image\/[^;]+;base64,[A-Za-z0-9+/=]+', '[Attached Image]', text)
-            if len(text) > 200:
-                text = text[:200] + "..."
-            role = item.get("sender") or item.get("role") or "user"
-            cleaned.append({"role": role, "text": text})
+    for item in history[-max_turns:]:
+        if not isinstance(item, dict):
+            continue
+
+        raw_text = str(
+            item.get("text")
+            or item.get("content")
+            or item.get("query")
+            or item.get("message")
+            or ""
+        )
+
+        # 1. Strip heavy Base64 image payloads & data URIs
+        clean_text = re.sub(r'data:image/[^;]+;base64,[A-Za-z0-9+/=]+', '[Attached Image]', raw_text)
+        clean_text = re.sub(r'<img[^>]*src="data:image[^>]*>', '[Attached Image]', clean_text, flags=re.IGNORECASE)
+        clean_text = re.sub(r'!\[.*?\]\(data:image/.*?\)', '[Attached Image]', clean_text)
+
+        # 2. Strip large markdown tables or raw JSON dumps in assistant replies
+        if "|" in clean_text and clean_text.count("\n") > 4:
+            lines = clean_text.splitlines()
+            table_lines = [l for l in lines if l.strip().startswith("|")]
+            if len(table_lines) > 3:
+                non_table = [l for l in lines if not l.strip().startswith("|")]
+                summary_lead = "\n".join(non_table[:2]) if non_table else lines[0]
+                clean_text = f"{summary_lead}\n[Table with {len(table_lines)} ticket records omitted for brevity]"
+
+        # 3. Truncate very long prose
+        if len(clean_text) > max_char_len:
+            clean_text = clean_text[:max_char_len] + "..."
+
+        role = item.get("sender") or item.get("role") or "user"
+        cleaned_entry = dict(item)
+        cleaned_entry["text"] = clean_text
+        if "content" in cleaned_entry:
+            cleaned_entry["content"] = clean_text
+        if "query" in cleaned_entry:
+            cleaned_entry["query"] = clean_text
+        cleaned_entry["role"] = role
+        cleaned.append(cleaned_entry)
+
     return cleaned
- 
- 
+
+
+def _sanitize_history_context(history: Optional[List[Dict[str, Any]]] = None) -> List[Dict[str, str]]:
+    """Sanitizes chat history to the last 4 turns (max 250 chars per message), stripping heavy Base64 data."""
+    if not history:
+        return []
+    cleaned_items = sanitize_and_prune_history(history, max_turns=4, max_char_len=250)
+    result = []
+    for item in cleaned_items:
+        role = item.get("sender") or item.get("role") or "user"
+        text = str(item.get("text") or item.get("content") or "")
+        result.append({"role": role, "text": text})
+    return result
+
+
+
 async def run_chat_orchestrator(
     user_message: str,
     history: Optional[List[Dict[str, Any]]] = None,
@@ -208,21 +288,72 @@ STRICT CUSTOMER ISOLATION POLICY:
             },
             "dynamic_note": "I've started a new ticket draft with your attached screenshot. Please check the details below."
         }
- 
-    # Detect if user message is querying tickets
+    # Detect ticket ID in current message or in recent conversation history
+    ticket_id_pattern = re.compile(r'\b[A-Za-z]{2,6}\d{4,8}\b')
+    detected_ticket_no = None
+    m_tid = ticket_id_pattern.search(clean_msg)
+    if m_tid:
+        detected_ticket_no = m_tid.group(0)
+    elif history:
+        for h in reversed(history[-6:]):
+            h_text = str(h.get("text") or h.get("content") or "")
+            m_hist = ticket_id_pattern.search(h_text)
+            if m_hist:
+                detected_ticket_no = m_hist.group(0)
+                break
+
+    # Detect if user message is querying tickets, follow-up filter, or ticket attributes
     is_query = bool(re.search(r'\b(?:tickets?|issues?|show|find|list|count|status|how many|records?|pending|breached)\b', msg_lower))
-    if is_query:
+    is_follow_up_filter = bool(re.search(r'\b(?:these|those|them|only\s+open|only\s+closed|only\s+high|which\s+(?:ones|are)|what\s+about)\b', msg_lower))
+    is_ticket_attr_query = bool(re.search(
+        r'\b(?:who\s+(?:is\s+)?(?:reported|assigned|created|raised)|reported\s+by|reporter|assignee|assigned\s+to|assigned\s+group|which\s+priority|what\s+priority|priority\s+of|what\s+is\s+(?:the\s+)?(?:status|description|error|date|time|priority|group|module)|description\s+of|when\s+(?:was\s+it|is\s+it)\s+(?:reported|created|logged)|details?\s+(?:of|for|about)?)\b',
+        msg_lower
+    ))
+    is_ticket_ref_followup = bool(detected_ticket_no and (
+        is_ticket_attr_query or
+        re.search(r'\b(?:who|what|when|which|how|status|priority|reporter|reported|assigned|assignee|description|details|module|group|it|that|this)\b', msg_lower)
+    ))
+
+    if is_query or is_follow_up_filter or is_ticket_attr_query or is_ticket_ref_followup:
         detected_c = None
         if known_clients:
             for c in known_clients:
                 if c.lower() in msg_lower:
                     detected_c = c
                     break
+        # If client not mentioned and this is a follow-up, inherit client from recent history
+        if not detected_c and history:
+            for h in reversed(history[-4:]):
+                h_text = str(h.get("text") or h.get("content") or "").lower()
+                for c in (known_clients or []):
+                    if c.lower() in h_text:
+                        detected_c = c
+                        break
+                if detected_c:
+                    break
         detected_prio = None
         if "high" in msg_lower: detected_prio = "High"
         elif "low" in msg_lower: detected_prio = "Low"
         elif "medium" in msg_lower: detected_prio = "Medium"
- 
+
+        # Limit detection
+        lim_m = re.search(r'\b(?:top|first|last|latest|recent|most\s+recent|limit)\s*(\d{1,3})\b', msg_lower)
+        if not lim_m:
+            lim_m = re.search(r'\b(\d{1,3})\s*(?:latest|recent|last|top|first)?\s*tickets?\b', msg_lower)
+        detected_limit = int(lim_m.group(1)) if lim_m else None
+
+        is_summary = bool(re.search(r'\b(?:summariz|summary|overview)\b', msg_lower))
+
+        # Clear structural words from semantic search if it's purely a limit or summary request
+        clean_sem_search = clean_msg
+        if is_summary or detected_limit:
+            stop_words = {"can", "you", "please", "summarize", "summary", "summaries", "the", "last", "latest", "recent", "top", "first", "tickets", "ticket", "give", "me", "show", "of"}
+            rem_words = [w for w in re.findall(r'\w+', clean_sem_search.lower()) if len(w) >= 2 and w not in stop_words and not w.isdigit()]
+            if not rem_words:
+                clean_sem_search = None
+
+        agg = "detail" if (detected_ticket_no or is_ticket_attr_query) else ("summary" if is_summary else ("count" if any(w in msg_lower for w in ["how many", "count"]) else "list"))
+
         return {
             "action": "QUERY_TICKETS",
             "query_plan": {
@@ -230,11 +361,15 @@ STRICT CUSTOMER ISOLATION POLICY:
                 "status": "Open" if "open" in msg_lower else ("Closed" if "closed" in msg_lower else None),
                 "priority": detected_prio,
                 "group_or_module": None,
-                "ticket_no": None,
-                "aggregation": "count" if any(w in msg_lower for w in ["how many", "count"]) else "list",
-                "semantic_search": clean_msg
+                "ticket_no": detected_ticket_no,
+                "aggregation": agg,
+                "limit": detected_limit,
+                "sort": {"field": "createddate", "direction": "desc"} if any(w in msg_lower for w in ["last", "latest", "recent"]) else None,
+                "semantic_search": clean_sem_search
             }
         }
+
+
  
     # Detect if user message is reporting an issue / requesting change / creating a ticket
     is_create = bool(re.search(r'\b(?:create|raise|open|log|dump|crash|error|failed|down|bug|not working|additional\s+field|new\s+report|develop\s+new|enhancement|change\s*request|access\s+request|password\s+reset|s\s*po)\b', msg_lower))
@@ -267,13 +402,22 @@ STRICT CUSTOMER ISOLATION POLICY:
  
  
 DYNAMIC_SYNTHESIZER_PROMPT = """You are the Neovatic AMS Intelligence Assistant.
-Write a clear, concise, natural, and business-friendly 1-2 sentence response summarizing the search/ticket results for the user.
- 
+Write a clear, concise, natural, and business-friendly response summarizing the search/ticket results for the user.
+
 CRITICAL RULES:
 1. ALWAYS answer the user's question directly and concisely in natural language.
-2. Never repeat identical boilerplate or robotic phrases. Vary your sentence structure and wording naturally.
-3. Mention key details naturally (e.g. client, matching count, status, or top module).
-4. Strictly max 2 sentences.
+2. If the user asked to SUMMARIZE tickets (e.g. "summarize the last 5 tickets", "summary of tickets", or aggregation="summary"):
+   - Provide a 1-line introductory sentence (e.g., "Here is a summary of the requested tickets:").
+   - Follow with a concise, factual bullet point for each ticket in sample_tickets:
+     * **{id}** (*{client}*) — `{status}` | `{priority}`: Brief summary of issue/description.
+   - Strictly summarize ONLY the tickets present in sample_tickets.
+3. If the user is asking a standard count, status, or search question (not a bulleted summary):
+   - Mention key details naturally (e.g. client, matching count, status, or top module).
+   - Strictly max 2 sentences.
+4. STRICT GROUNDING & ZERO HALLUCINATION:
+   - Only cite ticket IDs, counts, clients, and statuses that are explicitly provided in the payload.
+   - NEVER invent or hallucinate ticket numbers that do not appear in sample_tickets.
+   - If total_matching_count is 0, state clearly that no matching tickets were found. NEVER claim tickets exist when count is 0.
 """
  
  
@@ -304,9 +448,14 @@ async def generate_dynamic_query_narrative(
                 "id": r.get("ticketNo") or r.get("ticketId"),
                 "client": r.get("clientName"),
                 "status": r.get("ticketStatus") or r.get("status"),
-                "priority": r.get("priority")
+                "priority": r.get("priority"),
+                "type": r.get("typeofticket") or r.get("type"),
+                "reported_by": r.get("reportedby") or r.get("reported_by"),
+                "reported_on": f"{r.get('reportedon', '')} {r.get('reportedontime', '')}".strip(),
+                "assigned_group": r.get("assigntogroup") or r.get("assigned_to"),
+                "description": r.get("descriptionofTicket") or r.get("description")
             }
-            for r in (sample_records or [])[:3]
+            for r in (sample_records or [])[:10]
         ]
     }
  
@@ -316,16 +465,62 @@ async def generate_dynamic_query_narrative(
             system_instruction=DYNAMIC_SYNTHESIZER_PROMPT,
             json_response=False,
             temperature=0.6,
-            max_tokens=350
+            max_tokens=450
         )
         if narrative and len(narrative.strip()) >= 15:
-            return narrative.strip()
+            return verify_and_ground_ticket_narrative(narrative.strip(), count, sample_records, query_plan)
     except Exception as err:
         print(f"[ChatOrchestrator] Dynamic narrative generation error: {err}")
- 
+
     # Fallback description if LLM is unreachable or truncated
-    client_str = f" for client **{query_plan.get('client')}**" if query_plan.get("client") else ""
-    status_str = f" with status **{query_plan.get('status')}**" if query_plan.get("status") else ""
-    return f"There are **{count}** ticket(s) matching your request{client_str}{status_str}."
- 
- 
+    q_lower = user_question.lower()
+    is_summary_req = any(w in q_lower for w in ["summarize", "summary", "overview"]) or query_plan.get("aggregation") == "summary"
+
+    if is_summary_req and sample_records:
+        lines = [f"Here is a summary of the {len(sample_records)} ticket(s):"]
+        for rec in sample_records:
+            t_id = rec.get("ticketNo") or rec.get("ticketId") or "Ticket"
+            t_client = rec.get("clientName") or ""
+            t_status = rec.get("ticketStatus") or rec.get("status") or "Open"
+            t_prio = rec.get("priority") or "Medium"
+            t_desc = rec.get("descriptionofTicket") or rec.get("description") or "No description provided"
+            if len(t_desc) > 130:
+                t_desc = t_desc[:127] + "..."
+            client_prefix = f"(*{t_client}*) " if t_client else ""
+            lines.append(f"- **{t_id}** {client_prefix}— `{t_status}` | `{t_prio}`: {t_desc}")
+        fallback_text = "\n".join(lines)
+    elif sample_records and len(sample_records) == 1:
+        rec = sample_records[0]
+        t_id = rec.get("ticketNo") or rec.get("ticketId") or "the ticket"
+        t_client = rec.get("clientName") or query_plan.get("client") or ""
+        t_status = rec.get("ticketStatus") or rec.get("status") or "Open"
+        t_prio = rec.get("priority") or "Normal"
+        t_reporter = rec.get("reportedby") or rec.get("reported_by")
+        t_group = rec.get("assigntogroup") or rec.get("assigned_to") or rec.get("module")
+        t_desc = rec.get("descriptionofTicket") or rec.get("description")
+        t_date = f"{rec.get('reportedon', '')} {rec.get('reportedontime', '')}".strip()
+
+        q_lower = user_question.lower()
+        if any(w in q_lower for w in ["assign", "assigned", "assignee", "group", "module", "team"]):
+            fallback_text = f"Ticket **{t_id}** is assigned to **{t_group or 'unassigned'}** with status **{t_status}**."
+        elif any(w in q_lower for w in ["reporter", "reported", "created by", "raised by", "who reported", "who created", "who raised", "who is reported"]):
+            if t_reporter:
+                fallback_text = f"Ticket **{t_id}** was reported by **{t_reporter}**" + (f" on `{t_date}`." if t_date else ".")
+            else:
+                fallback_text = f"Reporter information for ticket **{t_id}** is not recorded."
+        elif "who" in q_lower:
+            fallback_text = f"Ticket **{t_id}** was reported by **{t_reporter or 'unknown'}** and is assigned to **{t_group or 'unassigned'}**."
+        elif any(w in q_lower for w in ["priority", "prio"]):
+            fallback_text = f"The ticket **{t_id}**" + (f" for **{t_client}**" if t_client else "") + f" has a priority of **{t_prio}**."
+        elif any(w in q_lower for w in ["desc", "description", "issue", "problem"]):
+            fallback_text = f"The description for ticket **{t_id}** is: {t_desc}"
+        elif any(w in q_lower for w in ["when", "date", "time"]):
+            fallback_text = f"Ticket **{t_id}** was reported on `{t_date or 'an unrecorded date'}`."
+        else:
+            fallback_text = f"Ticket **{t_id}**" + (f" for **{t_client}**" if t_client else "") + f" is currently **{t_status}** with priority **{t_prio}**."
+    else:
+        client_str = f" for client **{query_plan.get('client')}**" if query_plan.get("client") else ""
+        status_str = f" with status **{query_plan.get('status')}**" if query_plan.get("status") else ""
+        fallback_text = f"There are **{count}** ticket(s) matching your request{client_str}{status_str}."
+
+    return verify_and_ground_ticket_narrative(fallback_text, count, sample_records, query_plan)

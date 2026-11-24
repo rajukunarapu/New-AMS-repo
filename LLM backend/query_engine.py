@@ -635,10 +635,26 @@ def sanitize_and_enforce_intent(plan, user_question, meta):
             if not plan.get("detected_assignee") and group_val.lower() not in ["name", "is", "of", "for", "in", "by", "with", "the", "a", "an"]:
                 plan["detected_assignee"] = group_val
 
-    # 3. Limit extraction ("top 10", "top 5", "limit 10", "first 5")
-    lim_match = re.search(r'\b(?:top|first|limit)\s*(\d{1,3})\b', q_lower)
+    # 3. Limit extraction ("top 10", "top 5", "last 5", "latest 10", "recent 5", "limit 10", "first 5")
+    lim_match = re.search(r'\b(?:top|first|last|latest|recent|most\s+recent|limit)\s*(\d{1,3})\b', q_lower)
+    if not lim_match:
+        lim_match = re.search(r'\b(\d{1,3})\s*(?:latest|recent|last|top|first)?\s*tickets?\b', q_lower)
     if lim_match:
         plan["limit"] = int(lim_match.group(1))
+
+    # 4. If user asked for recent / last / latest, sort descending by creation date
+    if any(w in q_lower for w in ["last", "latest", "recent"]):
+        plan["sort"] = {"field": "createddate", "direction": "desc"}
+
+    # 5. If user asked to summarize / summary, set aggregation and clear structural words from semantic search
+    if any(w in q_lower for w in ["summarize", "summary"]):
+        plan["aggregation"] = "summary"
+        if plan.get("semantic_text_search"):
+            st = str(plan["semantic_text_search"]).lower()
+            structural = {"summarize", "summary", "summaries", "can", "you", "please", "the", "last", "latest", "recent", "top", "first", "tickets", "ticket", "give", "me"}
+            remaining = [w for w in re.findall(r'\w+', st) if len(w) >= 2 and w not in structural and not w.isdigit()]
+            if not remaining:
+                plan["semantic_text_search"] = None
 
     return plan
 
@@ -822,9 +838,11 @@ def heuristic_query_plan(user_question, meta, history=None):
             "clarification_question": None
         }
 
-    # Limit detection (e.g. "top 10", "first 5", "limit 10")
+    # Limit detection (e.g. "top 10", "first 5", "last 5", "latest 10", "recent 5", "limit 10")
     limit_val = None
-    lim_match = re.search(r'\b(?:top|first|limit)\s*(\d{1,3})\b', q_lower)
+    lim_match = re.search(r'\b(?:top|first|last|latest|recent|most\s+recent|limit)\s*(\d{1,3})\b', q_lower)
+    if not lim_match:
+        lim_match = re.search(r'\b(\d{1,3})\s*(?:latest|recent|last|top|first)?\s*tickets?\b', q_lower)
     if lim_match:
         limit_val = int(lim_match.group(1))
 
@@ -1650,7 +1668,9 @@ def execute_query_plan(tickets_data, plan):
             "record", "records", "issue", "issues", "with", "where", "about", "for", "the",
             "and", "are", "have", "through", "under", "please", "into", "from", "that", "this",
             "you", "neoai", "can", "could", "would", "tell", "display", "what", "which", "how",
-            "many", "were", "was", "been", "seen", "previous", "historical", "occurred", "happened"
+            "many", "were", "was", "been", "seen", "previous", "historical", "occurred", "happened",
+            "summarize", "summary", "summaries", "last", "latest", "recent", "top", "first",
+            "give", "provide", "all", "any"
         }
         extracted_kws = [w for w in re.findall(r'\w+', st_lower) if len(w) >= 2 and w not in search_stop_words]
         all_keywords = list(set(extracted_kws + [str(k).lower() for k in semantic_kws if str(k).lower() not in search_stop_words]))
@@ -1703,10 +1723,16 @@ def execute_query_plan(tickets_data, plan):
         group_stats = group_stats.sort_values(by="ticket_count", ascending=False)
 
     # Sorting & Limit
-    sort_info = plan.get("sort")
-    if sort_info and sort_info.get("field") and sort_info["field"] in result.columns:
+    sort_info = plan.get("sort") or {}
+    sort_field = sort_info.get("field")
+    if not sort_field or sort_field not in result.columns:
+        for c in ["createddate", "reportedon", "reportedDate"]:
+            if c in result.columns:
+                sort_field = c
+                break
+    if sort_field and sort_field in result.columns:
         ascending = (sort_info.get("direction") == "asc")
-        result = result.sort_values(by=sort_info["field"], ascending=ascending)
+        result = result.sort_values(by=sort_field, ascending=ascending)
 
     limit = plan.get("limit")
     if limit and isinstance(limit, int) and limit > 0:
@@ -2049,13 +2075,17 @@ async def execute_planned_ticket_query(tickets_data, query_plan, user_question, 
     count = len(df_filtered)
 
     # Use lightweight dynamic narrative generator to ensure varied, fresh, non-repetitive responses
+    sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
     try:
         from services.chat_orchestrator import generate_dynamic_query_narrative
-        sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
         natural_answer = await generate_dynamic_query_narrative(user_question, query_plan, count, summary_stats, sample_records)
     except Exception as synth_err:
         print(f"[QueryEngine] Dynamic narrative synthesis fallback: {synth_err}")
         natural_answer = await generate_natural_response(user_question, plan, summary_stats, df_filtered, history=history)
+
+    # Post-generation fact-checking & grounding guardrail
+    from services.guardrails import verify_and_ground_ticket_narrative
+    natural_answer = verify_and_ground_ticket_narrative(natural_answer, count, sample_records, query_plan)
 
     records_out = df_filtered.to_dict(orient="records") if not df_filtered.empty else None
     return natural_answer, records_out
@@ -2087,6 +2117,10 @@ async def process_ticket_query(tickets_data, user_question, history=None):
 
     # Step 4: Generate natural language response backed by concrete results
     natural_answer = await generate_natural_response(user_question, plan, summary_stats, df_filtered, history=history)
+
+    sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
+    from services.guardrails import verify_and_ground_ticket_narrative
+    natural_answer = verify_and_ground_ticket_narrative(natural_answer, len(df_filtered), sample_records, plan)
 
     # Return records as list of dicts for frontend response
     records_out = df_filtered.to_dict(orient="records") if not df_filtered.empty else None

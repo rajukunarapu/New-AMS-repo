@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from ams_api import AMSApi, AMSUnauthorized
 from query_engine import process_ticket_query
 from models.schemas import ChatRequest, ChatResponse
+from services.classification_config import extract_requested_priorities
 from services.chat_orchestrator import sanitize_and_prune_history
 from services.ticket_creator_service import (
     TicketSessionManager,
@@ -169,6 +170,19 @@ class ChatService:
                 known_clients=known_clients
             )
  
+            if intent in {"clarify_confirmation", "clarify_priority"}:
+                return ChatResponse(
+                    success=True,
+                    response=(
+                        "Which priority should I use? Reply with **Very High**, **High**, **Medium**, or **Low**."
+                        if intent == "clarify_priority"
+                        else "Your draft is still open. Reply **Submit** to continue, **Cancel** to discard it, or tell me what to change."
+                    ),
+                    ticket_draft=active_draft,
+                    action_type="ticket_preview",
+                    count=0,
+                )
+
             # --- User cancels ticket creation ---
             if intent == "cancel":
                 TicketSessionManager.clear_draft(session_key)
@@ -190,7 +204,7 @@ class ChatService:
                 else:
                     updated = await extract_fields_with_llm(request.message, active_draft, known_clients)
                     for k, v in updated.items():
-                        if v is not None:
+                        if k not in {"priority", "_user_explicit_priority", "_priority_source"} and v is not None:
                             active_draft[k] = v
  
                 # Customer cannot change client name to another company
@@ -364,6 +378,15 @@ class ChatService:
  
             # --- BRANCH 2: CREATE_TICKET (Issue reported, technical problem, error, or screenshot) ---
             elif action == "CREATE_TICKET":
+                requested_priorities = extract_requested_priorities(request.message)
+                if len(requested_priorities) > 1:
+                    return ChatResponse(
+                        success=True,
+                        response="Which priority should I use?",
+                        action_type="chat",
+                        count=0,
+                    )
+
                 initial_draft = create_initial_draft(
                     user_email=request.username,
                     locked_client=customer_client if is_customer else None
@@ -374,13 +397,11 @@ class ChatService:
                 # Merge pre-extracted fields from Pass 1
                 extracted_fields = decision.get("ticket_fields") or {}
                 for k, v in extracted_fields.items():
-                    if v is not None and str(v).strip():
+                    if k not in {"_user_explicit_priority", "_priority_source"} and v is not None and str(v).strip():
                         initial_draft[k] = v
 
-                # Tag if user explicitly specified a priority in message
-                m_prio = re.search(r'\b(?:very\s+high|critical|high|medium|med|moderate|low|minor|trivial|p1|p2|p3|p4)\b', request.message, re.IGNORECASE)
-                if m_prio:
-                    initial_draft["_user_explicit_priority"] = m_prio.group(0)
+                if requested_priorities:
+                    initial_draft["_user_explicit_priority"] = next(iter(requested_priorities))
 
                 # Customer client cannot be overridden by extraction
                 if is_customer and customer_client:

@@ -12,7 +12,8 @@ Directly analyzes user prompts in a single LLM call without hardcoded keyword ru
 import re
 import json
 from typing import Dict, Any, List, Optional
-from query_engine import _call_llm
+from query_engine import _call_llm, requested_ticket_status
+from services.classification_config import extract_requested_priorities
 from services.guardrails import check_fast_guardrail, verify_and_ground_ticket_narrative
 
 
@@ -49,7 +50,7 @@ ACTIONS:
        "client": "<client name e.g. ATG, Karamtara, or null>",
        "status": "<Open|Closed|Pending|In Progress or null>",
        "priority": "<High|Medium|Low or null>",
-       "group_or_module": "<ONLY if user specifically names a known functional group like SAP-FICO, SAP-MM, SAP-SD, SAP-BASIS, SAP-ABAP, RPA; for topics, technologies, or features like Joule, invoice, PO, leave this null and put in semantic_search>",
+       "group_or_module": "<ONLY if user specifically names a known functional group like SAP-FICO, SAP-MM, SAP-SD, SAP-BASIS, SAP-ABAP, RPA; for explicit description mentions or topics like Joule, invoice, or PO, leave this null and put the term in semantic_search>",
        "ticket_no": "<ticket ID e.g. ATG2608001, or null>",
        "aggregation": "<count|list|detail|summary or null>",
        "limit": <integer limit when user asks for a specific count e.g. 'last 5', 'top 10', 'first 3', or null>,
@@ -161,6 +162,15 @@ def _sanitize_history_context(history: Optional[List[Dict[str, Any]]] = None) ->
         result.append({"role": role, "text": text})
     return result
 
+
+
+_CREATE_REQUEST = re.compile(
+    r"^(?:please\s+)?(?:(?:can|could|would|will)\s+you\s+(?:please\s+)?|"
+    r"i\s+(?:(?:want|need|would like)\s+to\s+))?"
+    r"(?:create|raise|open|log|file|submit|make)\s+"
+    r"(?:(?:an?|the|new|support|very|high|medium|low|critical|priority|p[1-4])\s+)*"
+    r"(?:ticket|incident|issue|request)\b"
+)
 
 
 async def run_chat_orchestrator(
@@ -277,17 +287,36 @@ STRICT CUSTOMER ISOLATION POLICY:
     except Exception as err:
         print(f"[ChatOrchestrator] Orchestration parse error: {err}")
  
-    # Fallback Handling: NEVER swallow a query as a greeting!
+    # Resolve explicit requests before broad ticket-search cues.
+    priorities = extract_requested_priorities(clean_msg, query_filter=True)
+    if len(priorities) > 1:
+        return {
+            "action": "CONVERSATIONAL",
+            "conversational_response": "Which priority should I use?",
+        }
+    detected_prio = next(iter(priorities), None)
     if has_screenshot:
         return {
             "action": "CREATE_TICKET",
             "ticket_fields": {
                 "clientName": None,
-                "priority": "Medium",
-                "descriptionofTicket": clean_msg if clean_msg else "Issue reported with screenshot attachment"
+                "priority": detected_prio or "Medium",
+                "descriptionofTicket": clean_msg or "Issue reported with screenshot attachment",
             },
-            "dynamic_note": "I've started a new ticket draft with your attached screenshot. Please check the details below."
+            "dynamic_note": "I've started a new ticket draft with your attached screenshot. Please check the details below.",
         }
+
+    explicit_create = bool(_CREATE_REQUEST.match(msg_lower))
+    mixed_request = re.search(
+        r"(?:[.;,]\s*|\b(?:and|then|but)\s+)(?:please\s+)?(?:show|list|find|search|count|how many)\b",
+        msg_lower,
+    )
+    if (explicit_create and mixed_request) or re.fullmatch(r"(?:open\s+)?ticket[?.!]*", msg_lower):
+        return {
+            "action": "CONVERSATIONAL",
+            "conversational_response": "Do you want to create a new ticket or look up existing tickets?",
+        }
+
     # Detect ticket ID in current message or in recent conversation history
     ticket_id_pattern = re.compile(r'\b[A-Za-z]{2,6}\d{4,8}\b')
     detected_ticket_no = None
@@ -314,7 +343,9 @@ STRICT CUSTOMER ISOLATION POLICY:
         re.search(r'\b(?:who|what|when|which|how|status|priority|reporter|reported|assigned|assignee|description|details|module|group|it|that|this)\b', msg_lower)
     ))
 
-    if is_query or is_follow_up_filter or is_ticket_attr_query or is_ticket_ref_followup:
+    if not explicit_create and (
+        is_query or is_follow_up_filter or is_ticket_attr_query or is_ticket_ref_followup
+    ):
         detected_c = None
         if known_clients:
             for c in known_clients:
@@ -331,11 +362,6 @@ STRICT CUSTOMER ISOLATION POLICY:
                         break
                 if detected_c:
                     break
-        detected_prio = None
-        if "high" in msg_lower: detected_prio = "High"
-        elif "low" in msg_lower: detected_prio = "Low"
-        elif "medium" in msg_lower: detected_prio = "Medium"
-
         # Limit detection
         lim_m = re.search(r'\b(?:top|first|last|latest|recent|most\s+recent|limit)\s*(\d{1,3})\b', msg_lower)
         if not lim_m:
@@ -358,7 +384,7 @@ STRICT CUSTOMER ISOLATION POLICY:
             "action": "QUERY_TICKETS",
             "query_plan": {
                 "client": detected_c,
-                "status": "Open" if "open" in msg_lower else ("Closed" if "closed" in msg_lower else None),
+                "status": requested_ticket_status(clean_msg),
                 "priority": detected_prio,
                 "group_or_module": None,
                 "ticket_no": detected_ticket_no,
@@ -373,15 +399,14 @@ STRICT CUSTOMER ISOLATION POLICY:
  
     # Detect if user message is reporting an issue / requesting change / creating a ticket
     is_create = bool(re.search(r'\b(?:create|raise|open|log|dump|crash|error|failed|down|bug|not working|additional\s+field|new\s+report|develop\s+new|enhancement|change\s*request|access\s+request|password\s+reset|s\s*po)\b', msg_lower))
-    if is_create:
-        from services.classification_config import resolve_authoritative_ticket_type
+    if explicit_create or is_create:
         from services.classification_service import TicketClassifier
         fallback_cls = TicketClassifier._heuristic_semantic_classification(clean_msg)
         return {
             "action": "CREATE_TICKET",
             "ticket_fields": {
                 "clientName": None,
-                "priority": "High" if "high" in msg_lower else "Medium",
+                "priority": detected_prio or "Medium",
                 "typeofticket": fallback_cls.get("ticketType", "Incident"),
                 "descriptionofTicket": clean_msg
             },
@@ -442,7 +467,7 @@ async def generate_dynamic_query_narrative(
             "group_or_module": query_plan.get("group_or_module"),
             "ticket_no": query_plan.get("ticket_no")
         },
-        "top_groups": list((summary_stats.get("group_stats") or {}).items())[:3] if summary_stats else [],
+        "top_groups": (summary_stats.get("group_stats") or [])[:3] if summary_stats else [],
         "sample_tickets": [
             {
                 "id": r.get("ticketNo") or r.get("ticketId"),

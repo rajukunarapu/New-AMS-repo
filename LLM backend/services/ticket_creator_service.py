@@ -29,6 +29,7 @@ from services.classification_config import (
     resolve_authoritative_ticket_type,
     adjust_priority_for_ticket_type,
     check_priority_adjustment,
+    extract_requested_priorities,
     ALLOWED_PRIORITIES_BY_TYPE,
     PRIORITY_DISPLAY_MAPPING
 )
@@ -994,6 +995,33 @@ def get_missing_core_fields(draft: Dict[str, Any]) -> List[str]:
 
 
 
+def _apply_draft_priority(
+    changes: Dict[str, Any], draft: Dict[str, Any], requested_priority: Optional[str]
+) -> None:
+    changes.pop("priority", None)
+    changes.pop("_user_explicit_priority", None)
+    changes.pop("_priority_source", None)
+    ticket_type = changes.get("typeofticket")
+    if ticket_type:
+        ticket_type = resolve_authoritative_ticket_type(ticket_type)
+        changes["typeofticket"] = ticket_type
+        changes["_typeofticket_source"] = "user"
+    if not (requested_priority or ticket_type):
+        return
+
+    explicit_priority = requested_priority or draft.get("_user_explicit_priority")
+    adjusted, reason = check_priority_adjustment(
+        explicit_priority or draft.get("priority"),
+        ticket_type or draft.get("typeofticket"),
+        is_explicit_request=bool(explicit_priority),
+    )
+    changes["priority"] = adjusted
+    changes["_priority_adjustment_note"] = reason
+    if requested_priority:
+        changes["_user_explicit_priority"] = requested_priority
+        changes["_priority_source"] = "user"
+
+
 async def analyze_user_intent_on_draft(
     user_message: str,
     current_draft: Dict[str, Any],
@@ -1005,6 +1033,7 @@ async def analyze_user_intent_on_draft(
     - 'confirm': Affirming/agreeing to create the ticket (e.g. 'yes', 'proceed', 'looks good', 'create it', 'do it')
     - 'modify': Requesting changes to fields or supplying missing required values
     - 'cancel': Aborting the creation (e.g. 'cancel', 'stop', 'don't create')
+    - 'clarify_confirmation': Asking for a clear approval or cancellation
     - 'unrelated': Asking an explicit search/query or unrelated question
 
     Prioritizes populating missing required payload fields when user enters standalone values.
@@ -1016,21 +1045,39 @@ async def analyze_user_intent_on_draft(
     missing_fields = get_missing_core_fields(current_draft)
     pending_field = current_draft.get("_pending_field") or (missing_fields[0] if missing_fields else None)
 
-    # Fast check for simple affirmative answers
-    pure_affirmations = {
-        "yes", "y", "yeah", "yep", "sure", "ok", "okay", "go ahead", "proceed",
-        "create", "create it", "create ticket", "create the ticket", "submit", "submit it",
-        "looks good", "looks fine", "all good", "do it", "please create",
-        "yes please", "yes go ahead", "yes proceed", "perfect", "done", "confirm",
-        "fine", "proceed please", "make it", "go for it", "right", "correct", "approved"
+    reply = msg_lower.replace("\u2019", "'").rstrip(".!").rstrip()
+    cancellations = {
+        "cancel", "cancel it", "cancel ticket", "cancel the ticket", "no",
+        "stop", "abort", "discard", "discard it", "nevermind", "never mind", "exit",
     }
-    if msg_lower in pure_affirmations or re.match(r'^(?:yes|sure|ok|okay|yep|yeah|proceed|go ahead|looks good|do it|submit)(?:,?\s*(?:please|create|it|proceed|go ahead|thanks))?[!\.]*$', msg_lower):
+    if reply in cancellations:
+        return "cancel", {}
+
+    # Ticket submission requires an approved whole reply, independent of LLM output.
+    confirmations = {
+        "yes", "yeah", "yep", "yes please", "yes, please", "yes go ahead",
+        "yes, go ahead", "yes proceed", "yes, proceed", "sure", "go ahead",
+        "proceed", "proceed please", "okay, proceed", "confirm", "submit",
+        "submit it", "submit the ticket", "please submit", "please submit it",
+        "create it", "create ticket", "create the ticket", "please create it",
+        "looks good", "do it", "approved",
+    }
+    if reply in confirmations:
         return "confirm", {}
 
-    # Fast check for cancellations
-    cancellations = {"cancel", "no", "stop", "abort", "discard", "nevermind", "never mind", "don't create", "dont create", "exit"}
-    if msg_lower in cancellations or re.match(r'^(?:cancel|abort|discard|stop|no\s+don\'?t)(?:\s+(?:ticket|it|create))?[!\.]*$', msg_lower):
-        return "cancel", {}
+    if re.search(r"\b(?:yes|yeah|yep|sure|submit|proceed|go ahead|confirm|cancel|abort|discard|looks good|do it|create (?:it|(?:the )?ticket)|(?:don't|dont|do not|never) create)\b", reply):
+        return "clarify_confirmation", {}
+
+    priorities = extract_requested_priorities(msg_clean, priority_reply=pending_field == "priority")
+    if len(priorities) > 1:
+        return "clarify_priority", {}
+    requested_priority = next(iter(priorities), None)
+    if pending_field == "priority" and not is_explicit_query_prompt_keyword(msg_clean):
+        if not requested_priority:
+            return "clarify_priority", {}
+        changes = {}
+        _apply_draft_priority(changes, current_draft, requested_priority)
+        return "modify", changes
 
     # Fast check for direct field input when a pending field is active
     if missing_fields and pending_field and not await is_explicit_query_prompt(user_message):
@@ -1040,28 +1087,6 @@ async def analyze_user_intent_on_draft(
                 resolved_c = resolve_client_name(msg_clean, known_clients)
                 if resolved_c:
                     return "modify", {"clientName": resolved_c}
-            elif pending_field == "priority":
-                cand_prio = None
-                if any(w in msg_lower for w in ["low", "minor", "p4"]):
-                    cand_prio = "Low"
-                elif any(w in msg_lower for w in ["very high", "critical", "p1"]):
-                    cand_prio = "Very High"
-                elif any(w in msg_lower for w in ["high", "p2"]):
-                    cand_prio = "High"
-                elif any(w in msg_lower for w in ["medium", "med", "p3"]):
-                    cand_prio = "Medium"
-                cand_val = cand_prio or msg_clean
-                adjusted, reason = check_priority_adjustment(cand_val, current_draft.get("typeofticket"), is_explicit_request=True)
-                mods = {
-                    "priority": adjusted,
-                    "_priority_source": "user",
-                    "_user_explicit_priority": cand_val
-                }
-                if reason:
-                    mods["_priority_adjustment_note"] = reason
-                else:
-                    mods["_priority_adjustment_note"] = None
-                return "modify", mods
             elif pending_field == "descriptionofTicket":
                 clean_msg = clean_user_message_text(msg_clean, current_draft.get("screenshort"))
                 if len(clean_msg) > 3:
@@ -1139,36 +1164,7 @@ Respond with a JSON object:
             mod_fields = {k: v for k, v in parsed.get("modified_fields", {}).items() if v is not None}
             if "screenshort" in mod_fields and current_draft.get("screenshort"):
                 mod_fields.pop("screenshort", None)
-            if "typeofticket" in mod_fields and mod_fields["typeofticket"]:
-                resolved_type = resolve_authoritative_ticket_type(mod_fields["typeofticket"])
-                mod_fields["typeofticket"] = resolved_type
-                mod_fields["_typeofticket_source"] = "user"
-                # Re-adjust priority according to the authoritative priority matrix
-                active_prio = mod_fields.get("priority") or current_draft.get("priority")
-                user_explicit = bool(mod_fields.get("priority") or current_draft.get("_user_explicit_priority") or current_draft.get("_priority_source") == "user")
-                adj_prio, reason = check_priority_adjustment(active_prio, resolved_type, is_explicit_request=user_explicit)
-                mod_fields["priority"] = adj_prio
-                if user_explicit:
-                    mod_fields["_user_explicit_priority"] = adj_prio
-                    mod_fields["_priority_source"] = "user"
-                if reason:
-                    mod_fields["_priority_adjustment_note"] = reason
-                elif user_explicit:
-                    mod_fields["_priority_adjustment_note"] = None
-            elif "priority" in mod_fields and mod_fields["priority"]:
-                raw_req_prio = mod_fields["priority"]
-                adj_prio, reason = check_priority_adjustment(
-                    raw_req_prio,
-                    current_draft.get("typeofticket"),
-                    is_explicit_request=True
-                )
-                mod_fields["priority"] = adj_prio
-                mod_fields["_priority_source"] = "user"
-                mod_fields["_user_explicit_priority"] = raw_req_prio
-                if reason:
-                    mod_fields["_priority_adjustment_note"] = reason
-                else:
-                    mod_fields["_priority_adjustment_note"] = None
+            _apply_draft_priority(mod_fields, current_draft, requested_priority)
             if "descriptionofTicket" in mod_fields and mod_fields["descriptionofTicket"]:
                 if current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
                     if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', msg_clean, re.IGNORECASE) or "description" in msg_clean.lower()):
@@ -1178,16 +1174,16 @@ Respond with a JSON object:
                     mod_fields["descriptionofTicket"] = cleaned_desc or current_draft.get("descriptionofTicket") or "Screenshot attached"
 
             if intent == "modify" or (mod_fields and len(mod_fields) > 0):
-                if pending_field and not any(k in mod_fields for k in ["clientName", "descriptionofTicket", "priority", "assigntogroup", "typeofticket"]):
+                if pending_field and pending_field != "priority" and not any(k in mod_fields for k in ["clientName", "descriptionofTicket", "priority", "assigntogroup", "typeofticket"]):
                     if pending_field == "descriptionofTicket":
                         clean_m = clean_user_message_text(msg_clean, current_draft.get("screenshort"))
                         mod_fields[pending_field] = clean_ticket_description(clean_m, current_draft.get("clientName"), current_draft.get("screenshort")) or current_draft.get("descriptionofTicket") or "Screenshot attached"
                     else:
                         mod_fields[pending_field] = msg_clean
                 return "modify", mod_fields
-            elif intent in ["confirm", "cancel"]:
-                return intent, mod_fields
-            elif intent == "unrelated" and missing_fields and not is_explicit_query_prompt_keyword(user_message):
+            elif intent in {"confirm", "cancel"}:
+                return "clarify_confirmation", {}
+            elif intent == "unrelated" and missing_fields and pending_field != "priority" and not is_explicit_query_prompt_keyword(user_message):
                 # User provided a standalone answer to missing field prompt, override 'unrelated'
                 if pending_field == "descriptionofTicket":
                     clean_m = clean_user_message_text(msg_clean, current_draft.get("screenshort"))
@@ -1200,47 +1196,10 @@ Respond with a JSON object:
         except Exception:
             pass
 
-    # Heuristic fallback for intent detection
-    if any(phrase in msg_lower for phrase in ["go ahead", "proceed", "create it", "looks good", "submit", "do it", "all good", "sure", "yes"]):
-        return "confirm", {}
-
-    if any(word in msg_lower for word in ["cancel", "nevermind", "abort", "discard", "stop"]):
-        return "cancel", {}
-
     # Check heuristic extractor first with active current_draft
     mod_extracted = heuristic_field_extractor(msg_clean, {}, known_clients or [])
     cleaned_mods = {k: v for k, v in mod_extracted.items() if v is not None}
-    if "typeofticket" in cleaned_mods:
-        resolved_type = resolve_authoritative_ticket_type(cleaned_mods["typeofticket"])
-        cleaned_mods["typeofticket"] = resolved_type
-        cleaned_mods["_typeofticket_source"] = "user"
-        # Re-adjust priority according to ticket priority matrix
-        active_prio = cleaned_mods.get("priority") or current_draft.get("priority")
-        user_explicit = bool(cleaned_mods.get("priority") or current_draft.get("_user_explicit_priority") or current_draft.get("_priority_source") == "user")
-        adj_prio, reason = check_priority_adjustment(active_prio, resolved_type, is_explicit_request=user_explicit)
-        cleaned_mods["priority"] = adj_prio
-        if user_explicit:
-            cleaned_mods["_user_explicit_priority"] = adj_prio
-            cleaned_mods["_priority_source"] = "user"
-        if reason:
-            cleaned_mods["_priority_adjustment_note"] = reason
-        elif user_explicit:
-            cleaned_mods["_priority_adjustment_note"] = None
-    elif "priority" in cleaned_mods:
-        raw_req_prio = cleaned_mods["priority"]
-        adj_prio, reason = check_priority_adjustment(
-            raw_req_prio,
-            current_draft.get("typeofticket"),
-            is_explicit_request=True
-        )
-        cleaned_mods["priority"] = adj_prio
-        cleaned_mods["_priority_source"] = "user"
-        cleaned_mods["_user_explicit_priority"] = raw_req_prio
-        if reason:
-            cleaned_mods["_priority_adjustment_note"] = reason
-        else:
-            cleaned_mods["_priority_adjustment_note"] = None
-
+    _apply_draft_priority(cleaned_mods, current_draft, requested_priority)
     if current_draft.get("descriptionofTicket") and current_draft["descriptionofTicket"] != "Screenshot attached":
         if not (re.search(r'\b(?:issue|problem|description|error|summary)\b', msg_clean, re.IGNORECASE) or "description" in msg_clean.lower()):
             cleaned_mods.pop("descriptionofTicket", None)
@@ -1249,7 +1208,7 @@ Respond with a JSON object:
         return "modify", cleaned_mods
 
     # If missing required fields exist and user message is not an explicit search query, map to pending_field
-    if missing_fields and pending_field and not is_explicit_query_prompt_keyword(user_message):
+    if missing_fields and pending_field and pending_field != "priority" and not is_explicit_query_prompt_keyword(user_message):
         return "modify", {pending_field: msg_clean}
 
     return "modify", {}
@@ -1356,7 +1315,7 @@ def format_preview_markdown(draft: Dict[str, Any], missing_fields: List[str]) ->
     lines.append("---")
     lines.append("**All required details are complete.**")
     lines.append("")
-    lines.append("Would you like to proceed with creating this ticket, or would you like to make any modifications?")
+    lines.append("Reply **Submit** to create this ticket, **Cancel** to discard it, or tell me what to change.")
     lines.append("*(You can say **\"Yes, go ahead\"**, **\"Proceed\"**, **\"Looks good\"**, **\"Create it\"**, or tell me what to change)*")
 
     return "\n".join(lines)

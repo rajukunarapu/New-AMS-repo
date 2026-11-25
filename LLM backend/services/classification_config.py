@@ -9,6 +9,7 @@ Contains:
 5. Configurable S PO business rules and disambiguation handlers.
 """
 
+import re
 from typing import Dict, Any, List, Optional, Tuple
 
 # Authoritative Ticket Type Names (No IDs required)
@@ -360,38 +361,67 @@ PRIORITY_DISPLAY_MAPPING: Dict[str, str] = {
 }
 
 
+_PRIORITY_ALIASES = {
+    PRIORITY_VERY_HIGH: ("very high", "critical", "urgent", "p1", "1", "production impacted", "very high (production impacted)"),
+    PRIORITY_HIGH: ("high", "important", "p2", "2", "business impacted", "high (business impacted)"),
+    PRIORITY_MEDIUM: ("medium", "med", "moderate", "p3", "3"),
+    PRIORITY_LOW: ("low", "minor", "trivial", "p4", "4"),
+}
+_PRIORITY_BY_ALIAS = {
+    alias: priority for priority, aliases in _PRIORITY_ALIASES.items() for alias in aliases
+}
+
+
 def normalize_priority_string(candidate: Optional[Any]) -> Optional[str]:
-    """
-    Normalizes arbitrary priority strings (e.g. 'p1', 'critical', 'p4', 'med', 'high')
-    to standard canonical names: 'Very High', 'High', 'Medium', or 'Low'.
-    """
+    """Normalize known priority labels and codes from AMS and query plans."""
     if candidate is None:
         return None
-
-    clean = str(candidate).strip().lower()
-    if not clean:
-        return None
-
-    if any(k in clean for k in ["very high", "critical", "p1", "production impacted"]):
-        return PRIORITY_VERY_HIGH
-    if any(k in clean for k in ["high", "p2", "business impacted"]):
-        return PRIORITY_HIGH
-    if any(k in clean for k in ["medium", "med", "moderate", "p3"]):
-        return PRIORITY_MEDIUM
-    if any(k in clean for k in ["low", "minor", "trivial", "p4"]):
-        return PRIORITY_LOW
-
-    # Check for direct single digit numbers
-    if clean in ["1"]:
-        return PRIORITY_VERY_HIGH
-    if clean in ["2"]:
-        return PRIORITY_HIGH
-    if clean in ["3"]:
-        return PRIORITY_MEDIUM
-    if clean in ["4"]:
-        return PRIORITY_LOW
-
+    label = " ".join(str(candidate).lower().split())
+    if label in _PRIORITY_BY_ALIAS:
+        return _PRIORITY_BY_ALIAS[label]
+    coded_label = re.fullmatch(r"(p[1-4])\s*[-:]\s*(.+)", label)
+    if coded_label:
+        code, name = coded_label.groups()
+        if _PRIORITY_BY_ALIAS.get(code) == _PRIORITY_BY_ALIAS.get(name):
+            return _PRIORITY_BY_ALIAS[code]
     return None
+
+
+_PRIORITY_TERM = r"(?:very\s+high|critical|high|medium|med|moderate|low|minor|trivial|p[1-4])"
+_PRIORITY_VALUES = rf"{_PRIORITY_TERM}\b(?:\s+(?:or|and)\s+{_PRIORITY_TERM}\b)*"
+_PRIORITY_INSTRUCTION = (
+    rf"\bpriority\b\s*(?:(?:is|to|of)\s+|[:=]\s*)?({_PRIORITY_VALUES}|[1-4]\b)"
+    rf"|\b(?:set|make|mark)\s+(?:it|(?:this|the)\s+ticket)\s+(?:(?:to|as)\s+)?({_PRIORITY_VALUES})"
+    rf"|\b({_PRIORITY_VALUES})(?=\s+(?:priority|(?:(?:open|closed|pending)\s+)?tickets?)\b)"
+)
+_QUERY_PRIORITY = rf"\bonly\s+({_PRIORITY_VALUES})|\b(p[1-4])\b"
+
+
+def extract_requested_priorities(
+    message: str, *, priority_reply: bool = False, query_filter: bool = False
+) -> set[str]:
+    """Extract canonical priorities from explicit wording or a direct field reply."""
+    pattern = _PRIORITY_INSTRUCTION
+    if query_filter:
+        pattern += "|" + _QUERY_PRIORITY
+    if priority_reply:
+        pattern += rf"|^({_PRIORITY_VALUES}|[1-4])$"
+
+    text = message.strip().rstrip(".!").replace("\u2019", "'")
+    values = set()
+    for match in re.finditer(pattern, text, re.IGNORECASE):
+        if re.search(
+            r"\b(?:not|never|don't|dont)\s+(?:(?:set|make|mark|change|use|assign)\s+(?:the\s+)?)?$",
+            text[:match.start()],
+            re.IGNORECASE,
+        ):
+            continue
+        phrase = next(group for group in match.groups() if group is not None)
+        for candidate in re.split(r"\s+(?:or|and)\s+", phrase, flags=re.IGNORECASE):
+            priority = normalize_priority_string(" ".join(candidate.split()))
+            if priority:
+                values.add(priority)
+    return values
 
 
 def get_allowed_priorities_for_type(ticket_type: Optional[str]) -> List[str]:

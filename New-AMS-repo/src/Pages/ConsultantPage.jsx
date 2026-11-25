@@ -89,6 +89,7 @@ const ConsultantPage = () => {
   const [assignTo, setAssignTo] = useState("");
   const [assignStatus, setAssignStatus] = useState("");
   const [assignPriority, setAssignPriority] = useState("");
+  const [assignTypeOfTicket, setAssignTypeOfTicket] = useState("");
   const [workNote, setWorkNote] = useState("");
   const [showReviewBox, setShowReviewBox] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -377,11 +378,98 @@ const ConsultantPage = () => {
     return p;
   };
 
+  // Pre-fill Assign and Update card fields from selectedTicket
+  useEffect(() => {
+    if (!selectedTicket) return;
+
+    // Consultant (Assign To)
+    const currentAssignee = (selectedTicket.name || "").trim();
+    if (currentAssignee && currentAssignee !== "-") {
+      setAssignTo(currentAssignee);
+    } else {
+      setAssignTo("");
+    }
+
+    // Status
+    const tStatus = (selectedTicket.ticketStatus || selectedTicket.status || "").trim();
+    if (tStatus && tStatus.toLowerCase() !== "created") {
+      setAssignStatus(tStatus);
+    } else {
+      setAssignStatus("");
+    }
+
+    // Type of Request: from typeofTicket / typeOfTicket
+    const rawType = (
+      selectedTicket.typeofTicket ||
+      selectedTicket.typeOfTicket ||
+      selectedTicket.typeof_ticket ||
+      selectedTicket.ticketType ||
+      selectedTicket.type ||
+      ""
+    ).trim();
+    let initialType = "";
+    if (rawType.toLowerCase().includes("change")) {
+      initialType = "Change Request";
+    } else if (rawType.toLowerCase().includes("service")) {
+      initialType = "Service Request";
+    } else if (rawType.toLowerCase().includes("incident")) {
+      initialType = "Incident";
+    } else if (rawType) {
+      initialType = rawType;
+    }
+    setAssignTypeOfTicket(initialType);
+
+    // Priority: Match against uniquePriorities or use ticket's own priority, adjusted for Type of Request
+    const tPriority = (selectedTicket.priority || "").trim();
+    let matchedPriorityName = "";
+    if (tPriority) {
+      let matched = uniquePriorities.find(
+        (p) =>
+          (p.name && p.name.trim().toLowerCase() === tPriority.toLowerCase()) ||
+          (p.code && p.code.trim().toLowerCase() === tPriority.toLowerCase())
+      );
+      if (!matched) {
+        const code = formatPriorityCode(tPriority);
+        matched = uniquePriorities.find((p) => {
+          const pCode = p.code || formatPriorityCode(p.name);
+          return pCode === code;
+        });
+      }
+      matchedPriorityName = matched ? matched.name : tPriority;
+    }
+
+    const typeLower = initialType.toLowerCase();
+    const currCode = formatPriorityCode(matchedPriorityName).toUpperCase();
+
+    if (typeLower.includes("change")) {
+      const p4 = uniquePriorities.find(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P4"
+      );
+      setAssignPriority(p4 ? p4.name : "Low");
+    } else if (typeLower.includes("incident") && (currCode === "P4" || !["P1", "P2", "P3"].includes(currCode))) {
+      const p3 = uniquePriorities.find(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P3"
+      );
+      setAssignPriority(p3 ? p3.name : "Medium");
+    } else if (typeLower.includes("service") && (currCode === "P1" || !["P2", "P3", "P4"].includes(currCode))) {
+      const p3 = uniquePriorities.find(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P3"
+      );
+      setAssignPriority(p3 ? p3.name : "Medium");
+    } else {
+      setAssignPriority(matchedPriorityName);
+    }
+
+    setWorkNote("");
+    setShowReviewBox(false);
+  }, [selectedTicket?.ticketNo, selectedTicket?.ticketStatus, uniquePriorities]);
+
   const handleReviewChangeClick = () => {
     const missing = [];
     if (!assignTo.trim()) missing.push("Assign To");
     if (!assignPriority.trim()) missing.push("Priority");
     if (!assignStatus.trim()) missing.push("Status");
+    if (!assignTypeOfTicket.trim()) missing.push("Type of Request");
 
     if (missing.length > 0) {
       setAlertType("error");
@@ -407,6 +495,7 @@ const ConsultantPage = () => {
     if (!assignTo.trim()) missing.push("Assign To");
     if (!assignPriority.trim()) missing.push("Priority");
     if (!assignStatus.trim()) missing.push("Status");
+    if (!assignTypeOfTicket.trim()) missing.push("Type of Request");
 
     if (missing.length > 0) {
       setAlertType("error");
@@ -425,7 +514,8 @@ const ConsultantPage = () => {
         assignTo.trim(),
         priorityPayload,
         assignStatus.trim(),
-        workNote.trim()
+        workNote.trim(),
+        assignTypeOfTicket.trim()
       );
 
       if (response && response.success) {
@@ -442,6 +532,9 @@ const ConsultantPage = () => {
                   name: assignTo.trim(),
                   priority: priorityPayload,
                   ticketStatus: assignStatus.trim(),
+                  typeofTicket: assignTypeOfTicket.trim(),
+                  typeOfTicket: assignTypeOfTicket.trim(),
+                  remarks: workNote.trim() || t.remarks,
                 }
               : t
           )
@@ -465,6 +558,9 @@ const ConsultantPage = () => {
                     name: assignTo.trim(),
                     priority: priorityPayload,
                     ticketStatus: assignStatus.trim(),
+                    typeofTicket: assignTypeOfTicket.trim(),
+                    typeOfTicket: assignTypeOfTicket.trim(),
+                    remarks: workNote.trim() || t.remarks,
                   }
                 : t
             )
@@ -486,9 +582,10 @@ const ConsultantPage = () => {
     if (assignTo && selectedTicket && assignTo !== (selectedTicket.name || "")) count++;
     if (assignStatus && selectedTicket && assignStatus !== (selectedTicket.ticketStatus || "")) count++;
     if (assignPriority && selectedTicket && assignPriority !== (selectedTicket.priority || "")) count++;
+    if (assignTypeOfTicket && selectedTicket && assignTypeOfTicket !== (selectedTicket.typeofTicket || selectedTicket.typeOfTicket || "")) count++;
     if (workNote && workNote.trim()) count++;
     return count;
-  }, [assignTo, assignStatus, assignPriority, workNote, selectedTicket]);
+  }, [assignTo, assignStatus, assignPriority, assignTypeOfTicket, workNote, selectedTicket]);
 
   const selectedPriorityCode = selectedTicket ? formatPriorityCode(selectedTicket.priority) : "P4";
 
@@ -1019,7 +1116,9 @@ const ConsultantPage = () => {
               selectedPriorityCode={selectedPriorityCode}
               toPriorityPayloadString={toPriorityPayloadString}
               searchText={searchText}
-              showAssignUpdateCard={false}
+              assignTypeOfTicket={assignTypeOfTicket}
+              setAssignTypeOfTicket={setAssignTypeOfTicket}
+              showAssignUpdateCard={true}
             />
           ) : activeNav === "workflow" ? (
             <DeliveryWorkflow

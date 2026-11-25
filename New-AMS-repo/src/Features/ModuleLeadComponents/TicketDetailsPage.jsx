@@ -128,6 +128,8 @@ const TicketDetailsPage = ({
   setAssignStatus,
   assignPriority,
   setAssignPriority,
+  assignTypeOfTicket,
+  setAssignTypeOfTicket,
   workNote,
   setWorkNote,
   showReviewBox,
@@ -274,6 +276,58 @@ const TicketDetailsPage = ({
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const availablePriorities = React.useMemo(() => {
+    if (!uniquePriorities || uniquePriorities.length === 0) return [];
+    const type = (assignTypeOfTicket || "").toLowerCase().trim();
+    if (type.includes("change")) {
+      return uniquePriorities.filter(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P4"
+      );
+    }
+    if (type.includes("incident")) {
+      return uniquePriorities.filter((p) => {
+        const code = (p.code || formatPriorityCode(p.name || "")).toUpperCase();
+        return code === "P1" || code === "P2" || code === "P3";
+      });
+    }
+    if (type.includes("service")) {
+      return uniquePriorities.filter((p) => {
+        const code = (p.code || formatPriorityCode(p.name || "")).toUpperCase();
+        return code === "P2" || code === "P3" || code === "P4";
+      });
+    }
+    return uniquePriorities;
+  }, [uniquePriorities, assignTypeOfTicket, formatPriorityCode]);
+
+  const handleTypeOfRequestChange = (newType) => {
+    if (setAssignTypeOfTicket) {
+      setAssignTypeOfTicket(newType);
+    }
+    const type = (newType || "").toLowerCase().trim();
+    const currCode = formatPriorityCode(assignPriority).toUpperCase();
+
+    if (type.includes("change")) {
+      const p4 = uniquePriorities.find(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P4"
+      );
+      if (setAssignPriority) setAssignPriority(p4 ? p4.name : "Low");
+    } else if (type.includes("incident")) {
+      if (currCode === "P4" || !["P1", "P2", "P3"].includes(currCode)) {
+        const p3 = uniquePriorities.find(
+          (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P3"
+        );
+        if (setAssignPriority) setAssignPriority(p3 ? p3.name : "Medium");
+      }
+    } else if (type.includes("service")) {
+      if (currCode === "P1" || !["P2", "P3", "P4"].includes(currCode)) {
+        const p3 = uniquePriorities.find(
+          (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P3"
+        );
+        if (setAssignPriority) setAssignPriority(p3 ? p3.name : "Medium");
+      }
+    }
   };
   return (
     <>
@@ -523,7 +577,7 @@ const TicketDetailsPage = ({
                 <Skeleton variant="text" width="45%" height={24} sx={{ marginBottom: 1 }} />
                 <Skeleton variant="text" width="80%" height={16} sx={{ marginBottom: 2 }} />
                 <div className="mlp-td-form-grid">
-                  {[1, 2, 3].map((i) => (
+                  {[1, 2, 3, 4].map((i) => (
                     <div key={i} className="mlp-td-form-field">
                       <Skeleton variant="text" width="40%" height={14} />
                       <Skeleton variant="rounded" width="100%" height={38} sx={{ borderRadius: 1 }} />
@@ -1176,16 +1230,25 @@ const TicketDetailsPage = ({
                           Select priority
                         </MenuItem>
                         {assignPriority &&
-                          !uniquePriorities.some(
+                          !availablePriorities.some(
                             (p) =>
                               (p.name || "").trim().toLowerCase() ===
                               assignPriority.trim().toLowerCase()
+                          ) &&
+                          (
+                            (assignTypeOfTicket || "").toLowerCase().includes("change")
+                              ? formatPriorityCode(assignPriority).toUpperCase() === "P4"
+                              : (assignTypeOfTicket || "").toLowerCase().includes("incident")
+                              ? ["P1", "P2", "P3"].includes(formatPriorityCode(assignPriority).toUpperCase())
+                              : (assignTypeOfTicket || "").toLowerCase().includes("service")
+                              ? ["P2", "P3", "P4"].includes(formatPriorityCode(assignPriority).toUpperCase())
+                              : true
                           ) && (
                             <MenuItem value={assignPriority} title={assignPriority}>
                               {assignPriority}
                             </MenuItem>
                           )}
-                        {uniquePriorities.map((p) => {
+                        {availablePriorities.map((p) => {
                           const pCode = p.code || formatPriorityCode(p.name);
                           const pLabel = `${pCode} · ${p.name}`;
                           return (
@@ -1197,8 +1260,38 @@ const TicketDetailsPage = ({
                       </Select>
                     </FormControl>
                   </div>
+
+                  {/* Type of Request */}
+                  <div className="mlp-td-form-field">
+                    <label className="mlp-td-form-label">
+                      Type of Request <span>*</span>
+                    </label>
+                    <FormControl size="small" fullWidth>
+                      <Select
+                        value={assignTypeOfTicket || ""}
+                        onChange={(e) => handleTypeOfRequestChange(e.target.value)}
+                        displayEmpty
+                        sx={muiSelectEnabledSx}
+                        MenuProps={menuProps}
+                      >
+                        <MenuItem value="" disabled sx={{ color: "#94a3b8", fontStyle: "italic" }}>
+                          Select Type of Request
+                        </MenuItem>
+                        <MenuItem value="Change Request" title="Change Request">
+                          Change Request
+                        </MenuItem>
+                        <MenuItem value="Incident" title="Incident">
+                          Incident
+                        </MenuItem>
+                        <MenuItem value="Service Request" title="Service Request">
+                          Service Request
+                        </MenuItem>
+                      </Select>
+                    </FormControl>
+                  </div>
                 </div>
 
+                {/* Work Note */}
                 <div className="mlp-td-form-field">
                   <label className="mlp-td-form-label">Work note (optional)</label>
                   <textarea
@@ -1274,6 +1367,14 @@ const TicketDetailsPage = ({
                           <span className="mlp-td-review-label">Priority</span>
                           <span className="mlp-td-review-val">
                             {toPriorityPayloadString(assignPriority)}
+                          </span>
+                        </div>
+                      )}
+                      {assignTypeOfTicket && (
+                        <div className="mlp-td-review-row">
+                          <span className="mlp-td-review-label">Type of Request</span>
+                          <span className="mlp-td-review-val">
+                            {assignTypeOfTicket}
                           </span>
                         </div>
                       )}

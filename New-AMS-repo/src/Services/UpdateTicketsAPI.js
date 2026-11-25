@@ -1,6 +1,6 @@
 import Axios from 'axios';
 
-export async function updateTicketsAPI(ticketNumber, employeeName, priorityName, statusName, note) {
+export async function updateTicketsAPI(ticketNumber, employeeName, priorityName, statusName, note, typeOfTicket) {
   try {
     const response = await Axios.post(
       `${import.meta.env.VITE_API_URL}/Ticket/UpdateTicketDetails`,
@@ -10,6 +10,7 @@ export async function updateTicketsAPI(ticketNumber, employeeName, priorityName,
         priorityName: priorityName,
         statusName: statusName,
         description: note,
+        typeofticket : typeOfTicket
       },
       {
         headers: {
@@ -31,4 +32,4 @@ export async function updateTicketsAPI(ticketNumber, employeeName, priorityName,
       message: error.response?.data?.message || 'An error occurred during update. Please try again.',
     };
   }
-}
+}

@@ -2347,6 +2347,26 @@
 }
 
 /* Form Fields in Assign & Update */
+.mlp-td-form-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin: 14px 0;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .mlp-td-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .mlp-td-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .mlp-td-form-field {
   display: flex;
   flex-direction: column;

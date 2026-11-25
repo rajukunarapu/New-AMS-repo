@@ -102,6 +102,7 @@ const ModuleLeadPage = () => {
   const [assignTo, setAssignTo] = useState("");
   const [assignStatus, setAssignStatus] = useState("");
   const [assignPriority, setAssignPriority] = useState("");
+  const [assignTypeOfTicket, setAssignTypeOfTicket] = useState("");
   const [workNote, setWorkNote] = useState("");
   const [showReviewBox, setShowReviewBox] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -316,8 +317,38 @@ const ModuleLeadPage = () => {
       setAssignStatus("");
     }
 
-    // Priority: Match against uniquePriorities or use ticket's own priority
+    // Consultant (Assign To): If already assigned on ticket, pre-fill; else leave empty for lead to assign
+    const currentAssignee = (selectedTicket.name || "").trim();
+    if (currentAssignee && currentAssignee !== "-") {
+      setAssignTo(currentAssignee);
+    } else {
+      setAssignTo("");
+    }
+
+    // Type of Request: from typeofTicket / typeOfTicket
+    const rawType = (
+      selectedTicket.typeofTicket ||
+      selectedTicket.typeOfTicket ||
+      selectedTicket.typeof_ticket ||
+      selectedTicket.ticketType ||
+      selectedTicket.type ||
+      ""
+    ).trim();
+    let initialType = "";
+    if (rawType.toLowerCase().includes("change")) {
+      initialType = "Change Request";
+    } else if (rawType.toLowerCase().includes("service")) {
+      initialType = "Service Request";
+    } else if (rawType.toLowerCase().includes("incident")) {
+      initialType = "Incident";
+    } else if (rawType) {
+      initialType = rawType;
+    }
+    setAssignTypeOfTicket(initialType);
+
+    // Priority: Match against uniquePriorities or use ticket's own priority, adjusted for Type of Request
     const tPriority = (selectedTicket.priority || "").trim();
+    let matchedPriorityName = "";
     if (tPriority) {
       let matched = uniquePriorities.find(
         (p) =>
@@ -331,17 +362,29 @@ const ModuleLeadPage = () => {
           return pCode === code;
         });
       }
-      setAssignPriority(matched ? matched.name : tPriority);
-    } else {
-      setAssignPriority("");
+      matchedPriorityName = matched ? matched.name : tPriority;
     }
 
-    // Consultant (Assign To): If already assigned on ticket, pre-fill; else leave empty for lead to assign
-    const currentAssignee = (selectedTicket.name || "").trim();
-    if (currentAssignee && currentAssignee !== "-") {
-      setAssignTo(currentAssignee);
+    const typeLower = initialType.toLowerCase();
+    const currCode = formatPriorityCode(matchedPriorityName).toUpperCase();
+
+    if (typeLower.includes("change")) {
+      const p4 = uniquePriorities.find(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P4"
+      );
+      setAssignPriority(p4 ? p4.name : "Low");
+    } else if (typeLower.includes("incident") && (currCode === "P4" || !["P1", "P2", "P3"].includes(currCode))) {
+      const p3 = uniquePriorities.find(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P3"
+      );
+      setAssignPriority(p3 ? p3.name : "Medium");
+    } else if (typeLower.includes("service") && (currCode === "P1" || !["P2", "P3", "P4"].includes(currCode))) {
+      const p3 = uniquePriorities.find(
+        (p) => (p.code || formatPriorityCode(p.name || "")).toUpperCase() === "P3"
+      );
+      setAssignPriority(p3 ? p3.name : "Medium");
     } else {
-      setAssignTo("");
+      setAssignPriority(matchedPriorityName);
     }
 
     setWorkNote("");
@@ -479,6 +522,7 @@ const ModuleLeadPage = () => {
     if (!assignTo.trim()) missing.push("Assign To");
     if (!assignPriority.trim()) missing.push("Priority");
     if (!assignStatus.trim()) missing.push("Status");
+    if (!assignTypeOfTicket.trim()) missing.push("Type of Request");
 
     if (missing.length > 0) {
       setAlertType("error");
@@ -505,6 +549,7 @@ const ModuleLeadPage = () => {
     if (!assignTo.trim()) missing.push("Assign To");
     if (!assignPriority.trim()) missing.push("Priority");
     if (!assignStatus.trim()) missing.push("Status");
+    if (!assignTypeOfTicket.trim()) missing.push("Type of Request");
 
     if (missing.length > 0) {
       setAlertType("error");
@@ -523,7 +568,8 @@ const ModuleLeadPage = () => {
         assignTo.trim(),
         priorityPayload,
         assignStatus.trim(),
-        workNote.trim()
+        workNote.trim(),
+        assignTypeOfTicket.trim()
       );
 
       if (response && response.success) {
@@ -541,6 +587,8 @@ const ModuleLeadPage = () => {
                   name: assignTo.trim(),
                   ticketStatus: assignStatus.trim(),
                   priority: priorityPayload,
+                  typeofTicket: assignTypeOfTicket.trim(),
+                  typeOfTicket: assignTypeOfTicket.trim(),
                   remarks: workNote.trim() || t.remarks,
                 }
               : t
@@ -551,6 +599,7 @@ const ModuleLeadPage = () => {
         setAssignTo(assignTo.trim());
         setAssignStatus(assignStatus.trim());
         setAssignPriority(assignPriority.trim());
+        setAssignTypeOfTicket(assignTypeOfTicket.trim());
         setWorkNote("");
 
         // Record that this ticket has been assigned in this session
@@ -587,7 +636,7 @@ const ModuleLeadPage = () => {
   const selectedPriorityCode = selectedTicket ? formatPriorityCode(selectedTicket.priority) : "P4";
 
   // Calculate pending changes count
-  const pendingCount = (assignTo ? 1 : 0) + (assignStatus ? 1 : 0) + (assignPriority ? 1 : 0) + (workNote ? 1 : 0);
+  const pendingCount = (assignTo ? 1 : 0) + (assignStatus ? 1 : 0) + (assignPriority ? 1 : 0) + (assignTypeOfTicket ? 1 : 0) + (workNote ? 1 : 0);
 
   return (
     <div className="mlp-container">
@@ -779,6 +828,8 @@ const ModuleLeadPage = () => {
               selectedPriorityCode={selectedPriorityCode}
               toPriorityPayloadString={toPriorityPayloadString}
               searchText={searchText}
+              assignTypeOfTicket={assignTypeOfTicket}
+              setAssignTypeOfTicket={setAssignTypeOfTicket}
               showAssignUpdateCard={true}
               roleName="MODULE LEAD"
               tabName="TICKET DETAILS"

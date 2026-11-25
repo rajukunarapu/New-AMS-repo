@@ -18,13 +18,15 @@ router = APIRouter(prefix="/api/sla", tags=["SLA Monitoring"])
     description="Immediately runs a single SLA monitoring cycle checking tickets and sending reminders."
 )
 async def trigger_sla_monitoring(
-    authorization: Optional[str] = Header(None, description="Optional Bearer <token>")
+    authorization: Optional[str] = Header(None, description="Bearer <token>")
 ):
+    token = (authorization or "").removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Bearer token is required.")
+
     try:
         ams = AMSApi()
-        if authorization:
-            token = authorization.replace("Bearer ", "").strip()
-            ams.token = token
+        ams.token = token
 
         result = await run_sla_monitoring_cycle_async(ams_client=ams)
         return {

@@ -4,6 +4,7 @@ routers/chat.py - Chat & Natural Language Query endpoint (Async).
 
 from typing import Optional
 from fastapi import APIRouter, Header, HTTPException, status
+from ams_api import AMSUnauthorized
 from models.schemas import ChatRequest, ChatResponse
 from services.chat_service import ChatService
 
@@ -24,10 +25,13 @@ async def chat_endpoint(
     if not request.Bearer and authorization:
         request.Bearer = authorization.replace("Bearer ", "").strip()
 
-    if not request.Bearer:
+    if not request.Bearer or not request.Bearer.removeprefix("Bearer ").strip():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Bearer token is required."
         )
 
-    return await ChatService.process_chat(request=request)
+    try:
+        return await ChatService.process_chat(request=request)
+    except AMSUnauthorized as err:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(err)) from err

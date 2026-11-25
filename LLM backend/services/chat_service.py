@@ -4,7 +4,8 @@ services/chat_service.py - Orchestrates LLM Query Processing, Ticket Creation Li
  
 import re
 from typing import Dict, Any, List, Optional
-from ams_api import AMSApi
+from fastapi import HTTPException
+from ams_api import AMSApi, AMSUnauthorized
 from query_engine import process_ticket_query
 from models.schemas import ChatRequest, ChatResponse
 from services.chat_orchestrator import sanitize_and_prune_history
@@ -87,6 +88,8 @@ class ChatService:
                     # Fetches client name from web.config endpoint (http://172.16.32.50/api/Ticket/GetClientNames?email=...)
                     customer_client = await ams.get_client_company_name(user_clean_email)
                     _customer_client_cache[user_clean_email] = customer_client
+                except AMSUnauthorized:
+                    raise
                 except Exception as ex:
                     print(f"[ChatService] Could not resolve client name for {user_clean_email}: {ex}")
                     customer_client = None
@@ -410,22 +413,10 @@ class ChatService:
  
             # --- BRANCH 3: QUERY_TICKETS (Ticket search, status, count, filtering, analytics) ---
             else:
-                # Lazy-fetch AMS tickets (uses 30s in-memory cache)
-                tickets_data = []
-                try:
-                    tickets_data = await ams.get_tickets(timeout=10) or []
-                except Exception as ams_err:
-                    print(f"[ChatService] Warning: AMS ticket API fetch failed: {ams_err}")
-                    tickets_data = []
- 
-                if not tickets_data:
-                    try:
-                        from scratch.test_updated_ticket_search import get_test_ticket_dataset
-                        tickets_data = get_test_ticket_dataset()
-                        print("[ChatService] Loaded fallback ticket dataset.")
-                    except Exception as fallback_err:
-                        print(f"[ChatService] Could not load fallback dataset: {fallback_err}")
- 
+                if is_customer and not customer_client:
+                    raise HTTPException(status_code=403, detail="AMS customer organization could not be verified.")
+                tickets_data = await ams.get_tickets(timeout=10)
+
                 query_plan = decision.get("query_plan") or {}
  
                 # Strict customer isolation: customer users can ONLY access their own client tickets
@@ -482,6 +473,8 @@ class ChatService:
                     error=None
                 )
  
+        except (AMSUnauthorized, HTTPException):
+            raise
         except Exception as err:
             return ChatResponse(
                 success=False,
@@ -492,5 +485,3 @@ class ChatService:
                 action_type="query",
                 error=str(err)
             )
- 
- 

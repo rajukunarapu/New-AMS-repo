@@ -4,7 +4,7 @@ routers/tickets.py - Direct AMS Ticket management and Routing endpoints (Async).
  
 from typing import Optional, List, Dict, Any
 from fastapi import APIRouter, Header, HTTPException, Query, status
-from ams_api import AMSApi
+from ams_api import AMSApi, AMSUnauthorized
 from Module_Router import assign_group, GROUPS
 from models.schemas import TicketCreateRequest, RouteModuleRequest, RouteModuleResponse, normalize_ticket_type
  
@@ -37,18 +37,23 @@ async def get_tickets(
             from services.chat_service import is_customer_email
             if is_customer_email(email):
                 company = await ams.get_client_company_name(email)
-                if company:
-                    company_clean = company.strip().lower()
-                    tickets = [
-                        t for t in (tickets or [])
-                        if str(t.get("clientName", "")).strip().lower() == company_clean
-                    ]
+                if not company:
+                    raise HTTPException(status_code=403, detail="AMS customer organization could not be verified.")
+                company_clean = company.strip().lower()
+                tickets = [
+                    t for t in (tickets or [])
+                    if str(t.get("clientName", "")).strip().lower() == company_clean
+                ]
  
         return {
             "success": True,
             "count": len(tickets) if isinstance(tickets, list) else 0,
             "data": tickets
         }
+    except AMSUnauthorized as err:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=str(err)) from err
+    except HTTPException:
+        raise
     except Exception as err:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -199,8 +204,3 @@ async def route_module(request: RouteModuleRequest):
         description=request.description,
         assigned_group=assigned
     )
- 
- 
- 
- 
- 

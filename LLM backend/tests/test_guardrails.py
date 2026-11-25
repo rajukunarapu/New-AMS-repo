@@ -2,6 +2,12 @@
 tests/test_guardrails.py - Verification suite for AMS domain guardrails and conversational steering.
 """
 
+import sys
+import os
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+
 import pytest
 import asyncio
 from services.guardrails import check_fast_guardrail
@@ -150,6 +156,103 @@ def test_chat_service_e2e_greeting():
     assert response.success is True
     assert response.action_type == "chat"
     assert len(response.response) > 5
+
+
+def test_sanitize_and_prune_history():
+    from services.chat_orchestrator import sanitize_and_prune_history
+
+    # History with 10 turns, base64 images, and markdown tables
+    dummy_history = [
+        {"role": "user", "text": f"Question {i}"} for i in range(5)
+    ] + [
+        {"role": "user", "text": 'Look at this error: <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."> problem'},
+        {"role": "assistant", "text": "Here are your tickets:\n| Ticket No | Status |\n| --- | --- |\n| ATG001 | Open |\n| ATG002 | Closed |\n| ATG003 | Pending |\n| ATG004 | In Progress |\n| ATG005 | Open |\nTotal 5 tickets found."},
+        {"role": "user", "text": "Can you check ATG001?"},
+        {"role": "assistant", "text": "ATG001 is currently Open and assigned to SAP-SD."},
+        {"role": "user", "text": "Which of these are high priority?"}
+    ]
+
+    pruned = sanitize_and_prune_history(dummy_history, max_turns=6, max_char_len=300)
+    assert len(pruned) <= 6
+    # Ensure Base64 string was replaced
+    img_entry = next((e for e in pruned if "error" in e.get("text", "")), None)
+    if img_entry:
+        assert "data:image/png;base64" not in img_entry["text"]
+        assert "[Attached Image]" in img_entry["text"]
+    # Ensure massive table was condensed
+    table_entry = next((e for e in pruned if "Here are your tickets" in e.get("text", "")), None)
+    if table_entry:
+        assert "ticket records omitted for brevity" in table_entry["text"]
+
+
+def test_verify_and_ground_ticket_narrative_zero_count():
+    from services.guardrails import verify_and_ground_ticket_narrative
+
+    # Model hallucinated that it found 3 tickets when count was 0
+    hallucinated_narrative = "I found 3 open tickets for Karamtara: KMT1001, KMT1002, and KMT1003."
+    grounded = verify_and_ground_ticket_narrative(
+        narrative=hallucinated_narrative,
+        count=0,
+        sample_records=[],
+        query_plan={"client": "Karamtara", "status": "Open"}
+    )
+    assert "No matching tickets were found" in grounded
+    assert "KMT1001" not in grounded
+    assert "3 open tickets" not in grounded
+
+
+def test_verify_and_ground_ticket_narrative_hallucinated_id():
+    from services.guardrails import verify_and_ground_ticket_narrative
+
+    sample_records = [
+        {"ticketNo": "ATG2608001", "clientName": "ATG", "ticketStatus": "Open"}
+    ]
+    # Model hallucinated ticket ID ATG9999999
+    narrative_with_hallucination = "Found 1 ticket for ATG: ATG9999999 which is currently open."
+    grounded = verify_and_ground_ticket_narrative(
+        narrative=narrative_with_hallucination,
+        count=1,
+        sample_records=sample_records,
+        query_plan={"client": "ATG"}
+    )
+    assert "ATG9999999" not in grounded
+
+
+def test_verify_and_ground_ticket_narrative_valid_preserved():
+    from services.guardrails import verify_and_ground_ticket_narrative
+
+    sample_records = [
+        {"ticketNo": "ATG2608001", "clientName": "ATG", "ticketStatus": "Open"}
+    ]
+    valid_narrative = "There is 1 ticket matching your query: ATG2608001."
+    grounded = verify_and_ground_ticket_narrative(
+        narrative=valid_narrative,
+        count=1,
+        sample_records=sample_records,
+        query_plan={"client": "ATG"}
+    )
+    assert "ATG2608001" in grounded
+
+
+def test_follow_up_client_inheritance_fallback():
+    async def _run():
+        history = [
+            {"role": "user", "text": "Show tickets for Karamtara"},
+            {"role": "assistant", "text": "Found 4 tickets for Karamtara."}
+        ]
+        # Follow-up without repeating Karamtara
+        decision = await run_chat_orchestrator(
+            user_message="which of these are high priority?",
+            history=history,
+            known_clients=["ATG", "Karamtara", "Dixon"]
+        )
+        return decision
+
+    decision = asyncio.run(_run())
+    assert decision.get("action") == "QUERY_TICKETS"
+    plan = decision.get("query_plan", {})
+    assert plan.get("client") == "Karamtara"
+    assert plan.get("priority") == "High"
 
 
 if __name__ == "__main__":

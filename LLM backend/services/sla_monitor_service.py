@@ -370,7 +370,7 @@ async def run_sla_monitoring_cycle_async(
         if ams_client is not None:
             client = ams_client
         else:
-            client = AMSApi()
+            client = AMSApi(email=SLA_EMAIL, password=SLA_PASSWORD)
  
         # 1. Fetch tickets from API
         try:

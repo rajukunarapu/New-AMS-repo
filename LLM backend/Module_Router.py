@@ -1,7 +1,6 @@
 
 import os
 import re
-import time
 import httpx
 
 try:
@@ -81,7 +80,7 @@ GROUP_KEYWORDS = {
     "SAP-VIM": [r"\bvim\b", r"\bopentext\b", r"\bvendor invoice management\b"],
     "SAP ARIBA": [r"\bariba\b", r"\bsourcing\b", r"\bprocurement\b"],
     "SAP-SF": [r"\bsf\b", r"\bsuccessfactors\b"],
-    "AWS": [r"\baws\b", r"\bec2\b", r"\bs3\b", r"\bamazon\b", r"\bcloud\b", r"\biam\b", r"\bvpc\b"],
+    "AWS": [r"\baws\b", r"\bec2\b", r"\bs3\b", r"\bamazon\b", r"\biam\b", r"\bvpc\b"],
     "Infra Cloud": [r"\binfra\b", r"\binfrastructure\b", r"\bazure\b", r"\bgcp\b", r"\bcloud infra\b"],
     "Linux Admin": [r"\blinux\b", r"\bubuntu\b", r"\bredhat\b", r"\bcentos\b", r"\bbash\b", r"\bssh\b", r"\broot\b", r"\bserver reboot\b"],
     "Dot Net Technologies": [r"\b\.net\b", r"\bdotnet\b", r"\bc#\b", r"\basp\.net\b", r"\bvisual studio\b"],
@@ -95,7 +94,57 @@ GROUP_KEYWORDS = {
 MODULE_KEYWORDS = GROUP_KEYWORDS
 
 
-def _match_group_from_text(raw_text: str) -> str:
+# Exact assignment-group names and product aliases can route without a model.
+_SPECIFIC_ALIASES = {
+    "SAP-FICO": r"fico",
+    "SAP ABAP": r"abap|se38|se80",
+    "SAP-BASIS": r"st03|sm50",
+    "SAP-HCM": r"hcm",
+    "SAP SAC": r"(?:sap[ -]+)?analytics cloud|sac",
+    "SAP-CPI": r"cpi|cloud platform integration",
+    "SAP-VIM": r"vim|opentext|vendor invoice management",
+    "SAP ARIBA": r"ariba",
+    "SAP-SF": r"successfactors",
+    "AWS": r"aws|ec2|s3|amazon web services",
+    "Infra Cloud": r"azure|gcp|google cloud(?: platform)?",
+    "Linux Admin": r"ubuntu|red[ -]?hat|centos",
+    "Dot Net Technologies": r"dotnet|asp\.net",
+    "RPA": r"uipath|automation anywhere|blue prism",
+    "Mendix": r"mendix",
+    "SAP-AI": r"joule|sap ai core",
+}
+
+_SPECIFIC_PATTERNS = {
+    group: re.compile(
+        r"(?<!\w)(?:" + "[ -]+".join(re.escape(part) for part in re.split(r"[ -]+", group))
+        + (f"|{_SPECIFIC_ALIASES[group]}" if group in _SPECIFIC_ALIASES else "")
+        + r")(?!\w)",
+        re.IGNORECASE,
+    )
+    for group in GROUPS
+    if group not in {"SAP", "Support"}
+}
+
+
+def _specific_group_matches(description: str) -> set[str]:
+    matches = [
+        (group, match.start(), match.end())
+        for group, pattern in _SPECIFIC_PATTERNS.items()
+        for match in pattern.finditer(description)
+    ]
+    # A product name can contain a shorter group name, e.g. SAP Analytics Cloud.
+    return {
+        group
+        for group, start, end in matches
+        if not any(
+            other_start <= start and end <= other_end
+            and (other_start, other_end) != (start, end)
+            for _, other_start, other_end in matches
+        )
+    }
+
+
+def _match_group_from_text(raw_text: str, *, exact_only: bool = False) -> str:
     """Matches text response against valid AMS GROUPS."""
     if not raw_text:
         return None
@@ -105,6 +154,8 @@ def _match_group_from_text(raw_text: str) -> str:
     for mod in GROUPS:
         if mod.lower() == text_clean.lower():
             return mod
+    if exact_only or not text_clean:
+        return None
     # 2. Substring match
     for mod in GROUPS:
         if mod.lower() in text_clean.lower() or text_clean.lower() in mod.lower():
@@ -154,7 +205,7 @@ async def _classify_with_nvidia(description: str, base_url: str, api_key: str, m
                 if "choices" in data and len(data["choices"]) > 0:
                     content = data["choices"][0]["message"].get("content")
                     if content and isinstance(content, str):
-                        matched = _match_group_from_text(content.strip())
+                        matched = _match_group_from_text(content.strip(), exact_only=True)
                         if matched:
                             print(f"[Router] NVIDIA model '{model}' routed to '{matched}'")
                             return matched
@@ -205,7 +256,7 @@ async def _classify_with_gemini(description: str, api_key: str) -> str:
                 if res.is_success:
                     data = res.json()
                     text = data["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    matched = _match_group_from_text(text)
+                    matched = _match_group_from_text(text, exact_only=True)
                     if matched:
                         return matched
             except Exception as e:
@@ -215,38 +266,26 @@ async def _classify_with_gemini(description: str, api_key: str) -> str:
     return None
 
 
-def _classify_with_rules(description: str) -> str:
-    """Fallback rule-based keyword matching for ticket description."""
-    desc_lower = description.lower()
-    
-    # Priority match for specific group keywords
-    for mod, patterns in GROUP_KEYWORDS.items():
-        for pat in patterns:
-            if re.search(pat, desc_lower, re.IGNORECASE):
-                return mod
-
-    # Generic SAP check
-    if "sap" in desc_lower:
-        return "SAP"
-        
-    return "Support"
-
-
 async def assign_group(description: str) -> str:
-    """
-    Main entry point for AI Agent group assignment based on ticket description (async).
-    1. Fast Rule-based Keyword Classification (instant response)
-    2. NVIDIA API Model
-    3. Google Gemini API
-    4. Fallback Rule-based Classification
-    """
+    """Assign a unique specific match immediately, or ask a classifier to resolve the context."""
     if not description or not str(description).strip():
         return "Support"
 
-    # Fast rule check first for instant keyword matching
-    rule_group = _classify_with_rules(description.strip())
-    if rule_group and rule_group != "Support" and rule_group != "SAP":
-        return rule_group
+    description = description.strip()
+    specific_groups = _specific_group_matches(description)
+    if len(specific_groups) == 1:
+        return next(iter(specific_groups))
+
+    hints = {
+        group for group, patterns in GROUP_KEYWORDS.items()
+        if any(re.search(pattern, description, re.IGNORECASE) for pattern in patterns)
+    }
+    classifier_input = description
+    if specific_groups or hints:
+        classifier_input += (
+            "\nRouting hints (verify against the issue): "
+            + ", ".join(sorted(specific_groups or hints))
+        )
 
     # Primary: OpenAI / OpenRouter / NVIDIA API
     nvidia_key = os.getenv("NVIDIA_API_KEY") or os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
@@ -254,19 +293,21 @@ async def assign_group(description: str) -> str:
     nvidia_model = os.getenv("NVIDIA_MODEL") or os.getenv("MAIN_MODEL") or "nvidia/nemotron-3-super-120b-a12b"
 
     if nvidia_key and nvidia_key not in ("your_nvidia_api_key", "your_openrouter_api_key"):
-        agent_res = await _classify_with_nvidia(description.strip(), nvidia_base_url, nvidia_key, nvidia_model)
+        agent_res = await _classify_with_nvidia(classifier_input, nvidia_base_url, nvidia_key, nvidia_model)
         if agent_res:
             return agent_res
 
     # Fallback: Google Gemini API
     gemini_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if gemini_key and gemini_key != "your_gemini_api_key":
-        agent_res = await _classify_with_gemini(description.strip(), gemini_key)
+        agent_res = await _classify_with_gemini(classifier_input, gemini_key)
         if agent_res:
             return agent_res
 
-    # Fallback: Rule-based
-    return rule_group
+    # Leave unresolved conflicts and generic descriptions with Support for triage.
+    if not specific_groups and not hints and re.search(r"\bsap\b", description, re.IGNORECASE):
+        return "SAP"
+    return "Support"
 
 
 # Alias for backward compatibility

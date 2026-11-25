@@ -21,6 +21,7 @@ try:
 except Exception:
     pass
 from models.schemas import normalize_ticket_type
+from services.classification_config import extract_requested_priorities, normalize_priority_string
 
 try:
     from Module_Router import GROUPS, GROUP_KEYWORDS, _match_group_from_text
@@ -239,6 +240,8 @@ def normalize_ticket_record(row: dict) -> dict:
     grp_val = r.get("assigntogroup") or r.get("module") or ""
     r["assigntogroup"] = grp_val
     r["module"] = r.get("module") or grp_val
+
+    r["ticketStatus"] = r.get("ticketStatus") or r.get("status") or r.get("ticketStaus")
 
     # 5. Type of Ticket normalization & inference
     raw_type = (
@@ -560,6 +563,74 @@ def get_dataset_metadata(tickets):
     }
 
 
+_STATUS_ALIASES = {
+    "open": ("open", "unresolved", "active", "pending"),
+    "closed": ("closed", "close", "shut", "technically closed"),
+    "resolved": ("resolved", "fixed", "solved"),
+    "completed": ("completed", "complete", "finished", "done"),
+    "cancelled": ("cancel", "cancelled", "canceled", "discarded"),
+    "created": ("created", "new"),
+    "allocated": ("allocated", "assigned", "allocation"),
+    "triage": ("triage", "under triage"),
+    "in_progress": ("in progress", "inprocess", "in process", "working", "wip"),
+    "reopened": ("reopened", "re opened"),
+    "on_hold": ("on hold",),
+    "in_quality": ("in quality",),
+    "ready_for_production": ("ready for production",),
+    "approved_for_production": ("approved for production",),
+    "in_production": ("in production",),
+    "waiting_for_customer": ("waiting for customer",),
+}
+_STATUS_BY_ALIAS = {
+    alias: status for status, aliases in _STATUS_ALIASES.items() for alias in aliases
+}
+_OPEN_STATUSES = set(_STATUS_ALIASES) - {"closed", "resolved", "completed", "cancelled"}
+_OPEN_TEXT = r"(?:(?:not|yet to be)\s+(?:closed|resolved|completed)|not yet\s+(?:closed|resolved|completed))"
+_GROUP_BY_FIELDS = {
+    "status": "ticketStatus", "ticketstatus": "ticketStatus",
+    "priority": "priority", "client": "clientName", "clientname": "clientName",
+    "group": "assigntogroup", "module": "assigntogroup", "assigntogroup": "assigntogroup",
+    "type": "typeofticket", "ticket type": "typeofticket", "typeofticket": "typeofticket",
+}
+
+
+def normalize_ticket_status(value):
+    if value is None or pd.isna(value):
+        return None
+    label = re.sub(r"[\s_-]+", " ", str(value).strip().lower())
+    if re.fullmatch(_OPEN_TEXT, label):
+        return "open"
+    if label.startswith("wca:"):
+        return "waiting_for_customer"
+    if label.startswith("in proc:"):
+        return "on_hold" if label.split(":", 1)[1].strip() == "on hold" else "in_progress"
+    return _STATUS_BY_ALIAS.get(label, label or None)
+
+
+_STATUS_TERMS = "|".join(re.escape(alias) for alias in sorted(_STATUS_BY_ALIAS, key=len, reverse=True))
+_STATUS_IN_REQUEST = re.compile(
+    rf"\b(?:{_OPEN_TEXT}|assigned(?!\s+(?:to|group|module|by|user|person|tech|technician)\b)|"
+    rf"{'|'.join(re.escape(alias) for alias in sorted(_STATUS_BY_ALIAS, key=len, reverse=True) if alias not in {'assigned', 'created', 'close', 'complete', 'cancel', 'working'})})\b"
+)
+
+
+def requested_ticket_status(question):
+    text = re.sub(r"[\s_-]+", " ", question.strip().lower())
+    if re.search(rf"\b{_OPEN_TEXT}\b", text):
+        return "open"
+    if re.search(r"\b(?:status(?: is)?[: ]+created|created status)\b", text):
+        return "created"
+    match = _STATUS_IN_REQUEST.search(text)
+    return normalize_ticket_status(match.group()) if match else None
+
+
+def _query_issue_phrase(question):
+    match = re.search(r"\btickets?\s+(?:about|with|related to)\s+(.+?)[?.!]*$", question, re.IGNORECASE)
+    if match and not re.match(r"(?:priority|status|type)\s*(?:is\s+|[:=]\s*|\s)", match.group(1), re.IGNORECASE):
+        return match.group(1).strip()
+    return None
+
+
 def sanitize_and_enforce_intent(plan, user_question, meta):
     """
     Universal post-processing rule engine that guarantees intent disambiguation,
@@ -571,11 +642,13 @@ def sanitize_and_enforce_intent(plan, user_question, meta):
     q_lower = user_question.lower().strip()
 
     # 1. Dynamic group / module entity extraction if missed by LLM
+    issue = _query_issue_phrase(user_question)
+    group_question = user_question[:user_question.rfind(issue)] if issue else user_question
     group_val = plan.get("detected_group_or_module")
     if not group_val:
         grp_match = re.search(
             r'\b(?:assigned\s+to\s+group|assigned\s+to|group\s*name|assigned\s*group|module\s*name|module|group)\s*(?:is|:|=|\b)?\s*([A-Za-z0-9_\-\s/&\.]+)',
-            user_question,
+            group_question,
             re.IGNORECASE
         )
         if grp_match:
@@ -590,55 +663,109 @@ def sanitize_and_enforce_intent(plan, user_question, meta):
         sorted_cands = sorted(set(all_cands), key=lambda x: len(x), reverse=True)
         for g in sorted_cands:
             if len(g) <= 4:
-                if re.search(r'\b' + re.escape(g) + r'\b', user_question, re.IGNORECASE):
+                if re.search(r'\b' + re.escape(g) + r'\b', group_question, re.IGNORECASE):
                     group_val = normalize_group_name(g) or g
                     break
             else:
                 pattern = r'\b' + re.escape(g.lower()) + r'\b'
-                if re.search(pattern, q_lower):
+                if re.search(pattern, group_question.lower()):
                     group_val = normalize_group_name(g) or g
                     break
 
-    # 2. When a group or module entity is detected, enforce Filtering Intent precedence over Ranking
+    # 2. Apply assignment independently of issue text and aggregation.
     if group_val:
         norm_cand = normalize_group_name(group_val)
         dataset_groups = meta.get("unique_groups", [])
         is_known_group = bool(norm_cand and (norm_cand in GROUPS or norm_cand in meta.get("all_known_groups", []) or group_val.lower() in GROUP_ALIASES or norm_cand in dataset_groups))
 
-        if is_known_group and dataset_groups and norm_cand not in dataset_groups:
-            # Group is recognized in general taxonomy, but has 0 tickets in current dataset.
-            # Convert to semantic_text_search so descriptions are searched rather than hard-failing
+        mention_requested = re.search(
+            r"\b(?:mention(?:s|ed|ing)?|descriptions?\s+(?:contain(?:s|ing)?|include(?:s)?))\b",
+            q_lower,
+        )
+        if is_known_group and mention_requested:
             plan["detected_group_or_module"] = None
-            if not plan.get("semantic_text_search"):
-                plan["semantic_text_search"] = group_val
+            plan["description_mention_group"] = norm_cand
+            plan["semantic_text_search"] = None
+            plan["semantic_keywords"] = []
+            if plan.get("detected_assignee") and normalize_group_name(plan["detected_assignee"]) == norm_cand:
+                plan["detected_assignee"] = None
         elif is_known_group:
             plan["detected_group_or_module"] = norm_cand
             if plan.get("detected_assignee") and normalize_group_name(plan["detected_assignee"]) == norm_cand:
                 plan["detected_assignee"] = None
 
-            # OVERRIDE intent to filtering (or counting if requested)
-            if any(k in q_lower for k in ["how many", "count"]):
-                plan["intent"] = "counting"
-            else:
-                plan["intent"] = "filtering"
-
-            # CLEAR group_by_field so system-wide group breakdown is NEVER generated
-            plan["group_by_field"] = None
-
-            # CLEAR semantic text search if structural words like 'group' or 'module' are present
-            if plan.get("semantic_text_search"):
-                st = str(plan["semantic_text_search"]).lower()
-                if any(w in st for w in ["group", "module", "assigned", "tickets", "show", "details"]):
-                    plan["semantic_text_search"] = None
         else:
             plan["detected_group_or_module"] = None
             if not plan.get("detected_assignee") and group_val.lower() not in ["name", "is", "of", "for", "in", "by", "with", "the", "a", "an"]:
                 plan["detected_assignee"] = group_val
 
-    # 3. Limit extraction ("top 10", "top 5", "limit 10", "first 5")
-    lim_match = re.search(r'\b(?:top|first|limit)\s*(\d{1,3})\b', q_lower)
+    explicit_status = requested_ticket_status(user_question)
+    if re.search(rf"\b{_OPEN_TEXT}\b", q_lower):
+        plan["detected_status_semantic"] = explicit_status
+    elif plan.get("detected_status_semantic"):
+        plan["detected_status_semantic"] = normalize_ticket_status(plan["detected_status_semantic"])
+
+    breakdown = re.search(r"\bby\s+(status|priority|client|group|module|ticket type|type)\s*[?.!]*$", q_lower)
+    if re.search(r"\b(?:sort|filter|order)\s+by\b", q_lower):
+        breakdown = None
+    group_by = breakdown.group(1) if breakdown else plan.get("group_by_field")
+    if group_by:
+        plan["group_by_field"] = _GROUP_BY_FIELDS.get(str(group_by).lower(), group_by)
+
+    search = str(plan.get("semantic_text_search") or "").strip()
+    if not plan.get("description_mention_group") and (
+        search.lower() == q_lower or (issue and not search)
+    ):
+        # The fallback can pass the entire request as search text. Retain the issue
+        # clause, and drop a purely structural list, count or breakdown request.
+        if issue:
+            plan["semantic_text_search"] = issue
+            plan["semantic_keywords"] = []
+        elif search:
+            noise = re.sub(rf"\b(?:{_OPEN_TEXT}|{_STATUS_TERMS})\b", "", q_lower)
+            noise = re.sub(r"\bp[1-4]\b", "", noise)
+            if plan.get("detected_priority"):
+                noise = re.sub(r"\b(?:very high|high|medium|low|critical)\b", "", noise)
+            for value in (group_val, plan.get("detected_client")):
+                if value:
+                    noise = re.sub(r"(?<!\w)" + re.escape(str(value).lower()) + r"(?!\w)", "", noise)
+            structural = {
+                "show", "list", "find", "get", "give", "me", "the", "all", "tickets", "ticket",
+                "issues", "issue", "count", "how", "many", "break", "down", "breakdown", "by",
+                "status", "priority", "client", "group", "module", "type", "for", "of", "in",
+                "only", "assigned", "to", "please", "summarize", "summary", "recent", "latest", "with", "is",
+            }
+            if set(re.findall(r"[a-z]+", noise)).issubset(structural):
+                plan["semantic_text_search"] = None
+                plan["semantic_keywords"] = []
+    elif group_val and search:
+        canonical_group = normalize_group_name(group_val).lower()
+        names = [canonical_group, *(alias for alias, group in GROUP_ALIASES.items() if group.lower() == canonical_group)]
+        normalized_search = re.sub(r"[\s_-]+", " ", search.lower())
+        if any(normalized_search == re.sub(r"[\s_-]+", " ", name) for name in names):
+            plan["semantic_text_search"] = None
+            plan["semantic_keywords"] = []
+
+    # 3. Limit extraction ("top 10", "top 5", "last 5", "latest 10", "recent 5", "limit 10", "first 5")
+    lim_match = re.search(r'\b(?:top|first|last|latest|recent|most\s+recent|limit)\s*(\d{1,3})\b', q_lower)
+    if not lim_match:
+        lim_match = re.search(r'\b(\d{1,3})\s*(?:latest|recent|last|top|first)?\s*tickets?\b', q_lower)
     if lim_match:
         plan["limit"] = int(lim_match.group(1))
+
+    # 4. If user asked for recent / last / latest, sort descending by creation date
+    if any(w in q_lower for w in ["last", "latest", "recent"]):
+        plan["sort"] = {"field": "createddate", "direction": "desc"}
+
+    # 5. If user asked to summarize / summary, set aggregation and clear structural words from semantic search
+    if any(w in q_lower for w in ["summarize", "summary"]):
+        plan["aggregation"] = "summary"
+        if plan.get("semantic_text_search"):
+            st = str(plan["semantic_text_search"]).lower()
+            structural = {"summarize", "summary", "summaries", "can", "you", "please", "the", "last", "latest", "recent", "top", "first", "tickets", "ticket", "give", "me"}
+            remaining = [w for w in re.findall(r'\w+', st) if len(w) >= 2 and w not in structural and not w.isdigit()]
+            if not remaining:
+                plan["semantic_text_search"] = None
 
     return plan
 
@@ -688,7 +815,7 @@ Analyze the user's question, dataset metadata, and conversation context to produ
 2. If the user's question is a standalone new query (e.g., 'Show all closed tickets'), CLEAR non-mentioned filters from previous turns.
 3. If the user's question is a follow-up refinement (e.g. 'only High priority ones', 'filter by FICO module', 'show resolutions'), PRESERVE active client/status/semantic filters from history and ADD the new filter.
 4. DYNAMIC FIELD UNDERSTANDING: The user may filter by ANY field available in the ticket data (Client, Ticket ID, Description, Resolution, Status, Priority, Ticket type, Reported by, Assigned group, Assignee, Created date, Updated date, Closed date, etc.). Set standard fields or place arbitrary field conditions into `field_filters` dict (e.g. {{"assignee": "John"}}).
-5. SEMANTIC DESCRIPTION SEARCH: Search fields like Description and Resolution for conceptual meaning, error codes (e.g., 'FB60'), transaction codes, symptoms, and business problems without requiring exact keyword matches. Place the main query concept into `semantic_text_search` and related terms into `semantic_keywords`.
+5. SEMANTIC DESCRIPTION SEARCH: A request for tickets mentioning a group searches the description. A request for that group's tickets filters by assignment, including when no tickets are assigned. Search fields like Description and Resolution for conceptual meaning, error codes (e.g., 'FB60'), transaction codes, symptoms, and business problems without requiring exact keyword matches. Place the main query concept into `semantic_text_search` and related terms into `semantic_keywords`.
 6. DYNAMIC DATE EXPRESSIONS: Map natural-language date expressions dynamically:
    - Relative: today, yesterday, tomorrow, this_week, last_week, this_month, last_month, this_year, last_year, last_7_days, last_30_days
    - Offset: '15 days ago' -> type='days_ago', days_offset=15. 'last 10 days' -> type='last_n_days', days_offset=10.
@@ -822,9 +949,11 @@ def heuristic_query_plan(user_question, meta, history=None):
             "clarification_question": None
         }
 
-    # Limit detection (e.g. "top 10", "first 5", "limit 10")
+    # Limit detection (e.g. "top 10", "first 5", "last 5", "latest 10", "recent 5", "limit 10")
     limit_val = None
-    lim_match = re.search(r'\b(?:top|first|limit)\s*(\d{1,3})\b', q_lower)
+    lim_match = re.search(r'\b(?:top|first|last|latest|recent|most\s+recent|limit)\s*(\d{1,3})\b', q_lower)
+    if not lim_match:
+        lim_match = re.search(r'\b(\d{1,3})\s*(?:latest|recent|last|top|first)?\s*tickets?\b', q_lower)
     if lim_match:
         limit_val = int(lim_match.group(1))
 
@@ -832,7 +961,7 @@ def heuristic_query_plan(user_question, meta, history=None):
     intent = "filtering"
     if any(k in q_lower for k in ["how many", "count"]):
         intent = "counting"
-    elif any(k in q_lower for k in ["most tickets", "highest tickets", "rank groups", "worst client", "top clients", "top groups"]) and not detected_group:
+    elif any(k in q_lower for k in ["most tickets", "highest tickets", "rank groups", "worst client", "top clients", "top groups"]):
         intent = "ranking"
     elif "compare" in q_lower:
         intent = "comparison"
@@ -895,39 +1024,9 @@ def heuristic_query_plan(user_question, meta, history=None):
     if len(matched_clients) >= 1:
         detected_client = matched_clients[0]
 
-    # Status semantic detection - Each status handled separately and exclusively
-    status_sem = None
-    if any(k in q_lower for k in ["cancel", "cancelled", "canceled", "discarded"]):
-        status_sem = "cancelled"
-    elif any(k in q_lower for k in ["closed", "close", "shut"]):
-        status_sem = "closed"
-    elif any(k in q_lower for k in ["unresolved", "open", "pending", "active", "not closed", "yet to be closed"]):
-        status_sem = "unresolved"
-    elif re.search(r'\b(?:resolved|solve|solution|fixed)\b', q_lower):
-        status_sem = "resolved"
-    elif any(k in q_lower for k in ["completed", "finish", "done"]):
-        status_sem = "completed"
-    elif any(k in q_lower for k in ["in progress", "in-progress", "working", "wip"]):
-        status_sem = "in_progress"
-    elif any(k in q_lower for k in ["triage", "under triage"]):
-        status_sem = "triage"
-    elif any(k in q_lower for k in ["allocated", "allocation"]) or ("assigned" in q_lower and not re.search(r'\bassigned\s+(?:to|group|module|by|user|person|tech|technician)\b', q_lower)):
-        status_sem = "allocated"
-    elif "status created" in q_lower or "created status" in q_lower or "status is created" in q_lower or re.search(r'\bnew\b', q_lower):
-        status_sem = "created"
-
-    # Priority detection (support single or multiple priorities like 'P1 and high priority')
-    detected_priorities = []
-    if re.search(r'\b(very high|critical|p1|urgent)\b', q_lower):
-        detected_priorities.append("Very High (Production Impacted)")
-    if re.search(r'\b(high|p2|important)\b', q_lower) and not re.search(r'\bvery\s+high\b', q_lower):
-        detected_priorities.append("High (Business Impacted)")
-    if re.search(r'\b(medium|med|p3)\b', q_lower):
-        detected_priorities.append("Medium")
-    if re.search(r'\b(low|p4)\b', q_lower):
-        detected_priorities.append("Low")
-
-    priority = detected_priorities[0] if len(detected_priorities) == 1 else (detected_priorities if len(detected_priorities) > 1 else None)
+    status_sem = requested_ticket_status(user_question)
+    priorities = sorted(extract_requested_priorities(user_question, query_filter=True))
+    priority = priorities[0] if len(priorities) == 1 else priorities or None
 
     # Ticket type detection (support plurals)
     detected_type = None
@@ -1091,7 +1190,10 @@ def heuristic_query_plan(user_question, meta, history=None):
     # Semantic text search extraction (transaction codes like FB60, error codes, business problems)
     semantic_text = None
     code_cands = [w for w in re.findall(r'\b[A-Za-z0-9_-]{3,15}\b', user_question) if (any(c.isdigit() for c in w) and not re.match(r'^\d{1,4}$', w)) or w.lower() in ["fb60", "miro", "me21n", "smartform", "uipath"]]
-    if code_cands:
+    issue_phrase = _query_issue_phrase(user_question)
+    if issue_phrase:
+        semantic_text = issue_phrase
+    elif code_cands:
         semantic_text = " ".join(code_cands)
     else:
         prob_terms = [w for w in re.findall(r'\w+', q_lower) if w in ["invoice", "posting", "tolerance", "purchase", "order", "login", "password", "smartform", "dump", "selector", "bot", "print", "payment"]]
@@ -1398,112 +1500,18 @@ def execute_query_plan(tickets_data, plan):
 
         result = result[result["clientName"].apply(matches_client)]
 
-    # 3. Filter by Status Semantics - Strict separate handling per status
-    status_sem = plan.get("detected_status_semantic")
-    if status_sem and "ticketStatus" in result.columns and not t_no:
-        st_clean = str(status_sem).strip().lower()
+    # 3. Normalize the requested status and the AMS status before matching.
+    status = normalize_ticket_status(plan.get("detected_status_semantic"))
+    if status and status != "all" and "ticketStatus" in result.columns and not t_no:
+        statuses = result["ticketStatus"].map(normalize_ticket_status)
+        result = result.loc[statuses.isin(_OPEN_STATUSES) if status == "open" else statuses.eq(status)]
 
-        if st_clean in ["cancelled", "canceled"]:
-            # ONLY Cancelled tickets (MUST NOT return Closed, Resolved, or Completed)
-            mask = result["ticketStatus"].apply(
-                lambda x: "cancel" in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean == "closed":
-            # ONLY Closed tickets (MUST NOT return Cancelled)
-            mask = result["ticketStatus"].apply(
-                lambda x: "close" in str(x).lower() and "cancel" not in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean == "resolved":
-            # ONLY Resolved tickets
-            mask = result["ticketStatus"].apply(
-                lambda x: "resolv" in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean == "completed":
-            # ONLY Completed tickets
-            mask = result["ticketStatus"].apply(
-                lambda x: "complet" in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean in ["in_progress", "in progress", "working", "wip"]:
-            # ONLY In Progress / Working tickets
-            mask = result["ticketStatus"].apply(
-                lambda x: "progress" in str(x).lower() or "working" in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean in ["triage", "under triage"]:
-            # ONLY Triage tickets
-            mask = result["ticketStatus"].apply(
-                lambda x: "triage" in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean in ["allocated", "assigned"]:
-            # ONLY Allocated / Assigned tickets
-            mask = result["ticketStatus"].apply(
-                lambda x: "allocat" in str(x).lower() or "assign" in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean in ["created", "new"]:
-            # ONLY Created / New tickets
-            mask = result["ticketStatus"].apply(
-                lambda x: "created" in str(x).lower() or "new" in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-        elif st_clean in ["unresolved", "open", "active", "pending"]:
-            # General Open/Unresolved: exclude closed, resolved, completed, cancelled
-            closed_terms = ["closed", "resolved", "completed", "cancelled", "canceled"]
-            mask = result["ticketStatus"].apply(
-                lambda x: not any(ct in str(x).lower() for ct in closed_terms) if pd.notna(x) else True
-            )
-            result = result[mask]
-
-        else:
-            # Match exact status string in dataset if user gave custom status name
-            mask = result["ticketStatus"].apply(
-                lambda x: st_clean in str(x).lower() if pd.notna(x) else False
-            )
-            result = result[mask]
-
-    # 4. Filter by Priority - Strict distinct value matching (handles single priority or list of priorities)
+    # 4. Normalize priority labels and codes on both sides of the filter.
     priority_input = plan.get("detected_priorities") or plan.get("detected_priority")
     if priority_input and "priority" in result.columns and not t_no:
-        priorities_list = priority_input if isinstance(priority_input, list) else [priority_input]
-        
-        def match_row_priority(val):
-            if pd.isna(val):
-                return False
-            val_lower = str(val).lower()
-            for p_item in priorities_list:
-                p_lower = str(p_item).lower().strip()
-                if "very high" in p_lower or "critical" in p_lower or p_lower in ["p1", "1"]:
-                    if any(k in val_lower for k in ["very high", "critical", "p1"]):
-                        return True
-                elif "high" in p_lower or p_lower in ["p2", "2"]:
-                    if ("high" in val_lower or "p2" in val_lower) and "very high" not in val_lower:
-                        return True
-                elif "med" in p_lower or p_lower in ["p3", "3"]:
-                    if "medium" in val_lower or "med" in val_lower or "p3" in val_lower:
-                        return True
-                elif "low" in p_lower or p_lower in ["p4", "4"]:
-                    if "low" in val_lower or "p4" in val_lower:
-                        return True
-                else:
-                    if p_lower == val_lower:
-                        return True
-            return False
-
-        mask = result["priority"].apply(match_row_priority)
-        result = result[mask]
+        priorities = priority_input if isinstance(priority_input, list) else [priority_input]
+        wanted = {normalize_priority_string(value) for value in priorities} - {None}
+        result = result.loc[result["priority"].map(normalize_priority_string).isin(wanted)]
 
     # 4.5 Filter by Ticket Type - Strict distinct value matching
     t_type = plan.get("detected_type") or plan.get("detected_ticket_type")
@@ -1516,7 +1524,7 @@ def execute_query_plan(tickets_data, plan):
         )
         result = result[mask]
 
-    # 5. Filter by Assignment Group / Module (Strict AND Matching)
+    # 5. Filter by Assignment Group (fall back to Module for legacy records)
     group = plan.get("detected_group_or_module")
     if group and not t_no:
         norm_grp = normalize_group_name(group) or group
@@ -1525,6 +1533,8 @@ def execute_query_plan(tickets_data, plan):
         def matches_group(row):
             ass_grp = str(row.get("assigntogroup", "")).strip()
             mod_grp = str(row.get("module", "")).strip()
+            if ass_grp.lower() not in {"", "none", "null", "nan", "n/a", "-"}:
+                mod_grp = ""
 
             norm_ass = normalize_group_name(ass_grp) if ass_grp else None
             norm_mod = normalize_group_name(mod_grp) if mod_grp else None
@@ -1639,6 +1649,18 @@ def execute_query_plan(tickets_data, plan):
 
                 result = result[result[date_col].apply(date_filter)]
 
+    # Explicit group mentions search descriptions independently of assignment.
+    mention_group = plan.get("description_mention_group")
+    if mention_group and not t_no and not result.empty:
+        names = [mention_group, *(alias for alias, group in GROUP_ALIASES.items() if group == mention_group)]
+        variants = [
+            r"[\s_-]+".join(re.escape(part) for part in re.split(r"[\s_-]+", name))
+            for name in names
+        ]
+        pattern = r"(?<!\w)(?:" + "|".join(variants) + r")(?!\w)"
+        descriptions = result.get("descriptionofTicket", pd.Series("", index=result.index))
+        result = result.loc[descriptions.fillna("").astype(str).str.contains(pattern, case=False, regex=True)]
+
     # 8. Semantic Text Search on Description / Remarks / Resolutions / Fields
     search_text = plan.get("semantic_text_search")
     semantic_kws = plan.get("semantic_keywords") or []
@@ -1650,7 +1672,9 @@ def execute_query_plan(tickets_data, plan):
             "record", "records", "issue", "issues", "with", "where", "about", "for", "the",
             "and", "are", "have", "through", "under", "please", "into", "from", "that", "this",
             "you", "neoai", "can", "could", "would", "tell", "display", "what", "which", "how",
-            "many", "were", "was", "been", "seen", "previous", "historical", "occurred", "happened"
+            "many", "were", "was", "been", "seen", "previous", "historical", "occurred", "happened",
+            "summarize", "summary", "summaries", "last", "latest", "recent", "top", "first",
+            "give", "provide", "all", "any"
         }
         extracted_kws = [w for w in re.findall(r'\w+', st_lower) if len(w) >= 2 and w not in search_stop_words]
         all_keywords = list(set(extracted_kws + [str(k).lower() for k in semantic_kws if str(k).lower() not in search_stop_words]))
@@ -1699,14 +1723,27 @@ def execute_query_plan(tickets_data, plan):
     group_by = plan.get("group_by_field")
     group_stats = None
     if group_by and group_by in result.columns:
-        group_stats = result.groupby(group_by).size().reset_index(name="ticket_count")
+        values = result[group_by]
+        if group_by == "ticketStatus":
+            values = values.map(normalize_ticket_status).map(
+                lambda status: status.replace("_", " ").title() if status else "Unknown"
+            )
+        elif group_by == "priority":
+            values = values.map(normalize_priority_string).fillna("Unknown")
+        group_stats = result.groupby(values).size().reset_index(name="ticket_count")
         group_stats = group_stats.sort_values(by="ticket_count", ascending=False)
 
     # Sorting & Limit
-    sort_info = plan.get("sort")
-    if sort_info and sort_info.get("field") and sort_info["field"] in result.columns:
+    sort_info = plan.get("sort") or {}
+    sort_field = sort_info.get("field")
+    if not sort_field or sort_field not in result.columns:
+        for c in ["createddate", "reportedon", "reportedDate"]:
+            if c in result.columns:
+                sort_field = c
+                break
+    if sort_field and sort_field in result.columns:
         ascending = (sort_info.get("direction") == "asc")
-        result = result.sort_values(by=sort_info["field"], ascending=ascending)
+        result = result.sort_values(by=sort_field, ascending=ascending)
 
     limit = plan.get("limit")
     if limit and isinstance(limit, int) and limit > 0:
@@ -1721,6 +1758,16 @@ def execute_query_plan(tickets_data, plan):
     }
 
     return result, summary_stats
+
+
+def _render_query_breakdown(summary_stats, group_by):
+    groups = summary_stats.get("group_stats")
+    if groups is None:
+        return None
+    if not groups:
+        return "No matching tickets were found in AMS."
+    rows = [f"- **{row.get(group_by) or 'Other'}**: {row['ticket_count']}" for row in groups]
+    return "### Ticket breakdown\n\n" + "\n".join(rows)
 
 
 async def generate_natural_response(user_question, plan, summary_stats, df_filtered, history=None):
@@ -1776,6 +1823,11 @@ async def generate_natural_response(user_question, plan, summary_stats, df_filte
     if count == 0 and intent not in ["root_cause_analysis", "summarization", "comparison"]:
         target_str = f" for client **{client}**" if client else ""
         return f"I couldn't find any tickets matching your request (**'{user_question}'**){target_str} in the current dataset."
+
+    if plan.get("group_by_field") and intent != "ranking":
+        breakdown = _render_query_breakdown(summary_stats, plan["group_by_field"])
+        if breakdown:
+            return breakdown
 
     # Fast-Path 5: Simple Count / "How many" Queries (0 Tokens)
     if (intent == "counting" or conv_intent == "count_only" or "how many" in user_question.lower() or "count" in user_question.lower()) and not any(k in user_question.lower() for k in ["why", "compare", "breakdown", "summarize", "situation"]):
@@ -1971,7 +2023,7 @@ Write the natural language response:
         target_str = f" for client **{client}**" if client else ""
         return f"I couldn't find any tickets matching your request (**'{user_question}'**){target_str} in the current dataset."
 
-    if intent in ["ranking", "counting", "aggregation"] and summary_stats.get("group_stats") and not group_req:
+    if intent in ["ranking", "counting", "aggregation"] and summary_stats.get("group_stats"):
         top_group = summary_stats["group_stats"][0]
         field_name = plan.get("group_by_field") or "category"
         top_name = top_group.get(field_name) or top_group.get("clientName") or top_group.get("assigntogroup")
@@ -2032,7 +2084,7 @@ async def execute_planned_ticket_query(tickets_data, query_plan, user_question, 
         "conversational_intent": "normal",
         "is_follow_up": bool(history and len(history) > 0),
         "group_by_field": query_plan.get("group_by_field"),
-        "aggregation": {"function": "count", "field": "ticketNo"} if is_count else {"function": None, "field": None},
+        "aggregation": agg if isinstance(agg, dict) else ({"function": "count", "field": "ticketNo"} if is_count else {"function": None, "field": None}),
         "comparison_clients": [c for c in meta.get("unique_clients", []) if c.lower() in user_question.lower()],
         "sort": {"field": "createddate", "direction": "desc"},
         "limit": query_plan.get("limit"),
@@ -2048,14 +2100,23 @@ async def execute_planned_ticket_query(tickets_data, query_plan, user_question, 
     df_filtered, summary_stats = execute_query_plan(norm_tickets, plan)
     count = len(df_filtered)
 
+    if plan.get("group_by_field"):
+        breakdown = _render_query_breakdown(summary_stats, plan["group_by_field"])
+        if breakdown:
+            return breakdown, df_filtered.to_dict(orient="records") if count else None
+
     # Use lightweight dynamic narrative generator to ensure varied, fresh, non-repetitive responses
+    sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
     try:
         from services.chat_orchestrator import generate_dynamic_query_narrative
-        sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
         natural_answer = await generate_dynamic_query_narrative(user_question, query_plan, count, summary_stats, sample_records)
     except Exception as synth_err:
         print(f"[QueryEngine] Dynamic narrative synthesis fallback: {synth_err}")
         natural_answer = await generate_natural_response(user_question, plan, summary_stats, df_filtered, history=history)
+
+    # Post-generation fact-checking & grounding guardrail
+    from services.guardrails import verify_and_ground_ticket_narrative
+    natural_answer = verify_and_ground_ticket_narrative(natural_answer, count, sample_records, query_plan)
 
     records_out = df_filtered.to_dict(orient="records") if not df_filtered.empty else None
     return natural_answer, records_out
@@ -2087,6 +2148,10 @@ async def process_ticket_query(tickets_data, user_question, history=None):
 
     # Step 4: Generate natural language response backed by concrete results
     natural_answer = await generate_natural_response(user_question, plan, summary_stats, df_filtered, history=history)
+
+    sample_records = df_filtered.head(5).to_dict(orient="records") if not df_filtered.empty else []
+    from services.guardrails import verify_and_ground_ticket_narrative
+    natural_answer = verify_and_ground_ticket_narrative(natural_answer, len(df_filtered), sample_records, plan)
 
     # Return records as list of dicts for frontend response
     records_out = df_filtered.to_dict(orient="records") if not df_filtered.empty else None

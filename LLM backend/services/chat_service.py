@@ -4,9 +4,12 @@ services/chat_service.py - Orchestrates LLM Query Processing, Ticket Creation Li
  
 import re
 from typing import Dict, Any, List, Optional
-from ams_api import AMSApi
+from fastapi import HTTPException
+from ams_api import AMSApi, AMSUnauthorized
 from query_engine import process_ticket_query
 from models.schemas import ChatRequest, ChatResponse
+from services.classification_config import extract_requested_priorities
+from services.chat_orchestrator import sanitize_and_prune_history
 from services.ticket_creator_service import (
     TicketSessionManager,
     is_ticket_creation_prompt,
@@ -55,6 +58,9 @@ class ChatService:
         token = request.Bearer.replace("Bearer ", "").strip()
         session_key = TicketSessionManager.get_session_key(request.username, request.session_id)
         active_draft = request.ticket_draft or TicketSessionManager.get_draft(session_key)
+
+        # Sanitize and prune conversation history (sliding window of max 6 turns, strips Base64 images & massive table dumps)
+        request.history = sanitize_and_prune_history(request.history, max_turns=6, max_char_len=400)
  
         # Extract screenshot centrally from request or ticket_draft
         incoming_screenshot = (
@@ -83,6 +89,8 @@ class ChatService:
                     # Fetches client name from web.config endpoint (http://172.16.32.50/api/Ticket/GetClientNames?email=...)
                     customer_client = await ams.get_client_company_name(user_clean_email)
                     _customer_client_cache[user_clean_email] = customer_client
+                except AMSUnauthorized:
+                    raise
                 except Exception as ex:
                     print(f"[ChatService] Could not resolve client name for {user_clean_email}: {ex}")
                     customer_client = None
@@ -162,6 +170,19 @@ class ChatService:
                 known_clients=known_clients
             )
  
+            if intent in {"clarify_confirmation", "clarify_priority"}:
+                return ChatResponse(
+                    success=True,
+                    response=(
+                        "Which priority should I use? Reply with **Very High**, **High**, **Medium**, or **Low**."
+                        if intent == "clarify_priority"
+                        else "Your draft is still open. Reply **Submit** to continue, **Cancel** to discard it, or tell me what to change."
+                    ),
+                    ticket_draft=active_draft,
+                    action_type="ticket_preview",
+                    count=0,
+                )
+
             # --- User cancels ticket creation ---
             if intent == "cancel":
                 TicketSessionManager.clear_draft(session_key)
@@ -183,7 +204,7 @@ class ChatService:
                 else:
                     updated = await extract_fields_with_llm(request.message, active_draft, known_clients)
                     for k, v in updated.items():
-                        if v is not None:
+                        if k not in {"priority", "_user_explicit_priority", "_priority_source"} and v is not None:
                             active_draft[k] = v
  
                 # Customer cannot change client name to another company
@@ -357,6 +378,15 @@ class ChatService:
  
             # --- BRANCH 2: CREATE_TICKET (Issue reported, technical problem, error, or screenshot) ---
             elif action == "CREATE_TICKET":
+                requested_priorities = extract_requested_priorities(request.message)
+                if len(requested_priorities) > 1:
+                    return ChatResponse(
+                        success=True,
+                        response="Which priority should I use?",
+                        action_type="chat",
+                        count=0,
+                    )
+
                 initial_draft = create_initial_draft(
                     user_email=request.username,
                     locked_client=customer_client if is_customer else None
@@ -367,13 +397,11 @@ class ChatService:
                 # Merge pre-extracted fields from Pass 1
                 extracted_fields = decision.get("ticket_fields") or {}
                 for k, v in extracted_fields.items():
-                    if v is not None and str(v).strip():
+                    if k not in {"_user_explicit_priority", "_priority_source"} and v is not None and str(v).strip():
                         initial_draft[k] = v
 
-                # Tag if user explicitly specified a priority in message
-                m_prio = re.search(r'\b(?:very\s+high|critical|high|medium|med|moderate|low|minor|trivial|p1|p2|p3|p4)\b', request.message, re.IGNORECASE)
-                if m_prio:
-                    initial_draft["_user_explicit_priority"] = m_prio.group(0)
+                if requested_priorities:
+                    initial_draft["_user_explicit_priority"] = next(iter(requested_priorities))
 
                 # Customer client cannot be overridden by extraction
                 if is_customer and customer_client:
@@ -406,22 +434,10 @@ class ChatService:
  
             # --- BRANCH 3: QUERY_TICKETS (Ticket search, status, count, filtering, analytics) ---
             else:
-                # Lazy-fetch AMS tickets (uses 30s in-memory cache)
-                tickets_data = []
-                try:
-                    tickets_data = await ams.get_tickets(timeout=10) or []
-                except Exception as ams_err:
-                    print(f"[ChatService] Warning: AMS ticket API fetch failed: {ams_err}")
-                    tickets_data = []
- 
-                if not tickets_data:
-                    try:
-                        from scratch.test_updated_ticket_search import get_test_ticket_dataset
-                        tickets_data = get_test_ticket_dataset()
-                        print("[ChatService] Loaded fallback ticket dataset.")
-                    except Exception as fallback_err:
-                        print(f"[ChatService] Could not load fallback dataset: {fallback_err}")
- 
+                if is_customer and not customer_client:
+                    raise HTTPException(status_code=403, detail="AMS customer organization could not be verified.")
+                tickets_data = await ams.get_tickets(timeout=10)
+
                 query_plan = decision.get("query_plan") or {}
  
                 # Strict customer isolation: customer users can ONLY access their own client tickets
@@ -478,6 +494,8 @@ class ChatService:
                     error=None
                 )
  
+        except (AMSUnauthorized, HTTPException):
+            raise
         except Exception as err:
             return ChatResponse(
                 success=False,
@@ -488,5 +506,3 @@ class ChatService:
                 action_type="query",
                 error=str(err)
             )
- 
- 

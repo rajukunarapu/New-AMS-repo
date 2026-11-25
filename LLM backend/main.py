@@ -148,6 +148,8 @@ if __name__ == "__main__":
     else:
         host = "0.0.0.0"
 
+    host = str(host).strip().rstrip("/").strip()
+
     print(f"Starting AMS AI Backend on {host}:{port} (IIS/Manual Port Mode)...")
 
     if getattr(sys, "frozen", False):

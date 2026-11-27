@@ -12,7 +12,7 @@ Directly analyzes user prompts in a single LLM call without hardcoded keyword ru
 import re
 import json
 from typing import Dict, Any, List, Optional
-from query_engine import _call_llm, requested_ticket_status
+from query_engine import _call_llm, requested_ticket_status, SAP_AI_NAME
 from services.classification_config import extract_requested_priorities
 from services.guardrails import check_fast_guardrail, verify_and_ground_ticket_narrative
 
@@ -50,7 +50,7 @@ ACTIONS:
        "client": "<client name e.g. ATG, Karamtara, or null>",
        "status": "<Open|Closed|Pending|In Progress or null>",
        "priority": "<High|Medium|Low or null>",
-       "group_or_module": "<ONLY if user specifically names a known functional group like SAP-FICO, SAP-MM, SAP-SD, SAP-BASIS, SAP-ABAP, RPA; for explicit description mentions or topics like Joule, invoice, or PO, leave this null and put the term in semantic_search>",
+       "group_or_module": "<ONLY if user specifically names a known functional group like SAP-FICO, SAP-MM, SAP-SD, SAP-BASIS, SAP-ABAP, SAP-AI (also SAP AI or SAPAI), RPA; for explicit description mentions or topics like Joule, invoice, or PO, leave this null and put the term in semantic_search>",
        "ticket_no": "<ticket ID e.g. ATG2608001, or null>",
        "aggregation": "<count|list|detail|summary or null>",
        "limit": <integer limit when user asks for a specific count e.g. 'last 5', 'top 10', 'first 3', or null>,
@@ -333,6 +333,7 @@ STRICT CUSTOMER ISOLATION POLICY:
 
     # Detect if user message is querying tickets, follow-up filter, or ticket attributes
     is_query = bool(re.search(r'\b(?:tickets?|issues?|show|find|list|count|status|how many|records?|pending|breached)\b', msg_lower))
+    is_query = is_query or bool(re.fullmatch(SAP_AI_NAME, msg_lower.rstrip("?.! ")))
     is_follow_up_filter = bool(re.search(r'\b(?:these|those|them|only\s+open|only\s+closed|only\s+high|which\s+(?:ones|are)|what\s+about)\b', msg_lower))
     is_ticket_attr_query = bool(re.search(
         r'\b(?:who\s+(?:is\s+)?(?:reported|assigned|created|raised)|reported\s+by|reporter|assignee|assigned\s+to|assigned\s+group|which\s+priority|what\s+priority|priority\s+of|what\s+is\s+(?:the\s+)?(?:status|description|error|date|time|priority|group|module)|description\s+of|when\s+(?:was\s+it|is\s+it)\s+(?:reported|created|logged)|details?\s+(?:of|for|about)?)\b',

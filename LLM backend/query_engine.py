@@ -24,7 +24,7 @@ from models.schemas import normalize_ticket_type
 from services.classification_config import extract_requested_priorities, normalize_priority_string
 
 try:
-    from Module_Router import GROUPS, GROUP_KEYWORDS, _match_group_from_text
+    from Module_Router import GROUPS, GROUP_KEYWORDS, SAP_AI_NAME, _match_group_from_text
 except Exception:
     GROUPS = [
         "RPA", "SAP-FICO", "SAP-SD", "SAP ABAP", "SAP-BASIS", "SAP-PM", "SAP-MM",
@@ -38,6 +38,7 @@ except Exception:
     ]
     GROUP_KEYWORDS = {}
     _match_group_from_text = None
+    SAP_AI_NAME = r"(?<!\w)sap[\s_/-]*ai(?!\w)"
 
 GROUP_ALIASES = {
     # SAP Modules
@@ -113,6 +114,11 @@ GROUP_ALIASES = {
     "sap sac": "SAP SAC",
     "ariba": "SAP ARIBA",
     "sap ariba": "SAP ARIBA",
+    "sap ai": "SAP-AI",
+    "sap-ai": "SAP-AI",
+    "sap_ai": "SAP-AI",
+    "sap/ai": "SAP-AI",
+    "sapai": "SAP-AI",
     "btp": "SAP-BTP",
     "sap btp": "SAP-BTP",
     "sap-btp": "SAP-BTP",
@@ -174,6 +180,9 @@ def normalize_group_name(group_input: Optional[str]) -> Optional[str]:
     g_clean = str(group_input).strip()
     g_lower = g_clean.lower()
 
+    if re.fullmatch(SAP_AI_NAME, g_lower):
+        return "SAP-AI"
+
     if g_lower in GROUP_ALIASES:
         return GROUP_ALIASES[g_lower]
 
@@ -187,7 +196,7 @@ def normalize_group_name(group_input: Optional[str]) -> Optional[str]:
         if g_cand_nohyphen == g_nohyphen:
             return g
 
-    if _match_group_from_text:
+    if _match_group_from_text and g_lower != "ai":
         matched = _match_group_from_text(g_clean)
         if matched:
             return matched
@@ -643,8 +652,12 @@ def sanitize_and_enforce_intent(plan, user_question, meta):
 
     # 1. Dynamic group / module entity extraction if missed by LLM
     issue = _query_issue_phrase(user_question)
+    if issue and re.fullmatch(SAP_AI_NAME, issue, re.IGNORECASE):
+        issue = None
     group_question = user_question[:user_question.rfind(issue)] if issue else user_question
     group_val = plan.get("detected_group_or_module")
+    if re.search(SAP_AI_NAME, group_question, re.IGNORECASE) and normalize_group_name(group_val) in {None, "SAP", "SAP-AI", "Data Analytics & AI"}:
+        group_val = "SAP-AI"
     if not group_val:
         grp_match = re.search(
             r'\b(?:assigned\s+to\s+group|assigned\s+to|group\s*name|assigned\s*group|module\s*name|module|group)\s*(?:is|:|=|\b)?\s*([A-Za-z0-9_\-\s/&\.]+)',
@@ -724,6 +737,8 @@ def sanitize_and_enforce_intent(plan, user_question, meta):
         elif search:
             noise = re.sub(rf"\b(?:{_OPEN_TEXT}|{_STATUS_TERMS})\b", "", q_lower)
             noise = re.sub(r"\bp[1-4]\b", "", noise)
+            if plan.get("detected_group_or_module") == "SAP-AI":
+                noise = re.sub(SAP_AI_NAME, "", noise)
             if plan.get("detected_priority"):
                 noise = re.sub(r"\b(?:very high|high|medium|low|critical)\b", "", noise)
             for value in (group_val, plan.get("detected_client")):
@@ -742,7 +757,9 @@ def sanitize_and_enforce_intent(plan, user_question, meta):
         canonical_group = normalize_group_name(group_val).lower()
         names = [canonical_group, *(alias for alias, group in GROUP_ALIASES.items() if group.lower() == canonical_group)]
         normalized_search = re.sub(r"[\s_-]+", " ", search.lower())
-        if any(normalized_search == re.sub(r"[\s_-]+", " ", name) for name in names):
+        if (
+            canonical_group == "sap-ai" and re.fullmatch(SAP_AI_NAME, search.lower())
+        ) or any(normalized_search == re.sub(r"[\s_-]+", " ", name) for name in names):
             plan["semantic_text_search"] = None
             plan["semantic_keywords"] = []
 
@@ -1657,7 +1674,7 @@ def execute_query_plan(tickets_data, plan):
             r"[\s_-]+".join(re.escape(part) for part in re.split(r"[\s_-]+", name))
             for name in names
         ]
-        pattern = r"(?<!\w)(?:" + "|".join(variants) + r")(?!\w)"
+        pattern = SAP_AI_NAME if mention_group == "SAP-AI" else r"(?<!\w)(?:" + "|".join(variants) + r")(?!\w)"
         descriptions = result.get("descriptionofTicket", pd.Series("", index=result.index))
         result = result.loc[descriptions.fillna("").astype(str).str.contains(pattern, case=False, regex=True)]
 

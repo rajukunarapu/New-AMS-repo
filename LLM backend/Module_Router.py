@@ -94,6 +94,9 @@ GROUP_KEYWORDS = {
 MODULE_KEYWORDS = GROUP_KEYWORDS
 
 
+SAP_AI_NAME = r"(?<!\w)sap[\s_/-]*ai(?!\w)"
+
+
 # Exact assignment-group names and product aliases can route without a model.
 _SPECIFIC_ALIASES = {
     "SAP-FICO": r"fico",
@@ -111,7 +114,7 @@ _SPECIFIC_ALIASES = {
     "Dot Net Technologies": r"dotnet|asp\.net",
     "RPA": r"uipath|automation anywhere|blue prism",
     "Mendix": r"mendix",
-    "SAP-AI": r"joule|sap ai core",
+    "SAP-AI": rf"{SAP_AI_NAME}|joule|sap ai core",
 }
 
 _SPECIFIC_PATTERNS = {
